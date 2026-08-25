@@ -1,0 +1,23 @@
+ DOCUMENTO DE ANÁLISIS DE DETALLE 
+INGETEAM REV.:_ FECHA: 09/01/13 PÁG.: 14 DE 17 
+Tracker alarms  
+   
+0x01 Pulses Too much time without pulses from encoder  
+0x02 Reference  Tracker lost reference  
+0x04 Limit switch  Limit switch pushed 
+0x08 Wind alarm  Too much wind detected 
+0x10 Pressure alarm  Oil pressure alarm 
+ 
+If the firmware is another firmware other signals are displayed in the same 
+positions: 
+0x00xx Reference power for the slaves. MS operation (in %)  (only if MS inverter) 
+0x0080 Bit indicating that the 1000V Kit has worked.(only if 1000Vdc kit exists) 
+0x0100 Bit indicating that the inverter is the master of MS system. (only if MS inverter) 
+0x0200 Bit indicating that the inverter has working permission into the MS system. (only if MS inverter)  
+0x0400 Bit indicating that the inverter limits its power to avoid DC bus falling.   
+0x0800 Bit indicating that the inverter limits its power because of Modbus order.  
+0x1000 Bit indicating that the inverter limits its power because of  high frequency.  
+0x2000 Bit indicating that the inverter limits its power because of grid voltage failure.  
+0x4000 Bit indicating that the inverter has detected a voltage dip. 
+0x8000 Bit indicating that the inverter has reduced Pac due to hi Vdc voltage. 
+ 

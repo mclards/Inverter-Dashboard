@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inverter Dashboard Sign In</title>
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#050c17" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="Inverter Dashboard" />
+    <link rel="apple-touch-icon" href="/assets/icon-256.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      (function () {
+        try {
+          const theme = localStorage.getItem("adsi_theme") === "light" ? "light" : "dark";
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch (_) {
+          document.documentElement.setAttribute("data-theme", "dark");
+        }
+      })();
+    </script>
+    <style>
+      :root {
+        --bg: #050c17;
+        --bg2: #080f1c;
+        --surface: #0c1526;
+        --surface2: #0f1d32;
+        --border: #182a48;
+        --border2: #243d66;
+        --text: #dce8fa;
+        --text2: #8aa3cc;
+        --text3: #526a92;
+        --accent: #2d7ef7;
+        --accent2: #1a60d0;
+        --green: #10b370;
+        --red: #e03560;
+      }
+
+      :root[data-theme="light"] {
+        --bg: #e8dfcf;
+        --bg2: #ded4c2;
+        --surface: #f1e8d8;
+        --surface2: #ebe1d0;
+        --border: #b9ab96;
+        --border2: #a8967f;
+        --text: #2f271a;
+        --text2: #524533;
+        --text3: #7b6a54;
+        --accent: #2b67ad;
+        --accent2: #1f4f89;
+        --green: #0f8f5b;
+        --red: #ba3555;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: "Sora", "Segoe UI", sans-serif;
+        color: var(--text);
+        background: var(--bg);
+      }
+
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+
+      /* ── Background texture ──────────────────────────────────────────────── */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(45, 126, 247, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(45, 126, 247, 0.03) 1px, transparent 1px);
+        background-size: 32px 32px;
+      }
+
+      :root[data-theme="light"] body::before {
+        background-image:
+          linear-gradient(rgba(126, 106, 78, 0.14) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(126, 106, 78, 0.14) 1px, transparent 1px);
+      }
+
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(ellipse 60% 40% at 15% -10%, rgba(45, 126, 247, 0.1) 0%, transparent 60%),
+          radial-gradient(ellipse 50% 35% at 90% -5%, rgba(16, 179, 112, 0.06) 0%, transparent 55%);
+      }
+
+      :root[data-theme="light"] body::after {
+        background:
+          radial-gradient(ellipse 60% 40% at 15% -10%, rgba(178, 144, 86, 0.18) 0%, transparent 60%),
+          radial-gradient(ellipse 50% 35% at 90% -5%, rgba(138, 118, 87, 0.11) 0%, transparent 55%);
+      }
+
+      /* ── Login card ──────────────────────────────────────────────────────── */
+      .login-shell {
+        position: relative;
+        z-index: 1;
+        width: min(92vw, 400px);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 28px 36px 22px;
+        background:
+          linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, transparent) 0%, transparent 40%),
+          linear-gradient(160deg, var(--surface) 0%, var(--bg2) 100%);
+        box-shadow:
+          0 20px 48px rgba(0, 0, 0, 0.44),
+          0 2px 8px rgba(0, 0, 0, 0.2),
+          inset 0 1px 0 rgba(148, 179, 230, 0.1);
+        overflow: hidden;
+      }
+
+      .login-shell::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent 5%, var(--accent) 50%, transparent 95%);
+        opacity: 0.5;
+        pointer-events: none;
+      }
+
+      :root[data-theme="light"] .login-shell {
+        background:
+          linear-gradient(180deg, color-mix(in srgb, var(--accent) 6%, transparent) 0%, transparent 40%),
+          linear-gradient(160deg, #f3ebdd 0%, #e8ddca 100%);
+        box-shadow:
+          0 16px 36px rgba(77, 64, 43, 0.18),
+          0 2px 6px rgba(77, 64, 43, 0.1),
+          inset 0 1px 0 rgba(255, 255, 255, 0.6);
+      }
+
+      /* ── Brand ───────────────────────────────────────────────────────────── */
+      .brand {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 22px;
+      }
+
+      .brand-logo {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .brand-logo::before {
+        content: "";
+        position: absolute;
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        background: radial-gradient(circle, color-mix(in srgb, var(--accent) 18%, transparent) 0%, transparent 70%);
+        pointer-events: none;
+      }
+
+      .brand img {
+        position: relative;
+        width: 52px;
+        height: 52px;
+        object-fit: contain;
+        filter: drop-shadow(0 2px 8px rgba(45, 126, 247, 0.2));
+      }
+
+      /* ── Theme Toggle Button ──────────────────────────────────────────────── */
+      .theme-toggle-btn {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        width: 32px;
+        height: 32px;
+        border-radius: 9px;
+        background: var(--surface2);
+        border: 1px solid var(--border2);
+        color: var(--text2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.18s ease;
+        z-index: 10;
+      }
+      .theme-toggle-btn:hover {
+        background: color-mix(in srgb, var(--accent) 18%, transparent);
+        border-color: var(--accent);
+        color: var(--text);
+        transform: scale(1.05);
+      }
+      .theme-icon {
+        width: 16px;
+        height: 16px;
+        pointer-events: none;
+      }
+      :root[data-theme="dark"] .theme-icon-sun { display: none; }
+      :root[data-theme="dark"] .theme-icon-moon { display: block; }
+      :root[data-theme="light"] .theme-icon-sun { display: block; }
+      :root[data-theme="light"] .theme-icon-moon { display: none; }
+
+      .brand-text {
+        text-align: center;
+      }
+
+      .brand-text h1 {
+        font-size: 15px;
+        font-weight: 800;
+        letter-spacing: 1.2px;
+        color: var(--text);
+        text-transform: uppercase;
+      }
+
+      /* ── Inputs ──────────────────────────────────────────────────────────── */
+      .field {
+        position: relative;
+        margin-top: 11px;
+      }
+
+      .field:first-of-type {
+        margin-top: 0;
+      }
+
+      .field-label {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        color: var(--text2);
+        text-transform: uppercase;
+      }
+
+      .inp {
+        width: 100%;
+        height: 44px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: color-mix(in srgb, var(--bg) 80%, var(--surface));
+        color: var(--text);
+        font-family: "Sora", "Segoe UI", sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        padding: 0 14px;
+        text-align: center;
+        outline: none;
+        transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
+      }
+
+      /* Login form inputs carry a leading icon (and a trailing toggle on the
+         password), so they're left-aligned with room for the adornments. */
+      .field--icon .inp {
+        text-align: left;
+        padding-left: 42px;
+      }
+
+      .field--pw .inp {
+        padding-right: 42px;
+      }
+
+      .field-icon {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 17px;
+        height: 17px;
+        color: var(--text3);
+        pointer-events: none;
+        transition: color 0.18s;
+      }
+
+      .field--icon:focus-within .field-icon {
+        color: var(--accent);
+      }
+
+      .pw-toggle {
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        border: none;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--text3);
+        cursor: pointer;
+        transition: color 0.14s, background 0.14s;
+      }
+
+      .pw-toggle:hover {
+        color: var(--text);
+        background: color-mix(in srgb, var(--accent) 12%, transparent);
+      }
+
+      .pw-toggle svg {
+        width: 17px;
+        height: 17px;
+      }
+
+      .inp::placeholder {
+        color: var(--text3);
+        font-weight: 400;
+      }
+
+      .inp:hover {
+        border-color: var(--border2);
+        background: color-mix(in srgb, var(--bg) 60%, var(--surface));
+      }
+
+      .inp:focus {
+        border-color: var(--accent);
+        background: color-mix(in srgb, var(--bg) 60%, var(--surface));
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+      }
+
+      :root[data-theme="light"] .inp {
+        background: rgba(249, 242, 229, 0.98);
+        color: #2e2418;
+        border-color: #c0ae94;
+      }
+
+      :root[data-theme="light"] .inp:hover {
+        border-color: #a89575;
+        background: rgba(255, 249, 238, 0.99);
+      }
+
+      :root[data-theme="light"] .inp:focus {
+        border-color: #2b67ad;
+        box-shadow: 0 0 0 3px rgba(43, 103, 173, 0.14);
+      }
+
+      /* ── Remember checkbox ───────────────────────────────────────────────── */
+      .remember {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 8px;
+        margin-top: 14px;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text2);
+        user-select: none;
+        cursor: pointer;
+      }
+
+      .remember input {
+        width: 15px;
+        height: 15px;
+        accent-color: var(--accent);
+        cursor: pointer;
+      }
+
+      /* ── Buttons ─────────────────────────────────────────────────────────── */
+      .btn {
+        width: 100%;
+        height: 42px;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        font-family: "Sora", "Segoe UI", sans-serif;
+        font-size: 13.5px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        cursor: pointer;
+        transition: filter 0.14s, transform 0.1s, box-shadow 0.18s;
+      }
+
+      .btn:active {
+        transform: translateY(1px);
+      }
+
+      .btn-primary {
+        color: #fff;
+        background: linear-gradient(135deg, var(--accent2), var(--accent));
+        box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 30%, transparent);
+      }
+
+      #loginBtn {
+        margin-top: 18px;
+      }
+
+      .btn-primary:hover {
+        filter: brightness(1.1);
+        box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 36%, transparent);
+      }
+
+      /* ── Links ───────────────────────────────────────────────────────────── */
+      .links {
+        margin-top: 16px;
+        text-align: center;
+        font-size: 11.5px;
+        line-height: 1.8;
+        color: var(--text3);
+      }
+
+      .links a {
+        color: var(--text2);
+        text-decoration: none;
+        cursor: pointer;
+        transition: color 0.14s;
+      }
+
+      .links a:hover {
+        color: var(--accent);
+      }
+
+      .links .sep {
+        display: inline-block;
+        width: 3px;
+        height: 3px;
+        margin: 0 6px;
+        border-radius: 50%;
+        background: var(--text3);
+        vertical-align: middle;
+        opacity: 0.6;
+      }
+
+      :root[data-theme="light"] .links a {
+        color: #5b4a35;
+      }
+
+      :root[data-theme="light"] .links a:hover {
+        color: #2b67ad;
+      }
+
+      /* ── Modal overlay ───────────────────────────────────────────────────── */
+      #modal-bg,
+      #reset-bg {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        padding: 14px;
+        background: rgba(2, 8, 16, 0.82);
+        backdrop-filter: blur(6px);
+        justify-content: center;
+        align-items: center;
+      }
+
+      :root[data-theme="light"] #modal-bg,
+      :root[data-theme="light"] #reset-bg {
+        background: rgba(180, 168, 148, 0.6);
+      }
+
+      .modal {
+        width: min(92vw, 380px);
+        border: 1px solid var(--border2);
+        border-radius: 16px;
+        padding: 24px 28px;
+        background:
+          linear-gradient(180deg, color-mix(in srgb, var(--accent) 4%, transparent) 0%, transparent 30%),
+          linear-gradient(160deg, var(--surface) 0%, var(--bg2) 100%);
+        box-shadow:
+          0 20px 44px rgba(0, 0, 0, 0.48),
+          inset 0 1px 0 rgba(148, 179, 230, 0.09);
+      }
+
+      :root[data-theme="light"] .modal {
+        background: linear-gradient(160deg, #f3ebdd 0%, #e8ddca 100%);
+        border-color: #b09a7a;
+        box-shadow: 0 16px 36px rgba(77, 64, 43, 0.22);
+      }
+
+      .modal h3 {
+        font-size: 15px;
+        font-weight: 700;
+        margin-bottom: 16px;
+        color: var(--text);
+        letter-spacing: 0.2px;
+        text-align: center;
+      }
+
+      .modal .field {
+        margin-top: 10px;
+      }
+
+      .modal .field:first-of-type {
+        margin-top: 0;
+      }
+
+      .modal-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .modal-actions .btn {
+        flex: 1;
+        margin-top: 0;
+        height: 38px;
+        font-size: 12.5px;
+      }
+
+      .btn-outline {
+        background: transparent;
+        border-color: var(--border2);
+        color: var(--text2);
+      }
+
+      .btn-outline:hover {
+        border-color: var(--accent);
+        color: var(--text);
+      }
+
+      /* ── Toast message ───────────────────────────────────────────────────── */
+      .msg {
+        position: fixed;
+        left: 50%;
+        bottom: 24px;
+        transform: translateX(-50%);
+        padding: 10px 18px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.2px;
+        z-index: 100;
+        display: none;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+      }
+
+      .msg.success {
+        background: linear-gradient(135deg, #0c9e62, #10b370);
+        color: #fff;
+      }
+
+      .msg.error {
+        background: linear-gradient(135deg, #c32e52, #e03560);
+        color: #fff;
+      }
+
+      /* ── Modal open blur ─────────────────────────────────────────────────── */
+      body.modal-open .login-shell {
+        filter: blur(2px) saturate(0.8);
+        transform: scale(0.988);
+        transition: filter 0.18s ease, transform 0.18s ease;
+      }
+
+      /* ── Entrance + dismiss (shared motion language with loading.html) ────── */
+      .login-shell {
+        animation: cardIn 0.42s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+      }
+
+      @keyframes cardIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px) scale(0.985);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      body.login-exit .login-shell {
+        animation: none;
+        opacity: 0;
+        transform: scale(0.97) translateY(-6px);
+        transition: opacity 0.22s ease, transform 0.22s ease;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="login-shell">
+      <button type="button" id="loginThemeToggle" class="theme-toggle-btn" aria-label="Toggle light / dark theme" title="Toggle Light / Dark Theme">
+        <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+        </svg>
+        <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+        </svg>
+      </button>
+
+      <div class="brand">
+        <div class="brand-logo">
+          <img id="brandLogo" class="app-icon" src="assets/logo.png" alt="Inverter Dashboard" onerror="if(!this.dataset.tried){this.dataset.tried=1;this.src='../assets/logo.png'}else if(this.dataset.tried==1){this.dataset.tried=2;this.src='assets/adsi_logo.png'}else if(this.dataset.tried==2){this.dataset.tried=3;this.src='/assets/logo.png'}" />
+        </div>
+        <div class="brand-text">
+          <h1>Inverter Dashboard</h1>
+        </div>
+      </div>
+
+      <div class="field field--icon" id="serverUrlField" title="Target Server URL (Gateway or Remote Plant Address)">
+        <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect width="20" height="8" x="2" y="2" rx="2" ry="2"/>
+          <rect width="20" height="8" x="2" y="14" rx="2" ry="2"/>
+          <line x1="6" x2="6.01" y1="6" y2="6"/>
+          <line x1="6" x2="6.01" y1="18" y2="18"/>
+        </svg>
+        <input id="serverUrl" class="inp" type="text" placeholder="Server URL (Default: http://127.0.0.1:3500)" aria-label="Server URL" autocomplete="off" />
+      </div>
+
+      <div class="field field--icon">
+        <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+        <input id="username" class="inp" type="text" placeholder="Username" aria-label="Username" autocomplete="username" autofocus />
+      </div>
+      <div class="field field--icon field--pw">
+        <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="4" y="11" width="16" height="10" rx="2" />
+          <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+        </svg>
+        <input id="password" class="inp" type="password" placeholder="Password" aria-label="Password" autocomplete="current-password" />
+        <button type="button" id="pwToggle" class="pw-toggle" aria-label="Show password" title="Show password">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </button>
+      </div>
+      <label class="remember" id="rememberMeRow"><input type="checkbox" id="rememberMe" /> Remember me</label>
+      <button id="loginBtn" class="btn btn-primary">Sign In</button>
+
+      <div class="links">
+        <a id="changeUserPass">Change operator credentials</a>
+        <span class="sep"></span>
+        <a id="resetPass">Recover access</a>
+      </div>
+    </main>
+
+    <div id="modal-bg">
+      <div class="modal">
+        <h3>Update Operator Credentials</h3>
+        <div class="field">
+          <label class="field-label" for="authKey">Authorization Key</label>
+          <input id="authKey" class="inp" type="password" placeholder="Authorization Key" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label class="field-label" for="newUsername">New Username</label>
+          <input id="newUsername" class="inp" type="text" placeholder="New Username" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label class="field-label" for="newPassword">New Password</label>
+          <input id="newPassword" class="inp" type="password" placeholder="New Password" autocomplete="off" />
+        </div>
+        <div class="modal-actions">
+          <button id="saveChange" class="btn btn-primary">Save Changes</button>
+          <button id="cancelChange" class="btn btn-outline">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="reset-bg">
+      <div class="modal">
+        <h3>Restore Default Administrator Access</h3>
+        <div class="field">
+          <label class="field-label" for="resetAuthKey">Authorization Key</label>
+          <input id="resetAuthKey" class="inp" type="password" placeholder="Authorization Key" autocomplete="off" />
+        </div>
+        <div class="modal-actions">
+          <button id="resetSave" class="btn btn-primary">Restore Access</button>
+          <button id="resetCancel" class="btn btn-outline">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="msg" class="msg"></div>
+
+    <script>
+      window.addEventListener("DOMContentLoaded", async () => {
+        const serverUrlInput = document.getElementById("serverUrl");
+        const usernameInput = document.getElementById("username");
+        const passwordInput = document.getElementById("password");
+        const rememberCheck = document.getElementById("rememberMe");
+        const modalBg = document.getElementById("modal-bg");
+        const resetBg = document.getElementById("reset-bg");
+        const electronLoginApi = window.loginAPI;
+
+        const themeToggleBtn = document.getElementById("loginThemeToggle");
+        if (themeToggleBtn) {
+          themeToggleBtn.addEventListener("click", () => {
+            const current = document.documentElement.getAttribute("data-theme") || "dark";
+            const next = current === "light" ? "dark" : "light";
+            document.documentElement.setAttribute("data-theme", next);
+            localStorage.setItem("adsi_theme", next);
+          });
+        }
+
+        // Initialize Server URL from storage or current origin
+        const defaultServer = (window.location.protocol.startsWith("http") && window.location.origin !== "null")
+          ? window.location.origin
+          : "http://127.0.0.1:3500";
+        const savedServer = localStorage.getItem("inverter_target_server") || defaultServer;
+        if (serverUrlInput) serverUrlInput.value = savedServer;
+
+        const api = electronLoginApi || {
+          lastError: "",
+          async checkLogin(username, password) {
+            this.lastError = "";
+            const targetServer = (serverUrlInput?.value || savedServer).trim().replace(/\/$/, "");
+            try {
+              const response = await fetch(`${targetServer}/api/auth/login`, {
+                method: "POST",
+                credentials: "include",
+                cache: "no-store",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, password }),
+              });
+              const payload = await response.json().catch(() => ({}));
+              if (!response.ok) {
+                this.lastError = String(payload?.error || "The sign-in details are not valid.");
+                return false;
+              }
+              localStorage.setItem("inverter_target_server", targetServer);
+              localStorage.setItem("adsi_operator_name", payload.username || username);
+              localStorage.setItem("adsi_operator_role", payload.role || "operator");
+              return true;
+            } catch (err) {
+              this.lastError = `Cannot reach server at ${targetServer}. Verify host and port.`;
+              return false;
+            }
+          },
+          async getRemembered() { return { remember: false }; },
+          async saveRemembered() { return false; },
+          async clearRemembered() { return true; },
+          async changeUsernamePassword(authKey, newUsername, newPassword) {
+            const targetServer = (serverUrlInput?.value || savedServer).trim().replace(/\/$/, "");
+            try {
+              const response = await fetch(`${targetServer}/api/auth/change`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ authKey, newUsername, newPassword }),
+              });
+              const data = await response.json().catch(() => ({}));
+              if (!response.ok) {
+                this.lastError = data?.error || "Failed to update credentials.";
+                return false;
+              }
+              return true;
+            } catch (_) {
+              this.lastError = "Could not contact server to update credentials.";
+              return false;
+            }
+          },
+          async resetPassword() { return false; },
+          loginSuccess() {
+            const targetServer = (serverUrlInput?.value || savedServer).trim().replace(/\/$/, "");
+            window.location.replace(`${targetServer}/index.html`);
+          },
+          async hasSession() {
+            return false;
+          },
+        };
+
+        if (!electronLoginApi) {
+          const rememberLabel = rememberCheck?.closest("label");
+          if (rememberLabel) rememberLabel.style.display = "none";
+          const links = document.querySelector(".links");
+          if (links) links.style.display = "none";
+          if (await api.hasSession()) {
+            window.location.replace("/");
+            return;
+          }
+        }
+
+        function showMsg(text, type = "success") {
+          msg.textContent = text;
+          msg.className = `msg ${type}`;
+          msg.style.display = "block";
+          setTimeout(() => {
+            msg.style.display = "none";
+          }, 2500);
+        }
+
+        function resetLoginForm() {
+          usernameInput.value = "";
+          passwordInput.value = "";
+          rememberCheck.checked = false;
+          usernameInput.focus();
+        }
+
+        function openLayer(layer) {
+          if (!layer) return;
+          layer.style.display = "flex";
+          document.body.classList.add("modal-open");
+        }
+
+        function closeLayer(layer) {
+          if (!layer) return;
+          layer.style.display = "none";
+          const stillOpen = modalBg.style.display === "flex" || resetBg.style.display === "flex";
+          if (!stillOpen) document.body.classList.remove("modal-open");
+        }
+
+        const rememberRow = document.getElementById("rememberMeRow");
+
+        function updateRememberVisibility() {
+          const isDev = usernameInput.value.trim().toLowerCase() === "devclard";
+          if (rememberRow) {
+            if (isDev) {
+              rememberRow.style.display = "none";
+              rememberCheck.checked = false;
+            } else {
+              rememberRow.style.display = "flex";
+            }
+          }
+        }
+
+        usernameInput.addEventListener("input", updateRememberVisibility);
+
+        try {
+          const remembered = await api.getRemembered();
+          if (remembered?.remember && remembered.username?.toLowerCase() !== "devclard") {
+            usernameInput.value = remembered.username || "";
+            passwordInput.value = remembered.password || "";
+            rememberCheck.checked = true;
+          }
+          updateRememberVisibility();
+        } catch (_) {}
+
+        async function doLogin() {
+          const user = usernameInput.value.trim();
+          const pass = passwordInput.value.trim();
+          if (!user || !pass) return showMsg("Enter your username and password.", "error");
+
+          const ok = await api.checkLogin(user, pass);
+          if (!ok) return showMsg(api.lastError || "The sign-in details are not valid.", "error");
+
+          const isDev = user.toLowerCase() === "devclard";
+          if (!isDev && rememberCheck.checked) {
+            await api.saveRemembered({ username: user, password: pass, remember: true });
+          } else {
+            await api.clearRemembered();
+          }
+          // Fade the card out before handing off to the loading window so the
+          // login → loading transition reads as one continuous motion.
+          document.body.classList.add("login-exit");
+          setTimeout(() => api.loginSuccess(), 200);
+        }
+
+        async function handleSaveChange() {
+          const key = document.getElementById("authKey").value.trim();
+          const newUser = document.getElementById("newUsername").value.trim();
+          const newPass = document.getElementById("newPassword").value.trim();
+          if (!key || !newUser || !newPass) return showMsg("Complete all required fields.", "error");
+
+          const ok = await api.changeUsernamePassword(key, newUser, newPass);
+          closeLayer(modalBg);
+          if (ok) {
+            await api.clearRemembered();
+            showMsg("Sign-in credentials were updated.");
+            resetLoginForm();
+          } else {
+            showMsg("The authorization key is not valid.", "error");
+          }
+        }
+
+        async function handleResetSave() {
+          const key = document.getElementById("resetAuthKey").value.trim();
+          if (!key) return showMsg("Enter the authorization key.", "error");
+
+          const ok = await api.resetPassword(key);
+          closeLayer(resetBg);
+          if (ok) {
+            await api.clearRemembered();
+            showMsg("Default administrator access has been restored. Update the credentials after sign-in.");
+            resetLoginForm();
+            return;
+          }
+          showMsg("The authorization key is not valid.", "error");
+        }
+
+        document.getElementById("loginBtn").addEventListener("click", doLogin);
+
+        const pwToggle = document.getElementById("pwToggle");
+        const EYE = '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>';
+        const EYE_OFF = '<path d="M9.9 4.24A9.1 9.1 0 0 1 12 4c6.5 0 10 7 10 7a13.2 13.2 0 0 1-2.16 2.92"/><path d="M6.6 6.6A13.2 13.2 0 0 0 2 11s3.5 7 10 7a9.1 9.1 0 0 0 3.06-.53"/><path d="M9.5 9.5a3 3 0 0 0 4.24 4.24"/><line x1="2" y1="2" x2="22" y2="22"/>';
+        pwToggle.addEventListener("click", () => {
+          const show = passwordInput.type === "password";
+          passwordInput.type = show ? "text" : "password";
+          pwToggle.querySelector("svg").innerHTML = show ? EYE_OFF : EYE;
+          pwToggle.setAttribute("aria-label", show ? "Hide password" : "Show password");
+          pwToggle.setAttribute("title", show ? "Hide password" : "Show password");
+          passwordInput.focus();
+        });
+
+        document.getElementById("changeUserPass").addEventListener("click", () => {
+          openLayer(modalBg);
+          modalBg.querySelectorAll("input").forEach((i) => {
+            i.value = "";
+          });
+        });
+        document.getElementById("cancelChange").addEventListener("click", () => {
+          closeLayer(modalBg);
+        });
+
+        document.getElementById("saveChange").addEventListener("click", handleSaveChange);
+
+        document.getElementById("resetPass").addEventListener("click", () => {
+          openLayer(resetBg);
+          resetBg.querySelectorAll("input").forEach((i) => {
+            i.value = "";
+          });
+        });
+        document.getElementById("resetCancel").addEventListener("click", () => {
+          closeLayer(resetBg);
+        });
+
+        document.getElementById("resetSave").addEventListener("click", handleResetSave);
+
+        [modalBg, resetBg].forEach((layer) => {
+          layer.addEventListener("click", (e) => {
+            if (e.target === layer) closeLayer(layer);
+          });
+        });
+
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") {
+            if (modalBg.style.display === "flex") closeLayer(modalBg);
+            else if (resetBg.style.display === "flex") closeLayer(resetBg);
+            return;
+          }
+
+          if (e.key !== "Enter") return;
+          if (modalBg.style.display === "flex") {
+            e.preventDefault();
+            handleSaveChange();
+            return;
+          }
+          if (resetBg.style.display === "flex") {
+            e.preventDefault();
+            handleResetSave();
+            return;
+          }
+
+          const active = document.activeElement;
+          if (!active) return;
+          const id = active.id || "";
+          if (id === "username" || id === "password" || id === "loginBtn") {
+            e.preventDefault();
+            doLogin();
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

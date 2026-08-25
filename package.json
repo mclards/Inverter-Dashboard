@@ -1,0 +1,179 @@
+{
+  "name": "inverter-dashboard",
+  "version": "1.0.0",
+  "description": "Inverter Dashboard for industrial solar inverter telemetry, active power control, compliance testing, and energy forecasting.",
+  "author": "Engr. Clariden D. Montano, REE",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "node start-electron.js",
+    "desktop": "electron desktop/main.js",
+    "dev": "set NODE_ENV=development && node start-electron.js",
+    "server": "node backend/server.js",
+    "rebuild:native:node": "npm rebuild better-sqlite3",
+    "rebuild:native:electron": "electron-builder install-app-deps",
+    "postinstall": "node scripts/postinstall-guard.js",
+    "build:forecast-service": "python scripts/generate_build_info.py --build-channel development && python -m PyInstaller --noconfirm services/ForecastCoreService.spec && python scripts/generate_build_info.py --check --build-channel development",
+    "check:forecast-build-info": "python scripts/generate_build_info.py --check --build-channel development",
+    "build:win": "node scripts/build-installer-signed.js",
+    "build:installer": "node scripts/build-installer-signed.js",
+    "build:installer:signed": "node scripts/build-installer-signed.js",
+    "codesign:generate": "powershell -ExecutionPolicy Bypass -File scripts/generate-codesign-cert.ps1",
+    "codesign:verify": "powershell -ExecutionPolicy Bypass -File scripts/verify-codesign-trust.ps1",
+    "smoke": "node scripts/smoke-all.js",
+    "smoke:comprehensive": "node backend/tests/smoke-comprehensive.js",
+    "smoke:node-only": "node scripts/smoke-all.js --skip-python",
+    "smoke:no-rebuild": "node scripts/smoke-all.js --no-rebuild",
+    "docs:pdf": "node scripts/_gen_userguide_pdf.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1012.0",
+    "@aws-sdk/lib-storage": "^3.1012.0",
+    "archiver": "^5.3.2",
+    "better-sqlite3": "^11.10.0",
+    "chart.js": "^4.5.1",
+    "cors": "^2.8.6",
+    "electron-updater": "^6.3.9",
+    "exceljs": "^4.4.0",
+    "express": "^4.22.1",
+    "express-ws": "^5.0.2",
+    "extract-zip": "^2.0.1",
+    "node-cron": "^3.0.3",
+    "node-fetch": "^2.7.0",
+    "ws": "^7.5.10"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "electron": "^29.0.0",
+    "electron-builder": "^24.13.3",
+    "puppeteer": "^24.40.0"
+  },
+  "build": {
+    "appId": "com.engr-m.inverter-dashboard-app",
+    "productName": "Inverter Dashboard",
+    "afterPack": "scripts/afterPack.js",
+    "directories": {
+      "output": "release",
+      "buildResources": "assets"
+    },
+    "files": [
+      "electron/**/*",
+      "public/**/*",
+      "server/**/*",
+      "backend/**/*",
+      "assets/**/*",
+      "drivers/**/*",
+      "services/**/*",
+      "docs/ADSI-Dashboard-Pricing-Summary.pdf",
+      "docs/ADSI-Dashboard-User-Guide.html",
+      "docs/ADSI-Dashboard-User-Guide.pdf",
+      "docs/INGECON-SUN-Manager-User-Manual.pdf",
+      "docs/IngeconSunPMax-Entire-Modbus-RTU-Registers.pdf",
+      "docs/Inverter-Incident-Workflow-Level2.pdf",
+      "docs/Inverter-Incident-Workflow.pdf",
+      "docs/Inverter-Parameters.pdf",
+      "docs/Inverter-Schematic-Diagram.pdf",
+      "docs/TrinPM20-Inverter-calibration.pdf",
+      "docs/commboard-manual.pdf",
+      "docs/scadafiles/SCADA-&-PPC-System-Digos.pdf",
+      "docs/scadafiles/SCADA-User-manual.pdf",
+      "docs/scadafiles/SCADA_operation_manual.pdf",
+      "package.json",
+      "!storage/**",
+      "!**/*.db",
+      "!**/*.db-wal",
+      "!**/*.db-shm",
+      "!**/*.log",
+      "!**/.token-keyring",
+      "!public/user-guide.html",
+      "!server/ffmpeg/**",
+      "!server/go2rtc/**",
+      "!services/dist/**",
+      "!services/tests/**",
+      "!services/__pycache__/**",
+      "!services/.pytest_cache/**",
+      "!**/*.pdb",
+      "!**/*.iobj",
+      "!**/*.ipdb",
+      "!**/*.exp",
+      "!**/obj/**"
+    ],
+    "electronLanguages": [
+      "en-US"
+    ],
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/InverterCoreService.exe",
+        "to": "backend/InverterCoreService.exe"
+      },
+      {
+        "from": "dist/ForecastCoreService.exe",
+        "to": "backend/ForecastCoreService.exe"
+      },
+      {
+        "from": "dist/CalibratorService.exe",
+        "to": "backend/CalibratorService.exe"
+      },
+      {
+        "from": "assets/calib.ico",
+        "to": "calib.ico"
+      },
+      {
+        "from": "assets/calib.png",
+        "to": "calib.png"
+      },
+      {
+        "from": "server/go2rtc",
+        "to": "backend/go2rtc"
+      },
+      {
+        "from": "server/ffmpeg",
+        "to": "backend/ffmpeg",
+        "filter": [
+          "**/*.exe"
+        ]
+      }
+    ],
+    "win": {
+      "icon": "icon-256.png",
+      "requestedExecutionLevel": "asInvoker",
+      "signingHashAlgorithms": [
+        "sha256"
+      ],
+      "signAndEditExecutable": true,
+      "rfc3161TimeStampServer": "http://timestamp.sectigo.com",
+      "timeStampServer": "http://timestamp.sectigo.com",
+      "publisherName": [
+        "Engr. Clariden D. Montaño REE"
+      ],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "artifactName": "Inverter-Dashboard-Setup-${version}.${ext}",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": true,
+      "allowElevation": true,
+      "deleteAppDataOnUninstall": false,
+      "shortcutName": "Inverter Dashboard",
+      "include": "scripts/installer.nsh"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "mclards",
+        "repo": "Inverter-Dashboard",
+        "releaseType": "release"
+      }
+    ]
+  }
+}

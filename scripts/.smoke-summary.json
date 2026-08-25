@@ -1,0 +1,957 @@
+{
+  "startedAt": "2026-08-17T16:46:18.991Z",
+  "args": [
+    "--no-rebuild"
+  ],
+  "steps": {},
+  "nodeTests": [
+    {
+      "file": "acContactorHealthCore.test.js",
+      "status": 0,
+      "durationMs": 65,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "  ✓ computeCycleRatePerDay: empty/null → no rate\n  ✓ computeCycleRatePerDay: single sample → no rate (need ≥2)\n  ✓ computeCycleRatePerDay: 5 cycles over exactly 1 day → 5/day\n  ✓ computeCycleRatePerDay: monotone counter — ignores regressions\n  ✓ computeCycleRatePerDay: < 1 h span → no rate (not statistically meaningful)\n  ✓ computeCycleRatePerDay: skips zero / non-finite samples\n  ✓ computeContactorScore: cycle_rate=null → phase1 weights, no cycle score\n  ✓ computeContactorScore: cycle_rate finite → phase2 weights, cycle score present\n  ✓ computeContactorScore: cycle_rate below floor (3/day) contributes 0\n  ✓ computeContactorScore: cycle_rate at ceil (20/day) → cycle_score=100\n  ✓ computeContactorScore: cycle_rate at midpoint maps linearly\n  ✓ computeContactorScore: phase2 weights sum to 1.0\n  ✓ computeContactorScore: phase2 high cycle alone → mid-aging tier\n  ✓ computeContactorScore: phase2 max everything → score 100, eol\n  ✓ correlateWithIgbt: act severity sticks even if later watch rule fires\n\n──────────────────────────────────────────────────────────\n  acContactorHealthCore.test.js complete\n\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "alarmAckPersistenceCore.test.js",
+      "status": 1,
+      "durationMs": 526,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "",
+      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-alarm-ack-LuX1dm\\db\\adsi.db — fresh DB will be created on open\nalarmAckPersistenceCore.test.js: FAIL Error: The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n    at Object..node (node:internal/modules/cjs/loader:1970:18)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at Object.<anonymous> (D:\\ADSI-Dashboard\\server\\db.js:689:12)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n"
+    },
+    {
+      "file": "alarmAckSyncSource.test.js",
+      "status": 0,
+      "durationMs": 97,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "alarmAckSyncSource.test.js: PASS\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "alarmArchiveContractShape.test.js",
+      "status": 0,
+      "durationMs": 71,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "  ✓ archive schema declares an alarms table DDL\n  ✓ ensureArchiveSchema creates alarms table on every shard\n  ✓ createArchiveEntry always runs ensureArchiveSchema (covers pre-existing shards)\n  ✓ archive entry exposes alarm insert + range statements\n  ✓ pruner now ARCHIVES alarms instead of permanently deleting them\n  ✓ archiveRowsByMonth dispatches the alarms type\n  ✓ queryAlarmsRangeArchiveAware merges hot + archive shards\n  ✓ findAlarmByIdArchiveAware checks hot then iterates archives\n  ✓ module.exports surfaces the new helpers\n  ✓ /api/alarms uses the archive-aware reader\n  ✓ /api/alarms/:alarm_id/stop-reason uses archive-aware single-id lookup\n  ✓ exportAlarms uses archive-aware reader for past-month exports\nalarmArchiveContractShape.test.js: PASS (schema + write-path + read-path + wire-up locked)\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "alarmArchiveRoundtripCore.test.js",
+      "status": 0,
+      "durationMs": 68,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "alarmArchiveRoundtripCore.test.js: SKIP (better-sqlite3 native binding unavailable under this Node ABI — runs under npm run rebuild:native:node): The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "alarmEpisodeCore.test.js",
+      "status": 0,
+      "durationMs": 65,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "alarmEpisodeCore.test.js: PASS\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "alarmPerCompositionRowCore.test.js",
+      "status": 0,
+      "durationMs": 64,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "alarmPerCompositionRowCore.test.js: SKIP (better-sqlite3 native binding unavailable under this Node ABI): The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "alarmPerCompositionRowShape.test.js",
+      "status": 0,
+      "durationMs": 59,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "  ✓ close-and-reopen wrapped in db.transaction (atomic — no race window)\n  ✓ updateActiveAlarmValue delegates to the atomic transaction wrapper\n  ✓ REGRESSION: must NOT OR-accumulate (no `prevValue | cur` pattern)\n  ✓ REGRESSION: must NOT call stmts.updateActiveAlarm.run (in-place UPDATE = original bug)\n  ✓ pure-clear short-circuit: newCur === 0 returns inside the transaction\n  ✓ raiseActiveAlarm still writes initial bitmask as-is\n  ✓ checkAlarms isolates per-row errors so a malformed frame can't abort the batch\nalarmPerCompositionRowShape.test.js: PASS (insert-on-change contract locked; OR-accumulate explicitly forbidden)\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "alarmReferenceShape.test.js",
+      "status": 0,
+      "durationMs": 66,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "alarmReferenceShape.test.js: PASS (16 bits validated)\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "alarmRowSlimShape.test.js",
+      "status": 0,
+      "durationMs": 62,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "alarmRowSlimShape.test.js: PASS (slim projection locked + worst-case <2 KB)\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "alarmWidthDecodeCore.test.js",
+      "status": 1,
+      "durationMs": 77,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "",
+      "stderrTail": "Error: The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n    at Object..node (node:internal/modules/cjs/loader:1970:18)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at Object.<anonymous> (D:\\ADSI-Dashboard\\server\\db.js:689:12)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14) {\n  code: 'ERR_DLOPEN_FAILED'\n}\n\nNode.js v24.14.0\n"
+    },
+    {
+      "file": "apcRampLimiterCore.test.js",
+      "status": 0,
+      "durationMs": 92,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "\n──────────────────────────────────────────────────────────\n  apcRampLimiterCore.test.js — pure ramp pacer\n──────────────────────────────────────────────────────────\n\n  ✓ disabled when rate ≤ 0\n  ✓ disabled when rate non-finite\n  ✓ missing current → single immediate step\n  ✓ delta within one step → single immediate\n  ✓ large downward step → plan multiple paced steps\n  ✓ upward ramp also throttles\n  ✓ respects MAX_PLAN_STEPS cap (huge delta + tiny rate)\n  ✓ respects ABSOLUTE_MIN_STEP_PCT for impossibly tiny rate\n  ✓ clamps target and current to [0..100]\n  ✓ zero-delta returns immediate without throttle flag\n  ✓ DEFAULT_STEP_INTERVAL_MS is used when interval omitted\n\n  ✓ apcRampLimiterCore tests passed\n\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "apcSetpointHardeningCore.test.js",
+      "status": 0,
+      "durationMs": 65,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "  ✓ plant scope: empty targets array is OK (engine fans out)\n  ✓ node scope: empty targets array is rejected\n  ✓ node scope: missing ip is rejected\n  ✓ node scope: malformed ip is rejected\n  ✓ node scope: slave must be 1..4\n  ✓ node scope: valid single target normalizes\n  ✓ multiple identical targets dedupe to one\n  ✓ mixed valid + invalid: first invalid wins, no partial pass\n  ✓ ipv4 trims whitespace then validates\n  ✓ dedup: two rapid identical writes are rejected\n  ✓ dedup: writes outside window are accepted\n  ✓ dedup: different opcodes on same node are independent\n  ✓ dedup: different nodes are independent\n  ✓ audit: plant scope produces single summary row with empty ip\n  ✓ audit: node scope with one target → one row with ip+slave\n  ✓ audit: inverter scope with 4 targets → 4 rows, each with own slave\n  ✓ audit: failed result writes 'failed' label\n  ✓ audit: stop opcode produces 'plantCap.setpoint.stop' action label\n  ✓ audit: abort opcode produces 'plantCap.setpoint.abort' action label\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "apcVerifyCore.test.js",
+      "status": 0,
+      "durationMs": 60,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "\n  apcVerifyCore.test.js — Slice δ\n\n  ✓ constants exposed\n  ✓ _decodeRow handles null row → all nulls\n  ✓ _decodeRow handles full row → observed_pct\n  ✓ _decodeRow handles bit 1 = 0 explicitly\n  ✓ _decodeRow handles missing pwr_red_bits → null\n  ✓ _classify returns 'no_response' when observed_pct null\n  ✓ _classify returns 'ok' when observed within tolerance\n  ✓ _classify returns 'mismatch' when observed exceeds tolerance\n  ✓ _classify returns 'mismatch' when within tolerance but bit 1 explicitly 0 for non-100% setpoint\n  ✓ _classify returns 'ok' when within tolerance and requested = 100% (bit 1 not required)\n  ✓ scheduleVerify inserts pending row + schedules timer\n  ✓ scheduleVerify cancels prior pending verify for same node (anti-thrash)\n  ✓ scheduleVerify with missing required args returns null\n  ✓ end-to-end: scheduleVerify → fired → ok result\n  ✓ end-to-end: stale sample (older than 5 min) → no_response\n  ✓ end-to-end: timeout when current time exceeds timeoutMs\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "archiveCacheLru.test.js",
+      "status": 1,
+      "durationMs": 67,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "[archiveCacheLru] start\n",
+      "stderrTail": "Error: The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n    at Object..node (node:internal/modules/cjs/loader:1970:18)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at seedArchiveMonth (D:\\ADSI-Dashboard\\server\\tests\\archiveCacheLru.test.js:49:16)\n    at testLruEvictionOnOverflow (D:\\ADSI-Dashboard\\server\\tests\\archiveCacheLru.test.js:79:27) {\n  code: 'ERR_DLOPEN_FAILED'\n}\n\nNode.js v24.14.0\n"
+    },
+    {
+      "file": "archiveUniversalContractShape.test.js",
+      "status": 0,
+      "durationMs": 63,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "  ✓ archiveTableBeforeCutoff has monthKeyKind parameter\n  ✓ Uses ARCHIVE_RUNNING_LOCK concurrency guard\n  ✓ Enforces ARCHIVE_MAX_BATCHES_PER_CALL batch ceiling\n  ✓ Uses ARCHIVE_HOT_STMT_CACHE statement cache\n  ✓ Uses ARCHIVE_PER_SHARD_INSERT_CACHE shard cache\n  ✓ Discovers schema via sqlite_master\n  ✓ Detects WITHOUT ROWID semantics\n  ✓ Yields event loop between batches\n  ✓ pruneSnapshotHistory archives snapshot_history\n  ✓ pruneApcVerifyLog archives apc_verify_log\n  ✓ pruneGridControlVerifyLog archives grid_control_verify_log\n  ✓ pruneRampLog archives inverter_curtailment_ramp_log\n  ✓ pruneIgbtThermalBaseline archives igbt_thermal_baseline\n  ✓ pruneOldRows archives inverter_stop_histogram\n  ✓ pruneRetention archives inverter_5min_param\n  ✓ pruneFirmwareDriftLog archives firmware_drift_log\n  ✓ archiveTableBeforeCutoff is exported from db.js\n\narchiveUniversalContractShape.test.js: PASS (archive helper contract locked)\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "auditArchiveContractShape.test.js",
+      "status": 0,
+      "durationMs": 66,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "  ✓ archive schema declares an audit_log table DDL\n  ✓ ensureArchiveSchema creates audit_log table on every shard\n  ✓ archive entry exposes audit insert + range statements\n  ✓ pruner now ARCHIVES audit_log instead of permanently deleting it\n  ✓ archiveRowsByMonth dispatches the audit type\n  ✓ queryAuditRangeArchiveAware merges hot + archive shards\n  ✓ module.exports surfaces queryAuditRangeArchiveAware\n  ✓ auditRetainDays floor bumped from 1 to ≥ 90\n  ✓ stopReasonsRetainDays floor bumped from 7 to ≥ 90 (matches alarm hot retention)\n  ✓ alarms.js getAuditLog uses the archive-aware reader\n  ✓ alarms.js imports queryAuditRangeArchiveAware from db\nauditArchiveContractShape.test.js: PASS (schema + write-path + read-path + floors + wire-up locked)\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "auditArchiveRoundtripCore.test.js",
+      "status": 0,
+      "durationMs": 70,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "auditArchiveRoundtripCore.test.js: SKIP (better-sqlite3 native binding unavailable under this Node ABI — runs under npm run rebuild:native:node): The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "backupHealthRegistry.test.js",
+      "status": 0,
+      "durationMs": 104,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "backupHealthRegistry.test.js: PASS\n",
+      "stderrTail": "[BackupHealth] unknown backup type: nonsense\n[BackupHealth] state file unreadable, starting fresh: Expected property name or '}' in JSON at position 1 (line 1 column 2)\n"
+    },
+    {
+      "file": "baselineAnchorDecisionCore.test.js",
+      "status": 0,
+      "durationMs": 80,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "✔ poll: PAC at noise floor (< 50 W default) → still safe to anchor (0.1136ms)\n✔ poll: tunable wake threshold honored (0.1245ms)\n✔ invalid_inputs: NaN curEtotalKwh → poll_late sentinel (0.1448ms)\n✔ DEFAULT_PAC_WAKE_THRESHOLD_W exposed at 50 W (matches db.js eod-clean gate) (0.2096ms)\n✔ INTEGRATION GUARD: poll_late row produces NaN Δ in hwCounterDeltaCore (1.2359ms)\n✔ INTEGRATION GUARD: 'poll' (cold start) still produces normal Δ (0.2037ms)\n✔ PAC fallback: poll_late + pacFallbackKwh → HW Δ = PAC Δ, provenance='pac_fallback' (0.1287ms)\n✔ PAC fallback: respects pacFallbackEnabled=false (revert to NaN) (0.1089ms)\n✔ PAC fallback: rejects implausible PAC (> ceiling) — falls through to NaN (0.109ms)\n✔ PAC fallback: past-day with no baseline at all → fills from PAC (0.1367ms)\n✔ Normal HW path is preferred over PAC fallback when baseline is healthy (0.131ms)\nℹ tests 17\nℹ suites 0\nℹ pass 17\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 13.533\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "baselineUpgradeCore.test.js",
+      "status": 0,
+      "durationMs": 59,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "baselineUpgradeCore.test.js — all 12 scenarios passed.\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "bulkControlAuth.test.js",
+      "status": 0,
+      "durationMs": 60,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "bulkControlAuth.test.js: PASS\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "calibrationSafety.test.js",
+      "status": 0,
+      "durationMs": 61,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "  PASS Fesc_ipv: allows across the 55–65 % band\n  PASS Fesc_ipv: refuses ABOVE the band (70 % is now the wrong target)\n  PASS Fesc_ipv: refuses just outside the 65 % upper bound\n  PASS Fesc_ipv: refuses when nominal power read failed (pct_of_pn null)\n  PASS Reactive X1Y1: refuses at 0 % Pn (consign not engaged)\n  PASS Reactive X1Y1: allows in 15-25 % Pn band\n  PASS Reactive X1Y1: refuses just outside 25 % upper bound\n  PASS Reactive Y1 (offset 92) same gate as X1\n  PASS Reactive X2Y2: refuses at 20 % Pn (wrong consign target)\n  PASS Reactive X2Y2: allows in 65-75 % Pn band\n  PASS Reactive Y2 (offset 94) same gate as X2\n  PASS Fesc_vac_1 (81): no Pac/Pn band — passes at any pct when state OK\n  PASS comp_per_vacio (90): allows at 0 % Pn (inverter not generating)\n  PASS comp_per_vacio (90): allows within the 0 % band (incl. slight -ve no-load)\n  PASS comp_per_vacio (90): BLOCKS when generating (50 % — wrong consign)\n  PASS comp_per_vacio (90): blocks just above the band (e.g. 6 %)\n  PASS buildWriteSafetyMap: returns one verdict per requested offset\n  PASS buildWriteSafetyMap: state error blocks everything\ncalibrationSafety.test.js: done\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "calibrationSessionRecovery.test.js",
+      "status": 0,
+      "durationMs": 76,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "[calibration-session] BEGIN 73dad4cef3ac inv=1/2 op=op1\n  PASS begin: creates a session and reflects in isActive/currentSession\n[calibration-session] BEGIN 89d1a64eb75b inv=1/2 op=op1\n  PASS second begin() throws SESSION_ACTIVE\n[calibration-session] BEGIN af12cf604576 inv=1/2 op=op1\n[calibration-session] BEGIN 0ef2c650aaa0 inv=1/2 op=op1\n  PASS abortAll then begin: same target succeeds (route case A)\n[calibration-session] BEGIN 98592555a9e5 inv=1/2 op=op1\n[calibration-session] BEGIN 32ec90fe35a9 inv=3/4 op=op2\n  PASS abortAll then begin: different target succeeds (route case B)\n[calibration-session] BEGIN 14d93c38b10f inv=1/2 op=op1\n  PASS currentSession idle_ms / idle_timeout_ms surface for route's staleness check\n[calibration-session] BEGIN 8a646b1e42bb inv=1/2 op=op1\n  PASS heartbeat updates last_heartbeat_ms so idle_ms shrinks back to ~0\n  PASS abortAll on no-session is a noop (route can call it unconditionally)\ncalibrationSessionRecovery.test.js: done\n",
+      "stderrTail": "[calibration-session] ABORT 73dad4cef3ac reason=teardown\n[calibration-session] ABORT 89d1a64eb75b reason=teardown\n[calibration-session] ABORT af12cf604576 reason=operator_restart\n[calibration-session] ABORT 0ef2c650aaa0 reason=teardown\n[calibration-session] ABORT 98592555a9e5 reason=stale_takeover\n[calibration-session] ABORT 32ec90fe35a9 reason=teardown\n[calibration-session] ABORT 14d93c38b10f reason=teardown\n[calibration-session] ABORT 8a646b1e42bb reason=teardown\n"
+    },
+    {
+      "file": "calibratorServer.test.js",
+      "status": 1,
+      "durationMs": 67,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "testCalibrationFilesUnchanged: PASS\n[calibrator-db] opening C:\\Users\\User\\AppData\\Local\\Temp\\calibrator-test-BfsO6V\\test.db\n",
+      "stderrTail": "was compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\nError: The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n    at Object..node (node:internal/modules/cjs/loader:1970:18)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at Object.initCalibratorDb (D:\\ADSI-Dashboard\\server\\calibratorDb.js:34:8)\n    at testCalibratorDbPersistence (D:\\ADSI-Dashboard\\server\\tests\\calibratorServer.test.js:52:29)\n"
+    },
+    {
+      "file": "cloudBackupForecastData.test.js",
+      "status": 0,
+      "durationMs": 3079,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "[CloudBackup] Pruned old package: inverter-backup-2026-06-01T16-19-55-895Z\n[CloudBackup] Created local package: inverter-backup-2026-08-17T16-46-24-205Z\n[CloudBackup] Database restored from: C:\\ProgramData\\InverterDashboard\\cloud_backups\\inverter-backup-2026-08-17T16-46-24-205Z\\adsi.db\n[CloudBackup] Restore complete from: inverter-backup-2026-08-17T16-46-24-205Z\ncloudBackupForecastData.test.js: PASS\n",
+      "stderrTail": "[CloudBackup] pre-backup WAL checkpoint skipped: this.db.pragma is not a function\n"
+    },
+    {
+      "file": "cloudBackupResilience.test.js",
+      "status": 0,
+      "durationMs": 3886,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "cloudBackupResilience.test.js: PASS\n",
+      "stderrTail": "[CloudBackup] test-upload transient failure (attempt 1/3): temporary 503 from provider; retrying in 772ms\n[CloudBackup] test-upload transient failure (attempt 2/3): temporary 503 from provider; retrying in 824ms\n[CloudBackup] test-upload transient failure (attempt 1/3): read ECONNRESET; retrying in 453ms\n[CloudBackup] test-upload transient failure (attempt 2/3): read ECONNRESET; retrying in 148ms\n[CloudBackup] test-upload transient failure (attempt 3/3): read ECONNRESET; retrying in 1419ms\n"
+    },
+    {
+      "file": "cloudBackupRestoreSafety.test.js",
+      "status": 0,
+      "durationMs": 317,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "[CloudBackup] Created local package: inverter-backup-2026-08-17T16-46-28-369Z\n  • R6 recovery.log included in backup (from programDataDir): PASS\n[CloudBackup] Created local package: inverter-backup-2026-08-17T16-46-28-379Z\n[CloudBackup] Created local package: inverter-backup-2026-08-17T16-46-28-386Z\n  • R3 manifest row counts: PASS\n[CloudBackup] Created local package: inverter-backup-2026-08-17T16-46-28-395Z\n[CloudBackup] Database restored from: C:\\Users\\User\\AppData\\Local\\Temp\\adsi-paths-xlqrZT\\cloud_backups\\inverter-backup-2026-08-17T16-46-28-395Z\\adsi.db\n[CloudBackup] Restore complete from: inverter-backup-2026-08-17T16-46-28-395Z\n  • Restore destination paths round-trip correctly: PASS\n[CloudBackup] Created local package: inverter-backup-2026-08-17T16-46-28-425Z\n  • Pre-restore writability probe aborts cleanly: PASS\n[CloudBackup] Created local package: inverter-backup-2026-08-17T16-46-28-442Z\n[CloudBackup] Database restored from: C:\\Users\\User\\AppData\\Local\\Temp\\adsi-scopefilter-1VuANi\\cloud_backups\\inverter-backup-2026-08-17T16-46-28-442Z\\adsi.db\n[CloudBackup] Restore complete from: inverter-backup-2026-08-17T16-46-28-442Z\n  • Scope filter selective restore: PASS\n[CloudBackup] Created local package: inverter-backup-2026-08-17T16-46-28-465Z\n[CloudBackup] Restore complete from: inverter-backup-2026-08-17T16-46-28-465Z\n  • Scope filter empty array blocks all scopes: PASS\ncloudBackupRestoreSafety.test.js: PASS\n",
+      "stderrTail": "[CloudBackup] Restore failed mid-flight; attempting auto-rollback to safety backup: inverter-backup-2026-08-17T16-46-28-343Z\n[CloudBackup] Auto-rollback succeeded.\n"
+    },
+    {
+      "file": "cloudBackupS3Dedupe.test.js",
+      "status": 0,
+      "durationMs": 278,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "[CloudBackup] Created local package: inverter-backup-2026-08-17T16-46-28-657Z\n[CloudBackup] Uploaded inverter-backup-2026-08-17T16-46-28-657Z → s3\n[CloudBackup] Created local package: inverter-backup-2026-08-17T16-46-28-687Z\n[CloudBackup] Uploaded inverter-backup-2026-08-17T16-46-28-687Z → s3\n[CloudBackup] Pulled inverter-backup-2026-08-17T16-46-28-687Z from s3\n[CloudBackup] Database restored from: C:\\Users\\User\\AppData\\Local\\Temp\\adsi-cloud-s3-dedupe-WrslFX\\pull\\data\\cloud_backups\\inverter-backup-2026-08-17T16-46-28-687Z\\adsi.db\n[CloudBackup] Restore complete from: inverter-backup-2026-08-17T16-46-28-687Z\ncloudBackupS3Dedupe.test.js: PASS\n",
+      "stderrTail": "[CloudBackup] pre-backup WAL checkpoint skipped: this.db.pragma is not a function\n[CloudBackup] pre-backup WAL checkpoint skipped: this.db.pragma is not a function\n"
+    },
+    {
+      "file": "complianceOrchestratorCore.test.js",
+      "status": 0,
+      "durationMs": 61,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "\n  complianceOrchestratorCore.test.js — Slice θ.1\n\n  ✓ CaptureBuffer.push + drain — basic round-trip\n  ✓ CaptureBuffer respects maxSamples limit + tracks dropped\n  ✓ CaptureBuffer.tail returns trailing N samples\n  ✓ CaptureBuffer rejects null + non-object inputs gracefully\n  ✓ ComplianceRun rejects unknown test_kind\n  ✓ OrchestratorRegistry.start creates a run + invokes db.insertComplianceRun\n  ✓ ComplianceRun beginStep/endStep persists step + flips pass\n  ✓ ComplianceRun.finalize is idempotent\n  ✓ OrchestratorRegistry.abort flips run.abortRequested\n  ✓ OrchestratorRegistry.list reports per-run stats\n  ✓ OrchestratorRegistry.reapStaleRuns drops finalized runs older than maxAge\n  ✓ VALID_KINDS contains the three planned kinds\n  ✓ VALID_STATUSES includes completed_with_warnings (T3/T5 restoration-fail surface)\n",
+      "stderrTail": "[compliance][captureBuffer] run_id=x sample buffer full (100); subsequent samples will be dropped — increase maxSamples or shorten the test window\n"
+    },
+    {
+      "file": "complianceReportGenCore.test.js",
+      "status": 0,
+      "durationMs": 69,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "\n  complianceReportGenCore.test.js — Slice θ.6\n\n  ✓ generateCsvBundle writes a UTF-8 BOM file containing meta + steps + samples\n  ✓ _buildReportHtml escapes injection-prone characters\n  ✓ _buildReportHtml shows pass + fail counts visually\n  ✓ _buildReportHtml includes the witness sign-off block\n  ✓ _buildReportHtml handles empty steps + samples gracefully\n  ✓ generateCsvBundle handles empty steps + samples\n  ✓ generateCsvBundle: data rows are properly column-split (regression guard)\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "complianceSampleSourceCore.test.js",
+      "status": 0,
+      "durationMs": 52,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "\n  complianceSampleSourceCore.test.js — Slice θ live-source priority\n\n  ✓ buildIpToInverterMap walks the object-map ipconfig shape\n  ✓ buildIpToInverterMap tolerates null/undefined/wrong-shape ipconfig\n  ✓ liveFrameToSample maps every compliance field correctly\n  ✓ liveFrameToSample propagates null cleanly (slow-poll-only fields)\n  ✓ liveFrameToSample returns null for null/non-object input\n  ✓ fiveMinRowToSample maps qac_var_avg → qac_var (Slice β migration column name)\n  ✓ resolveComplianceSample PREFERS live frame when fresh\n  ✓ resolveComplianceSample FALLS BACK to 5-min row when live is stale\n  ✓ resolveComplianceSample FALLS BACK when live frame missing\n  ✓ resolveComplianceSample returns null when ip not in ipconfig AND no fallback\n  ✓ resolveComplianceSample tolerates fetchFiveMinRow throw\n  ✓ resolveComplianceSample rejects bad ip/slave inputs\n  ✓ LIVE_FRESH_MS_DEFAULT matches server-side LIVE_FRESH_MS contract (15 s)\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "complianceTestT2Core.test.js",
+      "status": 0,
+      "durationMs": 63,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "[compliance][T2] run_id=t2-1786985189005-1190ee starting 1-min frequency-withstand observation on 1 target(s) (sample every 1s, NGCP envelope continuous=59.7-60.3Hz withstand=58.2-61.8Hz)\n[compliance][T2] run_id=t2-1786985189005-1190ee COMPLETED — 60 samples, mean 59.958Hz, min/max 58.5/60, 58 in-continuous / 2 in-withstand / 0 outside, pass=false\n  ✓ withstand-band excursions → completed + pass=false + non-zero longest excursion\n[compliance][T2] run_id=t2-1786985189006-d13c04 starting 1-min frequency-withstand observation on 1 target(s) (sample every 1s, NGCP envelope continuous=59.7-60.3Hz withstand=58.2-61.8Hz)\n[compliance][T2] run_id=t2-1786985189006-d13c04 COMPLETED — 60 samples, mean 59.992Hz, min/max 57/62.5, 58 in-continuous / 0 in-withstand / 2 outside, pass=false\n  ✓ outside-withstand frequencies counted separately\n[compliance][T2] run_id=t2-1786985189006-e4029a starting 1-min frequency-withstand observation on 1 target(s) (sample every 1s, NGCP envelope continuous=59.7-60.3Hz withstand=58.2-61.8Hz)\n[compliance][T2] run_id=t2-1786985189006-e4029a COMPLETED — 60 samples, mean 60.000Hz, min/max 60/60, 60 in-continuous / 0 in-withstand / 0 outside, pass=true\n  ✓ alarm transition counted in summary\n[compliance][T2] run_id=t2-1786985189007-634d9c starting 1-min frequency-withstand observation on 1 target(s) (sample every 1s, NGCP envelope continuous=59.7-60.3Hz withstand=58.2-61.8Hz)\n[compliance][T2] run_id=t2-1786985189007-634d9c COMPLETED — 60 samples, mean 60.000Hz, min/max 60/60, 60 in-continuous / 0 in-withstand / 0 outside, pass=true\n  ✓ state changes counted across samples\n[compliance][T2] run_id=t2-1786985189007-4d712e starting 10-min frequency-withstand observation on 1 target(s) (sample every 1s, NGCP envelope continuous=59.7-60.3Hz withstand=58.2-61.8Hz)\n[compliance][T2] run_id=t2-1786985189007-4d712e ABORTED — 3 samples, mean 60.000Hz, min/max 60/60, 3 in-continuous / 0 in-withstand / 0 outside, pass=true\n  ✓ abort flag stops mid-stream + final status='aborted'\n  ✓ empty target list → finalize failed without I/O\n[compliance][T2] run_id=t2-1786985189007-ca7c1d starting 1-min frequency-withstand observation on 1 target(s) (sample every 1s, NGCP envelope continuous=59.7-60.3Hz withstand=58.2-61.8Hz)\n[compliance][T2] run_id=t2-1786985189007-ca7c1d COMPLETED — 60 samples, mean 60.000Hz, min/max 60/60, 58 in-continuous / 0 in-withstand / 0 outside, pass=true\n  ✓ missing freq_hz in samples handled (not counted in tallies)\n",
+      "stderrTail": "[compliance][T2] run_id=t2-1786985189007-4d712e abort requested mid-observation\n[compliance][T2] run_id=t2-1786985189007-ca410d aborted: no target inverters\n"
+    },
+    {
+      "file": "complianceTestT3Core.test.js",
+      "status": 0,
+      "durationMs": 62,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "[compliance][T3] step 2/2 → target PF 0.95 lag (phi_raw=10770)\n[compliance][T3] run_id=? FAILED — 0 pass / 1 fail / 0 skip; restoration=ok\n[compliance][T3] run_id=? FAILED — 0 pass / 0 fail / 1 skip; restoration=ok\n[compliance][T3] step 1 PASS — observed PF 1.000 (dev 0.00pp, 12 post-settle samples)\n[compliance][T3] step 2/3 → target PF 0.95 lag (phi_raw=10770)\n[compliance][T3] step 1 PASS — observed PF 1.000 (dev 0.00pp, 12 post-settle samples)\n[compliance][T3] step 2/21 → target PF 0.99 lag (phi_raw=4669)\n[compliance][T3] step 2 PASS — observed PF 0.950 (dev 0.00pp, 7 post-settle samples)\n[compliance][T3] step 2 PASS — observed PF 0.950 (dev 0.00pp, 7 post-settle samples)\n[compliance][T3] run_id=? COMPLETED — 2 pass / 0 fail / 0 skip; restoration=ok\n[compliance][T3] run_id=? COMPLETED_WITH_WARNINGS — 2 pass / 0 fail / 0 skip; restoration=PARTIAL\n[compliance][T3] step 2 PASS — observed PF 0.950 (dev 0.00pp, 12 post-settle samples)\n[compliance][T3] step 3/3 → target PF 1 0 (phi_raw=0)\n[compliance][T3] step 2 PASS — observed PF 1.000 (dev 1.00pp, 12 post-settle samples)\n[compliance][T3] step 3/21 → target PF 0.98 lag (phi_raw=6654)\n[compliance][T3] step 3 SKIP — observed PF — (dev —, 0 post-settle samples)\n[compliance][T3] run_id=? ABORTED — 2 pass / 0 fail / 1 skip; restoration=ok\n[compliance][T3] step 3 PASS — observed PF 1.000 (dev 0.00pp, 12 post-settle samples)\n[compliance][T3] run_id=? COMPLETED — 3 pass / 0 fail / 0 skip; restoration=ok\n",
+      "stderrTail": "[compliance][T3] run_id=? aborted: no target inverters\n[compliance][T3] step 1 write failed (phi_raw=10770); marking FAIL and continuing\n[compliance][T3] restoration partially failed — operator must verify holding 41008 reads 0 on all 1 target(s)\n[compliance][T3] run_id=? abort requested at step 3/21\n"
+    },
+    {
+      "file": "complianceTestT5Core.test.js",
+      "status": 0,
+      "durationMs": 66,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "[compliance][T5] run_id=t5-1786985189132-312ce2 COMPLETED_WITH_WARNINGS — 0 pass / 0 fail / 0 skip; restoration=PARTIAL\n  ✓ runApcSweep — failed setpoint write marks step fail without samples\n[compliance][T5] run_id=t5-1786985189132-efed60 starting 4-step ramp [100→75→50→25]% on 1 target(s) — hold=30s settle=30s tol=±5%\n[compliance][T5] step 1/4 → 100%\n[compliance][T5] step 1 FAIL — observed 0.00% (dev 100.00%, 0 post-settle samples)\n[compliance][T5] step 2/4 → 75%\n[compliance][T5] step 2 FAIL — observed 0.00% (dev 75.00%, 0 post-settle samples)\n[compliance][T5] run_id=t5-1786985189132-efed60 ABORTED — 0 pass / 2 fail / 0 skip; restoration=ok\n  ✓ runApcSweep — abort flag stops mid-sequence + final status='aborted'\n  ✓ runApcSweep — empty target list → finalize failed without I/O\n[compliance][T5] run_id=t5-1786985189132-66fa23 starting 3-step ramp [100→50→100]% on 1 target(s) — hold=30s settle=5s tol=±5%\n[compliance][T5] step 1/3 → 100%\n[compliance][T5] step 1 PASS — observed 100.00% (dev 0.00%, 25 post-settle samples)\n[compliance][T5] step 2/3 → 50%\n[compliance][T5] step 2 PASS — observed 50.00% (dev 0.00%, 25 post-settle samples)\n[compliance][T5] step 3/3 → 100%\n[compliance][T5] step 3 PASS — observed 100.00% (dev 0.00%, 25 post-settle samples)\n[compliance][T5] run_id=t5-1786985189132-66fa23 COMPLETED_WITH_WARNINGS — 3 pass / 0 fail / 0 skip; restoration=PARTIAL\n  ✓ runApcSweep — restoration failure flips status to completed_with_warnings\n",
+      "stderrTail": "[compliance][T5] step 1 setpoint write failed (target 50%); marking FAIL and continuing\n[compliance][T5] restoration to 100% partially failed — operator must verify holding 41006 reads 32767 on all 1 target(s)\n[compliance][T5] run_id=t5-1786985189132-efed60 abort requested at step 2/4\n[compliance][T5] run_id=t5-1786985189132-cd4342 aborted: no target inverters\n[compliance][T5] restoration to 100% partially failed — operator must verify holding 41006 reads 32767 on all 1 target(s)\n"
+    },
+    {
+      "file": "counterHealth.test.js",
+      "status": 0,
+      "durationMs": 77,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "counterHealth.test: OK\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "counterHealthAuditCore.test.js",
+      "status": 0,
+      "durationMs": 94,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "  counterHealthAuditCore.test.js — Slice η counter health\n\n✔ etotal_regressed: emits when latest Etotal < previous (1.4754ms)\n✔ etotal_regressed: dedup window suppresses repeat (0.2513ms)\n✔ etotal_regressed: zero values and missing history don't false-fire (0.1718ms)\n✔ counter_stuck: emits on 1→0 transition (0.2473ms)\n✔ counter_stuck: dedup suppresses while still stuck (0.2361ms)\n✔ counter_stuck: clears dedup on 0→1 recovery so next stall re-fires (0.9617ms)\n✔ counter_stuck: cold start (prevCounterAdvancing undefined) does not fire (0.2451ms)\n✔ emits BOTH audits when Etotal regresses AND counter goes stuck same frame (0.9934ms)\n✔ DEFAULT_DEDUP_MS exposed at 1 hour (0.1732ms)\nℹ tests 9\nℹ suites 0\nℹ pass 9\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 12.4573\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "crashRecovery.test.js",
+      "status": 1,
+      "durationMs": 168,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "[crashRecovery] start\n  ✓ integrityGate: 5 cases (missing, valid, corrupt, bad-header, no-manifest)\n  ✓ integrityGate: Electron asar shim simulation → skipped (reason=\"fs layer reports asar as directory — skipping (original-fs unavailable?)\")\n",
+      "stderrTail": "Error: The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n    at Object..node (node:internal/modules/cjs/loader:1970:18)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at testDbAutoRestore (D:\\ADSI-Dashboard\\server\\tests\\crashRecovery.test.js:173:16)\n    at main (D:\\ADSI-Dashboard\\server\\tests\\crashRecovery.test.js:210:3) {\n  code: 'ERR_DLOPEN_FAILED'\n}\n\nNode.js v24.14.0\n"
+    },
+    {
+      "file": "criticalAlarmPatternsCore.test.js",
+      "status": 0,
+      "durationMs": 61,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "  âœ“ Slice Îº.7: bit 6 alone (0x0040) no longer triggers any auto-block pattern\n  âœ“ evaluateCriticalPatterns: 0x0240 (bits 6+9) fires only on its own pattern\n  âœ“ evaluateCriticalPatterns: explicit minSpacingMs=0 restores legacy raw count\n  âœ“ countPatternEpisodesInWindow: counts all matching rows (no cap on raw count)\n  âœ“ evaluateCriticalPatterns: caps episodes list at 20 for UI sanity\n  âœ“ evaluateCriticalPatterns: no rows â†’ every catalogue entry 'ok', not recurring\n  âœ“ evaluateCriticalPatterns: 1 episode â†’ 'watch', not yet critical\n  âœ“ evaluateCriticalPatterns: 2 episodes within 48h â†’ 'watch' (below new MIN_COUNT=3)\n  âœ“ evaluateCriticalPatterns: 3 episodes within 48h â†’ CRITICAL, recurring (Slice Îº.7)\n  âœ“ evaluateCriticalPatterns: 0x0210 path independent of 0x0240\n  âœ“ evaluateCriticalPatterns: 2 episodes spanning > 48h â†’ only counts in-window\n  âœ“ evaluateCriticalPatterns: custom minCount=5 raises threshold above default\n  âœ“ hasAnyCriticalPattern: detects critical entry\n  âœ“ hasAnyCriticalPattern: no critical â†’ false\n  âœ“ worstSeverity ranks critical > watch > ok\n\nâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€\n  criticalAlarmPatternsCore.test.js complete\n\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "criticalPatternEnforcerCore.test.js",
+      "status": 0,
+      "durationMs": 154,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "  ✓ decide: gate is per-slave — pattern on slave 1 with unbalance on slave 2 does NOT open\n  ✓ decide: no unbalance field on any slave → gated (mandatory gate, NO legacy fallback)\n  ✓ decide: critical + sustained unbalance + IN solar window → arm_pending (defer STOP)\n  ✓ decide: armed pending + solar window CLOSED + still critical → open_block (deferred)\n  ✓ decide: armed pending + pattern resolved before solar close → disarm_pending\n  ✓ enforceOne: no critical, no active block → noop, no STOP issued\n  ✓ enforceOne: promote_block updates pattern in place, no new STOP\n  ✓ enforceOne: arm_pending arms a deferred row — NO STOP, NO openBlock\n  ✓ enforceOne: disarm_pending drops the armed row, NO STOP\n  ✓ enforceOne: gated_pending_unbalance emits audit log but no STOP\n  ✓ enforceOne: STOP failure doesn't suppress the block row\n\n──────────────────────────────────────────────────────────\n  criticalPatternEnforcerCore.test.js complete\n\n  ✓ enforceOne: deferred conversion after solar — activates pending + issues STOP\n  ✓ enforceOne: critical → opens block, issues STOP to all configured slaves\n  ✓ enforceOne: stopPerSlaveDelayMs=0 disables graceful spacing (legacy / test mode)\n  ✓ enforceOne: graceful STOP — delay between slaves, NOT before the first\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "currentDayEnergyCore.test.js",
+      "status": 0,
+      "durationMs": 63,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "currentDayEnergyCore.test.js: PASS\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "dailyAggregatorCore.test.js",
+      "status": 0,
+      "durationMs": 59,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "dailyAggregatorCore.test.js — all 26 scenarios passed.\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "dailyAggregatorCoverage.test.js",
+      "status": 0,
+      "durationMs": 54,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "dailyAggregatorCoverage.test.js — all 15 scenarios passed.\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "dailyRunningSummary.test.js",
+      "status": 1,
+      "durationMs": 63,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "",
+      "stderrTail": "Error: The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n    at Object..node (node:internal/modules/cjs/loader:1970:18)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at makeDb (D:\\ADSI-Dashboard\\server\\tests\\dailyRunningSummary.test.js:25:14)\n    at run (D:\\ADSI-Dashboard\\server\\tests\\dailyRunningSummary.test.js:77:16) {\n  code: 'ERR_DLOPEN_FAILED'\n}\n\nNode.js v24.14.0\n"
+    },
+    {
+      "file": "dayAheadPlanImplementation.test.js",
+      "status": 0,
+      "durationMs": 63,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "dayAheadPlanImplementation.test.js: PASS\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "dayAheadSpreadCap.test.js",
+      "status": 1,
+      "durationMs": 104,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "",
+      "stderrTail": "Error: The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n    at Object..node (node:internal/modules/cjs/loader:1970:18)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at Object.<anonymous> (D:\\ADSI-Dashboard\\server\\db.js:689:12)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14) {\n  code: 'ERR_DLOPEN_FAILED'\n}\n\nNode.js v24.14.0\n"
+    },
+    {
+      "file": "dbPathEnvCompat.test.js",
+      "status": 0,
+      "durationMs": 183,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "[PASS] ADSI_DATA_DIR fallback\n[PASS] ADSI_PORTABLE_DATA_DIR fallback\n[PASS] IM_DATA_DIR precedence\ndbPathEnvCompat: all checks passed\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "dbSlowFieldsMigration.test.js",
+      "status": 1,
+      "durationMs": 78,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "\n──────────────────────────────────────────────────────────\n  dbSlowFieldsMigration.test.js — Slice β schema\n──────────────────────────────────────────────────────────\n\n\n──────────────────────────────────────────────────────────\n  All tests completed\n──────────────────────────────────────────────────────────\n\n",
+      "stderrTail": "the module (for instance, using `npm rebuild` or `npm install`).\n  ✗ DB migration: old rows have NULL for slow columns\n    The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n  ✗ DB migration: new rows can store slow-field values\n    The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n  ✗ DB migration: all 26 slow-field columns added without error\n    The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n"
+    },
+    {
+      "file": "dbStopReasonsStdMigration.test.js",
+      "status": 1,
+      "durationMs": 76,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "\n──────────────────────────────────────────────────────────\n  dbStopReasonsStdMigration.test.js — Slice ε schema\n──────────────────────────────────────────────────────────\n\n",
+      "stderrTail": "the module (for instance, using `npm rebuild` or `npm install`).\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\n  ✗ ensureColumn idempotency: running migration twice does not error\n    The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\n  ✗ index creation succeeds\n    The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\n"
+    },
+    {
+      "file": "energyRestartRecovery.test.js",
+      "status": 1,
+      "durationMs": 73,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "[energyRestartRecovery] start\n",
+      "stderrTail": "Error: The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n    at Object..node (node:internal/modules/cjs/loader:1970:18)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at Object.<anonymous> (D:\\ADSI-Dashboard\\server\\db.js:689:12)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14) {\n  code: 'ERR_DLOPEN_FAILED'\n}\n\nNode.js v24.14.0\n"
+    },
+    {
+      "file": "energySummaryNodeStatusCore.test.js",
+      "status": 0,
+      "durationMs": 68,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "✔ ACTIVE — within ±20 % discrepancy band (0.0912ms)\n✔ ACTIVE when HW deltas are NaN (no comparison possible) (0.0923ms)\n✔ NO_DATA when sampleCount === 0 (0.1011ms)\n✔ BRIEF_WINDOW threshold is configurable (0.1627ms)\n✔ Discrepancy threshold is configurable (0.1225ms)\n✔ deltaPct is NaN when PAC is too small for meaningful comparison (0.0947ms)\n✔ Defaults expose tunable thresholds for documentation/UI (0.0557ms)\n✔ ESTIMATED_FROM_PAC when hwProvenance='pac_fallback' (Inv 12 Node 3 case) (0.0806ms)\n✔ ESTIMATED_FROM_PAC fires BEFORE the discrepancy classifier (0.0585ms)\n✔ hwProvenance='hw_counter' uses the normal discrepancy classifier (0.0847ms)\n✔ every reason string is plain ASCII words (no Δ/≤/—/? glyphs) (0.4134ms)\nℹ tests 17\nℹ suites 0\nℹ pass 17\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 9.6429\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "energySummaryScaleCore.test.js",
+      "status": 0,
+      "durationMs": 53,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "energySummaryScaleCore.test.js: PASS\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "firmwareBusLock.test.js",
+      "status": 0,
+      "durationMs": 63,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "  ok  active vs expired claims are filtered by expires_ms\n  ok  expires_ms exactly == now is NOT active (strictly greater)\n  ok  multiple live claims all returned\n  ok  fail-open: missing ip / blank ip / no expiry are dropped\n  ok  fail-open: non-object / wrong-shape inputs yield [] (never throws)\n  ok  ip is trimmed; numeric fields coerced safely\n  ok  activeInverterIps never throws and returns a Set (fail-open)\n\nfirmwareBusLock: all 7 checks passed\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "firmwareMap.test.js",
+      "status": 0,
+      "durationMs": 58,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "  ok  fwTuple = model_code only (normalised); aux strings ignored\n  ok  parseExpectedTuple accepts plain code, JSON object, rejects garbage\n  ok  computeCanonical = modal model_code, ignores failed/empty-model rows\n  ok  computeCanonical tie-break is deterministic (lexical lowest)\n  ok  pinned-expected (string code) overrides modal even if fleet uniformly old\n  ok  classifyFleet: same model + differing aux is STILL all ok\n  ok  classifyFleet: intra-inverter split is driven by model_code only\n  ok  classifyFleet: unknown node -> partial, snapshot not clobbered\n  ok  classifyFleet: IP-octet sort orders inverters numerically\n  ok  diffForPersist: first sighting upserts but logs NO drift\n  ok  diffForPersist: real model_code change logs exactly one drift event\n  ok  diffForPersist: aux-only change is NOT drift (the verified correction)\n  ok  diffForPersist: unknown read never clobbers and never logs drift\n  ok  persistence: upsert preserves first_seen, drift log + prune + filters\n  ok  empty / all-unknown scan is safe (no canonical, not homogeneous)\n\nfirmwareMap: all 15 checks passed\n",
+      "stderrTail": "[firmwareMap] archiveTableBeforeCutoff missing — falling back to DELETE (drift log data loss).\n"
+    },
+    {
+      "file": "forecastActualAverageTable.test.js",
+      "status": 1,
+      "durationMs": 7607,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "",
+      "stderrTail": "    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at Object.<anonymous> (D:\\ADSI-Dashboard\\server\\db.js:689:12)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n    at Object..js (node:internal/modules/cjs/loader:1943:10)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16) {\n  code: 'ERR_DLOPEN_FAILED'\n}\n\nNode.js v24.14.0\n"
+    },
+    {
+      "file": "forecastCompletenessSource.test.js",
+      "status": 0,
+      "durationMs": 63,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "forecastCompletenessSource.test.js: PASS\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "forecastLoadDataPipeline.test.js",
+      "status": 1,
+      "durationMs": 72,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "[Test] Starting forecastLoadDataPipeline tests...\n",
+      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-forecast-loaddata-ZwEGKF\\db\\adsi.db — fresh DB will be created on open\nforecastLoadDataPipeline.test.js: FAIL Error: The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n    at Object..node (node:internal/modules/cjs/loader:1970:18)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at Object.<anonymous> (D:\\ADSI-Dashboard\\server\\db.js:689:12)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n"
+    },
+    {
+      "file": "forecastProviderParity.test.js",
+      "status": 0,
+      "durationMs": 60,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "forecastProviderParity.test.js: PASS\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "forecastWatchdogSource.test.js",
+      "status": 0,
+      "durationMs": 200,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "forecastWatchdogSource.test.js: PASS\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "gridCodeMonitorCore.test.js",
+      "status": 0,
+      "durationMs": 62,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "  ✓ pfFromPq returns 1.0 for pure active power\n  ✓ pfFromPq returns 0.0 for pure reactive\n  ✓ pfFromPq matches 0.95 lag spec\n  ✓ pfFromPq guards near-zero apparent power\n  ✓ linearRegress refuses < 3 points\n  ✓ linearRegress recovers known slope\n  ✓ linearRegress refuses degenerate x (vertical)\n  ✓ push then snapshotNode returns fresh shape\n  ✓ dP/dt computed across two samples\n  ✓ freshness flips off after FRESH_WINDOW_MS\n  ✓ droop_kw_per_hz null when freq is flat\n  ✓ droop_kw_per_hz computed when freq varies enough\n  ✓ ring capped at ringSize\n  ✓ snapshotPlant counts fresh nodes only\n  ✓ malformed pushes are silently dropped\n  ✓ dP_dt clamped to sanity limits\n\n  ✓ gridCodeMonitorCore tests passed\n\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "gridControlCore.test.js",
+      "status": 0,
+      "durationMs": 51,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "  ✓ target: valid input normalizes\n  ✓ target: ip with whitespace trimmed\n  ✓ toSignedInt16: 0 → 0\n  ✓ toSignedInt16: 0x7FFF (positive max) → 32767\n  ✓ toSignedInt16: 0x8000 → -32768\n  ✓ toSignedInt16: 0xFFFF → -1\n  ✓ toSignedInt16: NGCP PF 0.95 raw +10780 round-trips\n  ✓ phiRawToPF: raw=0 → PF=1.0 (unity)\n  ✓ phiRawToPF: raw=10780 → PF≈0.95 (NGCP boundary)\n  ✓ phiRawToPF: raw=-10780 → PF≈0.95 (sign-symmetric)\n  ✓ phiRawToPF: raw=15870 → PF≈0.90 (PDF cmd 1 absolute limit)\n  ✓ flag: undefined → false (default off)\n  ✓ flag: \"0\" → false\n  ✓ flag: \"1\" → true\n  ✓ flag: \"true\" → false (only literal \"1\" enables)\n  ✓ flag: whitespace tolerated around \"1\"\n  ✓ phi_raw bound: ±15870 is valid\n  ✓ phi_raw bound: ±15871 is rejected\n  ✓ kvar_div10 bound: full Int16 range allowed (caller validates per device)\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "gridControlVerifierCore.test.js",
+      "status": 0,
+      "durationMs": 56,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "\n──────────────────────────────────────────────────────────\n  gridControlVerifierCore.test.js\n──────────────────────────────────────────────────────────\n\n  ✓ _classify ok when phi raw within tolerance\n  ✓ _classify mismatch when phi raw beyond tolerance\n  ✓ _classify sign-casts UInt16 read-back to Int16\n  ✓ _classify ok on disable when both regs ≈ 0\n  ✓ _classify mismatch on disable when phi still set\n  ✓ _classify no_response when read failed\n  ✓ scheduleVerify rejects bad args\n  ✓ scheduleVerify inserts pending row + queues timer\n  ✓ newest write cancels prior pending verify (no double-fire)\n\n  ✓ gridControlVerifierCore tests passed\n\n  ✓ end-to-end verify: ok result logged + broadcast\n  ✓ end-to-end verify: timeout when elapsed > timeoutMs\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "hikvisionHybridMode.test.js",
+      "status": 0,
+      "durationMs": 549,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "hikvisionHybridMode.test.js: PASS\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "hikvisionManager.test.js",
+      "status": 0,
+      "durationMs": 67,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "hikvisionManager.test.js: ok\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "hwCounterDeltaCore.test.js",
+      "status": 0,
+      "durationMs": 57,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "hwCounterDeltaCore.test.js — all 17 scenarios passed.\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "igbtFleetEndpoint.test.js",
+      "status": 1,
+      "durationMs": 68,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "\n──────────────────────────────────────────────────────────\n  igbtFleetEndpoint.test.js — API Endpoints\n──────────────────────────────────────────────────────────\n\n",
+      "stderrTail": "  ✗ createTestDb: creates valid database with schema\n    The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n  ✗ createTestDb: seeded data is queryable\n    The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n"
+    },
+    {
+      "file": "igbtHealthCore.test.js",
+      "status": 0,
+      "durationMs": 55,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "  ✓ medianImbalance(empty array) → null\n  ✓ medianImbalance(null) → null\n  ✓ medianImbalance(single balanced row) → ~0%\n  ✓ medianImbalance(single ~0.66% imbalance row)\n  ✓ medianImbalance(median of 3 samples)\n  ✓ medianImbalance(ignores NaN currents)\n  ✓ medianImbalance(ignores zero-power rows)\n  ✓ medianImbalance(partial current data skipped)\n  ✓ medianImbalance(all invalid rows) → null\n  ✓ computeHealthScore(yoy_drift_c=null) → uses Phase 1 weights\n  ✓ computeHealthScore(yoy_drift_c=undefined) → falls back to phase1\n  ✓ computeHealthScore(yoy_drift_c=0) → Phase 2 weights, yoy_score=0\n  ✓ computeHealthScore(yoy_drift_c=-2) → negative drift contributes 0\n  ✓ computeHealthScore(yoy_drift_c=3) → yoy_score=36, contributes 0.30×36=10.8\n  ✓ computeHealthScore(yoy_drift_c=10) → yoy_score clamps at 100\n  ✓ computeHealthScore(yoy_drift_c=NaN) → treated as null, falls back to phase1\n  ✓ computeHealthScore(phase2 max all components) → score = 100, tier='eol'\n  ✓ computeHealthScore(phase2 weights sum to 1.0)\n  ✓ computeHealthScore(phase1 weights sum to 1.0)\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "igbtThermalCore.test.js",
+      "status": 0,
+      "durationMs": 55,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "  ✓ computeYoYDrift: negative drift (improved/cooler)\n  ✓ computeYoYDrift: rounded to 2 decimals\n  ✓ thermalDriftScore: null/undefined -> null\n  ✓ thermalDriftScore: 0 drift -> 0\n  ✓ thermalDriftScore: negative drift (cooler) -> 0 (no penalty)\n  ✓ thermalDriftScore: 3 °C drift -> 36 (warning per manual §4.1.1)\n  ✓ thermalDriftScore: 8 °C drift -> 96 (Critical per manual §6.5)\n  ✓ thermalDriftScore: 10 °C drift -> 100 (clamped)\n  ✓ baselineProgress: 0 days -> { ready:false, ratio:0 }\n  ✓ baselineProgress: 180 days @ 365 target -> ratio ~0.493, not ready\n  ✓ baselineProgress: 365 days -> { ready:true, ratio:1.0 }\n  ✓ baselineProgress: 1000 days -> { ready:true, ratio:1.0 (clamped) }\n  ✓ baselineProgress: invalid input -> { ready:false, ratio:0 }\n  ✓ baselineProgress: respects custom targetDays\n\n────────────────────────────────────────────────────────────\n  All tests completed\n────────────────────────────────────────────────────────────\n\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "inverterStateDecode.test.js",
+      "status": 1,
+      "durationMs": 102,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "",
+      "stderrTail": "Error: The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n    at Object..node (node:internal/modules/cjs/loader:1970:18)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at Object.<anonymous> (D:\\ADSI-Dashboard\\server\\db.js:689:12)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14) {\n  code: 'ERR_DLOPEN_FAILED'\n}\n\nNode.js v24.14.0\n"
+    },
+    {
+      "file": "ipConfigLossDefaultsSource.test.js",
+      "status": 0,
+      "durationMs": 65,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "ipConfigLossDefaultsSource.test.js: PASS\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "ipConfigRemoteSave.test.js",
+      "status": 1,
+      "durationMs": 2647,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "",
+      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-ipcfg-remote-1cghBz\\db\\adsi.db — fresh DB will be created on open\nipConfigRemoteSave.test.js: FAIL Error: The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n    at Object..node (node:internal/modules/cjs/loader:1970:18)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at Object.<anonymous> (D:\\ADSI-Dashboard\\server\\db.js:689:12)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n"
+    },
+    {
+      "file": "ipconfigEnumerate.test.js",
+      "status": 0,
+      "durationMs": 59,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "ipconfigEnumerate.test.js: PASS (9 cases)\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "manualPullFailureCleanup.test.js",
+      "status": 1,
+      "durationMs": 96,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "",
+      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-manual-pull-fail-cleanup-s3fgow\\db\\adsi.db — fresh DB will be created on open\nmanualPullFailureCleanup.test.js: FAIL Error: The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n    at Object..node (node:internal/modules/cjs/loader:1970:18)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at Object.<anonymous> (D:\\ADSI-Dashboard\\server\\db.js:689:12)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n"
+    },
+    {
+      "file": "manualPullGuard.test.js",
+      "status": 1,
+      "durationMs": 95,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "",
+      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-manual-pull-guard-tQgik1\\db\\adsi.db — fresh DB will be created on open\nmanualPullGuard.test.js: FAIL Error: The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n    at Object..node (node:internal/modules/cjs/loader:1970:18)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at Object.<anonymous> (D:\\ADSI-Dashboard\\server\\db.js:689:12)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n"
+    },
+    {
+      "file": "manualReplicationCancel.test.js",
+      "status": 1,
+      "durationMs": 96,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "",
+      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-manual-repl-cancel-OtFi73\\db\\adsi.db — fresh DB will be created on open\nmanualReplicationCancel.test.js: FAIL Error: The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n    at Object..node (node:internal/modules/cjs/loader:1970:18)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at Object.<anonymous> (D:\\ADSI-Dashboard\\server\\db.js:689:12)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n"
+    },
+    {
+      "file": "modeIsolation.test.js",
+      "status": 1,
+      "durationMs": 208,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "",
+      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-mode-isolation-zySO9s\\db\\adsi.db — fresh DB will be created on open\nmodeIsolation.test.js: FAIL Error: The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n    at Object..node (node:internal/modules/cjs/loader:1970:18)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at Object.<anonymous> (D:\\ADSI-Dashboard\\server\\db.js:689:12)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n"
+    },
+    {
+      "file": "mwhHandoff.test.js",
+      "status": 0,
+      "durationMs": 59,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "  [PASS] stale shadow discard log emitted\n  [PASS] stale high shadow is not applied\n\n-- Scenario D: Midnight rollover clears shadow and carry --\n  [PASS] yesterday shadow cleared on new day\n  [PASS] yesterday carry cleared on new day\n  [PASS] new day uses poller only\n\n-- Scenario E: Handoff timeout prevents indefinite active state --\n  [PASS] carry still protects value before timeout\n  [PASS] handoff active before timeout\n  [PASS] timeout tick still returns protected row\n  [PASS] handoff force-completed after timeout\n  [PASS] stale shadow dropped after timeout on next tick\n  [PASS] shadow cleared once handoff no longer active\n  [PASS] timeout log emitted\n\nResults: 24 passed, 0 failed\n\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "parseRowSlowFields.test.js",
+      "status": 1,
+      "durationMs": 95,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "",
+      "stderrTail": "Error: The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n    at Object..node (node:internal/modules/cjs/loader:1970:18)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at Object.<anonymous> (D:\\ADSI-Dashboard\\server\\db.js:689:12)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14) {\n  code: 'ERR_DLOPEN_FAILED'\n}\n\nNode.js v24.14.0\n"
+    },
+    {
+      "file": "phaseUnbalanceCore.test.js",
+      "status": 0,
+      "durationMs": 53,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "\n──────────────────────────────────────────────────────────\n  phaseUnbalanceCore.test.js\n──────────────────────────────────────────────────────────\n\n  ✓ T1 balanced: unbalance=0.000%\n  ✓ T2 unbalanced 30%: unbalance=33.33%\n  ✓ T3 low pac: rejected with why=pac_below_floor\n  ✓ T4 noise floor: rejected with why=phase_below_noise\n  ✓ T5 outside solar window: rejected with why=outside_solar_window\n  ✓ T6 streak<min: sustained=false (1 over, min=2)\n  ✓ T7 sustained: 3 slots, max=46.15%\n  ✓ T8 broken streak: sustained=false\n  ✓ T9 empty: sustained=false\n  ✓ T10 defaults: thr=20% slots=2 iavg=5A pac=10000W\n\n──────────────────────────────────────────────────────────\n  phaseUnbalanceCore.test.js complete\n\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "plantCapController.test.js",
+      "status": 0,
+      "durationMs": 56,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "plantCapController.test.js: PASS\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "plantCapManualAuthoritySource.test.js",
+      "status": 0,
+      "durationMs": 53,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "plantCapManualAuthoritySource.test.js: PASS\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "pollerIpConfigMapping.test.js",
+      "status": 1,
+      "durationMs": 95,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "",
+      "stderrTail": "Error: The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n    at Object..node (node:internal/modules/cjs/loader:1970:18)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at Object.<anonymous> (D:\\ADSI-Dashboard\\server\\db.js:689:12)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14) {\n  code: 'ERR_DLOPEN_FAILED'\n}\n\nNode.js v24.14.0\n"
+    },
+    {
+      "file": "pollerIpConfigPrune.test.js",
+      "status": 1,
+      "durationMs": 103,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "",
+      "stderrTail": "Error: The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n    at Object..node (node:internal/modules/cjs/loader:1970:18)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at Object.<anonymous> (D:\\ADSI-Dashboard\\server\\db.js:689:12)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14) {\n  code: 'ERR_DLOPEN_FAILED'\n}\n\nNode.js v24.14.0\n"
+    },
+    {
+      "file": "pollerSignedDecode.test.js",
+      "status": 1,
+      "durationMs": 96,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "",
+      "stderrTail": "Error: The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n    at Object..node (node:internal/modules/cjs/loader:1970:18)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at Object.<anonymous> (D:\\ADSI-Dashboard\\server\\db.js:689:12)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14) {\n  code: 'ERR_DLOPEN_FAILED'\n}\n\nNode.js v24.14.0\n"
+    },
+    {
+      "file": "pollerTodayEnergyTotal.test.js",
+      "status": 1,
+      "durationMs": 121,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "",
+      "stderrTail": "Error: The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n    at Object..node (node:internal/modules/cjs/loader:1970:18)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at Object.<anonymous> (D:\\ADSI-Dashboard\\server\\db.js:689:12)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14) {\n  code: 'ERR_DLOPEN_FAILED'\n}\n\nNode.js v24.14.0\n"
+    },
+    {
+      "file": "portableBackupRoundTrip.test.js",
+      "status": 0,
+      "durationMs": 2312,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "portableBackupRoundTrip.test.js:\n  • _zipDirectory + _extractZip handle deep trees (real zip header + round-trip): PASS\n  • _zipDirectory onProgress fired 8 times monotonically: PASS\n  • Streaming sha256 handles >2 GiB files without ERR_FS_FILE_TOO_LARGE: PASS\n[CloudBackup] Created local package: inverter-backup-2026-08-17T16-46-46-153Z\n[CloudBackup] Database restored from: C:\\Users\\User\\AppData\\Local\\Temp\\adsi-local-rt-aEK2VI\\cloud_backups\\inverter-backup-2026-08-17T16-46-46-153Z\\adsi.db\n[CloudBackup] IP config restored.\n[CloudBackup] Settings restored.\n[CloudBackup] Restore complete from: inverter-backup-2026-08-17T16-46-46-153Z\n  • createLocalBackup + restoreBackup round-trip (via new helpers): PASS\nportableBackupRoundTrip.test.js: PASS\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "reactivePowerScalingCore.test.js",
+      "status": 0,
+      "durationMs": 75,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "✔ kvarToRaw: 1 kVAr → raw 100 (NOT raw 10 — that was the bug) (0.0637ms)\n✔ kvarToRaw: 25 kVAr → raw 2500 (0.0712ms)\n✔ kvarToRaw: -50 kVAr (leading) → raw -5000 (0.0673ms)\n✔ kvarToRaw: clamps to Int16 range (0.1397ms)\n✔ kvarToRaw: NaN-safe on garbage input (0.0942ms)\n✔ varToRaw: 10 000 VAr (= 10 kVAr) → raw 1000 (0.113ms)\n✔ maxRawForNominalPowerW: 244 kW inverter → cap 24 400 (0.0727ms)\n✔ maxRawForNominalPowerW: 1 MW inverter caps at Int16 max (32767) (0.0368ms)\n✔ maxRawForNominalPowerW: missing nominal falls back to Int16 max (0.0364ms)\n✔ CONVENTION GUARD: rawToKVar(100) === 1.0 (not 10.0 — that was the bug) (0.0993ms)\n✔ CONVENTION GUARD: kvarToRaw(50) === 5000 (not 500 — that was the bug) (0.0664ms)\nℹ tests 17\nℹ suites 0\nℹ pass 17\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 8.4984\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "recoverySeedClamp.test.js",
+      "status": 0,
+      "durationMs": 53,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "recoverySeedClamp.test.js: PASS\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "remoteTodayShadow.test.js",
+      "status": 0,
+      "durationMs": 50,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "\n-- Scenario A: Fresh gateway totals beat stale local shadow --\n  [PASS] remote display uses the fresh gateway row, not the inflated shadow\n\n-- Scenario B: Same-source shadow is only a fallback until gateway rows arrive --\n  [PASS] shadow fallback carries forward live increments while the gateway snapshot is missing\n\n-- Scenario C: Cross-gateway shadow is ignored --\n  [PASS] remote display does not reuse a shadow captured from another gateway\n\n-- Scenario D: Gateway handoff captures the current remote display total --\n  [PASS] handoff baseline uses the current remote display state, not the older gateway snapshot\n\n-- Scenario E: Preserved shadow bridges Gateway mode after standby restart --\n  [PASS] gateway restart still serves the preserved gateway total before the local poller catches up\n\nResults: 5 passed, 0 failed\n\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "s3Provider.test.js",
+      "status": 0,
+      "durationMs": 2673,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "s3Provider.test.js: PASS\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "scriptsSourceSanity.test.js",
+      "status": 0,
+      "durationMs": 65,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "scriptsSourceSanity.test.js: PASS\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "serialBulkMap.test.js",
+      "status": 0,
+      "durationMs": 63,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "  ok  format is motorola and writable nodes are 1..4\n  ok  27 inverters, each with T + nodes 1..4 as serial strings\n  ok  every serial is 12 ASCII printable chars\n  ok  all 135 serials are globally unique\n  ok  Inverter 2 / Inverter 14 are the corrected 12-char serials\n  ok  getTargetSerial resolves nodes and rejects unknowns\n  ok  lookupSerialOrigin resolves slot, kind, and misses\n  ok  buildBulkPlan classifies match / mismatch / unreachable / missing\n  ok  buildBulkPlan flags a physically relocated module\n  ok  buildBulkPlan treats a nameplate serial on a node as needs_ack\n  ok  buildBulkPlan honours topology filter\n  ok  logSerialChange persists structured origin + migration history filters it\n  ok  logSerialChange coerces origin types and tolerates nulls\n\nserialBulkMap: all 13 checks passed\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "serviceSoftStopSource.test.js",
+      "status": 0,
+      "durationMs": 60,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "serviceSoftStopSource.test.js: PASS\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "settingsSectionRegistry.test.js",
+      "status": 0,
+      "durationMs": 60,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "settingsSectionRegistry.test.js: PASS (10 menu, 10 ids, 10 meta — all consistent)\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "shutdownReason.test.js",
+      "status": 0,
+      "durationMs": 117,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "shutdownReason.test.js — v2.8.14 diagnostics module\n  ✓ first-boot-no-sentinel\n  ✓ graceful-shutdown-recorded-and-archived\n  ✓ unexpected-shutdown-writes-synthetic-prev\n  ✓ sentinel-rotates-on-every-read\n  ✓ record-multiple-times-last-write-wins-at-writer-level\n  ✓ record-returns-null-when-writer-fails\n  ✓ concurrent-instance-suppresses-unexpected-classification\n  ✓ dead-pid-sentinel-still-classifies-unexpected\n  ✓ process-exit-fallback-classifies-graceful\n✓ shutdownReason.test.js — all scenarios passed\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "shutdownSerialization.test.js",
+      "status": 1,
+      "durationMs": 193,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "[Test] Shutdown serialization: 3 iterations × 10 in-flight fetches\n",
+      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-shutdown-serial-u9UPVs\\db\\adsi.db — fresh DB will be created on open\nshutdownSerialization.test.js: FAIL Error: The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n    at Object..node (node:internal/modules/cjs/loader:1970:18)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at Object.<anonymous> (D:\\ADSI-Dashboard\\server\\db.js:689:12)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n"
+    },
+    {
+      "file": "solcastLazyBackfill.test.js",
+      "status": 1,
+      "durationMs": 71,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "[Test] Starting solcastLazyBackfill tests...\n",
+      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-solcast-lazy-backfill-G5MaEb\\db\\adsi.db — fresh DB will be created on open\nsolcastLazyBackfill.test.js: FAIL Error: The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n    at Object..node (node:internal/modules/cjs/loader:1970:18)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at Object.<anonymous> (D:\\ADSI-Dashboard\\server\\db.js:689:12)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n"
+    },
+    {
+      "file": "standbySnapshotReadOnly.test.js",
+      "status": 1,
+      "durationMs": 71,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "",
+      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-standby-snapshot-QVYlRk\\db\\adsi.db — fresh DB will be created on open\nstandbySnapshotReadOnly.test.js: FAIL Error: The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n    at Object..node (node:internal/modules/cjs/loader:1970:18)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at Object.<anonymous> (D:\\ADSI-Dashboard\\server\\db.js:689:12)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n"
+    },
+    {
+      "file": "stopReasonAggregator.test.js",
+      "status": 1,
+      "durationMs": 91,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "  PASS constant: dedup bucket is 5 min\nstopReasonAggregator.test.js: done\n",
+      "stderrTail": "    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at D:\\ADSI-Dashboard\\server\\tests\\stopReasonAggregator.test.js:260:16\n    at test (D:\\ADSI-Dashboard\\server\\tests\\stopReasonAggregator.test.js:103:5)\n  FAIL input guards: empty motive list / missing ip → 0 / null\nError: The module '\\\\?\\D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js version using\nNODE_MODULE_VERSION 121. This version of Node.js requires\nNODE_MODULE_VERSION 137. Please try re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`).\n    at Object..node (node:internal/modules/cjs/loader:1970:18)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at makeDb (D:\\ADSI-Dashboard\\server\\tests\\stopReasonAggregator.test.js:40:14)\n    at D:\\ADSI-Dashboard\\server\\tests\\stopReasonAggregator.test.js:289:29\n"
+    },
+    {
+      "file": "stopReasonsArchiveContractShape.test.js",
+      "status": 0,
+      "durationMs": 68,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "  ✓ archive schema declares an inverter_stop_reasons DDL\n  ✓ ensureArchiveSchema creates inverter_stop_reasons table on every shard\n  ✓ archive entry exposes insertStopReason + per-id + per-alarm-id stmts\n  ✓ retention worker now ARCHIVES stop_reasons (not DELETE'd)\n  ✓ archiveRowsByMonth dispatches the stop_reasons type with read_at_ms month key\n  ✓ selectOldStopReasonsBatch filters on read_at_ms (not ts)\n  ✓ findStopReasonByIdArchiveAware checks hot then iterates archives\n  ✓ findStopReasonByAlarmIdArchiveAware checks hot then iterates archives\n  ✓ stopReasons.getEventById accepts archiveLookup fallback\n  ✓ stopReasons.getEventByAlarmId accepts archiveLookup fallback\n  ✓ alarm drilldown wires both archive-aware stop_reason finders\n  ✓ stop_reasons cron caller injects archive worker\n  ✓ module.exports surfaces the new archive helpers\nstopReasonsArchiveContractShape.test.js: PASS (schema + write-path + read-path + drilldown wire-up locked)\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "stopReasonsCrossCheck.test.js",
+      "status": 0,
+      "durationMs": 55,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "\n──────────────────────────────────────────────────────────\n  stopReasonsCrossCheck.test.js — Slice ε cross-check\n──────────────────────────────────────────────────────────\n\n  ✓ match=true: vendor and std within 60s, same motive code\n  ✓ match=true: vendor and std at exact same time\n  ✓ match=true: vendor and std at -60s boundary (acceptable)\n  ✓ match=false: different motive codes\n  ✓ match=false: timestamps > 60s apart\n  ✓ match=false: std is offline (captured_at_ms=null or -1)\n  ✓ match=false: vendor event_at_ms is missing/null\n  ✓ match=false: vendor motparo code is missing/null\n  ✓ match=false: invalid std timestamp_iso string\n  ✓ delta contains timeDeltaMs and boolean flags on match\n  ✓ delta on mismatch contains detailed breakdown\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "todayEnergyHealth.test.js",
+      "status": 0,
+      "durationMs": 56,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "todayEnergyHealth.test.js: PASS\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "topologyAuthLease.test.js",
+      "status": 0,
+      "durationMs": 55,
+      "ok": true,
+      "error": null,
+      "stdoutTail": "  PASS rejects empty key with 401\n  PASS accepts current-minute key (padded)\n  PASS accepts current-minute key (unpadded variant)\n  PASS accepts previous minute (current ±1 window)\n  PASS accepts next minute (current ±1 window — gateway-clock-lag tolerance)\n  PASS rejects two-minute-stale key WITHOUT lease (the original bug)\n  PASS LEASE: key validated at t0 still works at t0 + 5 min (the fix)\n  PASS LEASE: still valid at t0 + 59 min (just inside 60-min lease)\n  PASS LEASE: rolling — re-stamped on every successful validation\n  PASS LEASE: expires after 60 min of non-use → key rejected if outside time window\n  PASS LEASE is keyed per key-string (sibling key needs its own validation)\n  PASS rate limit: 5+ failures from same IP in 60s → 429\ntopologyAuthLease.test.js: done\n",
+      "stderrTail": ""
+    },
+    {
+      "file": "xlsxExportStyling.test.js",
+      "status": 1,
+      "durationMs": 263,
+      "ok": false,
+      "error": null,
+      "stdoutTail": "",
+      "stderrTail": "    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16)\n    at bindings (D:\\ADSI-Dashboard\\node_modules\\bindings\\bindings.js:112:48)\n    at new Database (D:\\ADSI-Dashboard\\node_modules\\better-sqlite3\\lib\\database.js:48:64)\n    at Object.<anonymous> (D:\\ADSI-Dashboard\\server\\db.js:689:12)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n    at Object..js (node:internal/modules/cjs/loader:1943:10)\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1556:12)\n    at require (node:internal/modules/helpers:152:16) {\n  code: 'ERR_DLOPEN_FAILED'\n}\n\nNode.js v24.14.0\n"
+    }
+  ],
+  "pythonTests": {
+    "status": 0,
+    "durationMs": 88170,
+    "ok": true,
+    "error": null,
+    "junitPath": "D:\\ADSI-Dashboard\\scripts\\.smoke-pytest-junit.xml",
+    "stdoutTail": "........................................................................ [ 12%]\n........................................................................ [ 25%]\n........................................................................ [ 38%]\n........................................................................ [ 51%]\n........................................................................ [ 64%]\n........................................................................ [ 77%]\n........................................................................ [ 90%]\n.......................................................                  [100%]\n559 passed in 85.59s (0:01:25)\n",
+    "stderrTail": ""
+  },
+  "finishedAt": "2026-08-17T16:48:18.506Z",
+  "durationMs": 119514,
+  "exitCode": 1
+}

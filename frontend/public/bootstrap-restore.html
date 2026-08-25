@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'unsafe-inline' 'self'; script-src 'self';">
+  <title>ADSI Inverter Dashboard — Restore from Backup</title>
+  <style>
+    :root {
+      --bg: #050c17;
+      --surface: #0d1d33;
+      --surface-2: #14253d;
+      --border: #1f3556;
+      --text: #e6edf7;
+      --muted: #93a4bf;
+      --accent: #4fb3ff;
+      --accent-strong: #1f86d4;
+      --danger: #ff6b6b;
+      --warning: #ffb86b;
+      --ok: #6bdc94;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 18px 24px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    header h1 {
+      margin: 0 0 4px;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    header p.subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12.5px;
+    }
+
+    main {
+      flex: 1 1 auto;
+      overflow-y: auto;
+      padding: 18px 24px;
+    }
+
+    footer {
+      flex: 0 0 auto;
+      padding: 14px 24px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* ── steps ───────────────────────────────────────────── */
+    .step { display: none; }
+    .step.active { display: block; }
+
+    .step h2 {
+      margin: 0 0 12px;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .step p { line-height: 1.5; color: var(--muted); }
+    .step p.lead { color: var(--text); margin-top: 0; }
+
+    /* ── file picker ─────────────────────────────────────── */
+    .file-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 14px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      border-radius: 6px;
+    }
+
+    .file-row .file-path {
+      flex: 1 1 auto;
+      font-family: Consolas, Monaco, monospace;
+      font-size: 12px;
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-row .file-path.has-value { color: var(--text); }
+
+    /* ── buttons ────────────────────────────────────────── */
+    button {
+      font-family: inherit;
+      font-size: 13px;
+      padding: 8px 16px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    button:hover:not(:disabled) {
+      background: var(--surface);
+      border-color: var(--accent);
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    button.primary {
+      background: var(--accent-strong);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    button.primary:hover:not(:disabled) {
+      background: var(--accent);
+    }
+
+    button.danger {
+      background: transparent;
+      color: var(--danger);
+      border-color: rgba(255, 107, 107, 0.3);
+    }
+
+    /* ── validation summary ─────────────────────────────── */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      gap: 6px 14px;
+      margin-top: 14px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface-2);
+      font-size: 13px;
+    }
+
+    .summary-grid dt {
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .summary-grid dd {
+      margin: 0;
+      color: var(--text);
+      font-family: Consolas, Monaco, monospace;
+      font-size: 12.5px;
+      word-break: break-word;
+    }
+
+    .row-counts {
+      margin-top: 10px;
+      padding: 10px 14px;
+      border: 1px dashed var(--border);
+      border-radius: 6px;
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+
+    .row-counts strong { color: var(--text); }
+
+    /* ── scope checklist ────────────────────────────────── */
+    .scope-list {
+      list-style: none;
+      padding: 0;
+      margin: 12px 0 0;
+    }
+
+    .scope-list li {
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface-2);
+      transition: border-color 0.15s;
+    }
+
+    .scope-list li:hover { border-color: var(--accent); }
+
+    .scope-list li.disabled {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    .scope-list label {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      cursor: pointer;
+    }
+
+    .scope-list input[type="checkbox"] {
+      flex: 0 0 auto;
+      margin-top: 3px;
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .scope-list .scope-text { flex: 1 1 auto; }
+
+    .scope-list .scope-label {
+      font-weight: 600;
+      color: var(--text);
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .scope-list .scope-detail {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .scope-list .pill {
+      display: inline-block;
+      padding: 1px 7px;
+      margin-left: 6px;
+      font-size: 10.5px;
+      font-weight: 600;
+      border-radius: 10px;
+      background: var(--accent-strong);
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      vertical-align: middle;
+    }
+
+    .scope-list .pill.warn {
+      background: rgba(255, 184, 107, 0.2);
+      color: var(--warning);
+    }
+
+    .scope-list .pill.unavailable {
+      background: rgba(147, 164, 191, 0.15);
+      color: var(--muted);
+    }
+
+    /* ── progress + alerts ──────────────────────────────── */
+    .progress-wrap {
+      margin-top: 18px;
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface-2);
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: var(--bg);
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 8px 0;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-strong));
+      transition: width 0.3s ease;
+    }
+
+    .progress-text {
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+
+    .alert {
+      margin-top: 12px;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      line-height: 1.4;
+    }
+
+    .alert.error {
+      background: rgba(255, 107, 107, 0.12);
+      border: 1px solid rgba(255, 107, 107, 0.3);
+      color: var(--danger);
+    }
+
+    .alert.success {
+      background: rgba(107, 220, 148, 0.1);
+      border: 1px solid rgba(107, 220, 148, 0.3);
+      color: var(--ok);
+    }
+
+    .alert.warning {
+      background: rgba(255, 184, 107, 0.1);
+      border: 1px solid rgba(255, 184, 107, 0.3);
+      color: var(--warning);
+    }
+
+    /* ── stepper ────────────────────────────────────────── */
+    .stepper {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .stepper .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+    }
+
+    .stepper .dot.active { background: var(--accent); }
+    .stepper .dot.done { background: var(--ok); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Restore from Backup</h1>
+    <p class="subtitle">
+      Restore plant data from a portable <code>.adsibak</code> file before activating this device.
+      Choose what to restore — the dashboard will relaunch automatically.
+    </p>
+  </header>
+
+  <main id="main">
+    <!-- Step 1: pick file -->
+    <section class="step active" data-step="1">
+      <h2>Step 1 — Select backup file</h2>
+      <p class="lead">
+        Locate the <code>.adsibak</code> file you saved from the source dashboard.
+        It typically sits on a USB drive, network share, or external folder.
+      </p>
+      <div class="file-row">
+        <span id="filePath" class="file-path">No file selected</span>
+        <button id="btnPickFile" class="primary">Browse…</button>
+      </div>
+      <div id="pickError" class="alert error" style="display:none"></div>
+    </section>
+
+    <!-- Step 2: validation summary -->
+    <section class="step" data-step="2">
+      <h2>Step 2 — Verify backup</h2>
+      <p class="lead">The file's manifest and checksums have been verified. Review what's inside before continuing.</p>
+      <dl class="summary-grid" id="summaryGrid"></dl>
+      <div id="rowCounts" class="row-counts" style="display:none"></div>
+      <div id="validateError" class="alert error" style="display:none"></div>
+    </section>
+
+    <!-- Step 3: scope checklist -->
+    <section class="step" data-step="3">
+      <h2>Step 3 — Choose what to restore</h2>
+      <p class="lead">
+        By default we restore everything that's safe and useful for migration.
+        Uncheck anything you'd like to keep at the fresh-install default.
+      </p>
+      <ul class="scope-list" id="scopeList"></ul>
+      <p class="alert warning" style="display:none" id="scopeEmptyWarning">
+        Select at least one item to continue.
+      </p>
+    </section>
+
+    <!-- Step 4: progress -->
+    <section class="step" data-step="4">
+      <h2>Step 4 — Restoring…</h2>
+      <p class="lead">Don't close this window. The dashboard will relaunch when restore finishes.</p>
+      <div class="progress-wrap">
+        <div class="progress-text" id="progressText">Importing backup file…</div>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      </div>
+      <div id="restoreError" class="alert error" style="display:none"></div>
+    </section>
+
+    <!-- Step 5: done -->
+    <section class="step" data-step="5">
+      <h2>Restore complete</h2>
+      <div class="alert success">
+        <strong>Success.</strong>
+        Your selected data has been restored to this device. Click "Relaunch" to restart the
+        dashboard with the restored database, settings, and credentials applied.
+      </div>
+      <p>
+        The license check and integrity gate will run again on next launch.
+        If the restored license file is bound to this machine's hardware fingerprint,
+        you'll be able to skip the trial activation entirely.
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="stepper" id="stepper" role="progressbar" aria-valuemin="1" aria-valuemax="5" aria-valuenow="1">
+      <span class="dot active" aria-label="Step 1: Select backup file"></span>
+      <span class="dot" aria-label="Step 2: Verify backup"></span>
+      <span class="dot" aria-label="Step 3: Choose what to restore"></span>
+      <span class="dot" aria-label="Step 4: Restoring"></span>
+      <span class="dot" aria-label="Step 5: Restore complete"></span>
+    </div>
+    <div>
+      <button id="btnCancel" class="danger">Cancel</button>
+      <button id="btnBack" style="display:none">Back</button>
+      <button id="btnNext" class="primary" disabled>Next</button>
+      <button id="btnRelaunch" class="primary" style="display:none">Relaunch</button>
+    </div>
+  </footer>
+
+  <script src="bootstrap-restore.js"></script>
+</body>
+</html>

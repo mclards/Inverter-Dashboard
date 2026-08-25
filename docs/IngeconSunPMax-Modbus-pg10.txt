@@ -1,0 +1,41 @@
+ DOCUMENTO DE ANÁLISIS DE DETALLE 
+INGETEAM REV.:_ FECHA: 09/01/13 PÁG.: 10 DE 17 
+  
+ 
+2.1 Función 0x04: Input registers reading 
+Function 0x04 (Read Input Registers) is used to read online data from the inverter. 
+The procedure starts with the PC sending a Query message to the in verter. The 
+example below shows a message asking for data from 47 (0x2F) Input Registers . 
+Note that 0x30001 range is a Modbus naming convention, and in practice register 
+0x30001 register is addressed at 0, and so on. 
+ 
+Address -- Inverter Address[1 .. 247] 
+Function 0x04 Read Input Registers 
+Starting Address Hi 0x00 Address of 1st register (HI byte) 
+Starting Address Lo 0x00 Address of 1st register (LO byte) 
+Number of Points Hi 0x00 Number of registers to read (HI byte) 
+Number of Points Lo 0x2F Number of registers to read (LO byte) 
+Error Check (CRC) - Hi -- Cyclic redundancy code (HI byte) 
+Error Check (CRC) – Lo -- Cyclic redundancy code (LO byte) 
+ 
+The inverter replies sending the following Response message, which in this case 
+includes all possible variables (94 data bytes): 
+ 
+Address 0 -- Inverter Address[1 .. 247] 
+Function 1 0x04 Read Input Registers 
+Byte Count 2 0x5E Number of data octets 
+Data 0 3 -- Value of E_total (byte 0, highest) 
+Data 1 4 -- Value of E_total (byte 1) 
+Data 2 5 -- Value of E_total (byte 2) 
+Data 3 6 -- Value of E_total (byte 3, lowest) 
+Data 0 7 -- Value of Hours (byte 0, highest) 
+Data 1 8 -- Value of Hours (byte 1) 
+Data 2 9 -- Value of Hours (byte 2) 
+Data 3 10 -- Value of Hours (byte 3, lowest) 
+Data 0 11 -- Value of Conex (byte 0, highest) 
+Data 1 12 -- Value of Conex (byte 1) 
+Data 2 13 -- Value of Conex (byte 2) 
+Data 3 14 -- Value of Conex (byte 3, lowest) 
+Data 0 15 -- Value of Alarmas_Inv (byte 0, highest) 
+Data 1 16 -- Value of Alarmas_Inv (byte 1) 
+Data 2 17 -- Value of Alarmas_Inv (byte 2) 

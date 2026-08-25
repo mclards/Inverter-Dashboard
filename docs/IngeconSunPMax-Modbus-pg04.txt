@@ -1,0 +1,50 @@
+ DOCUMENTO DE ANÁLISIS DE DETALLE 
+INGETEAM REV.:_ FECHA: 09/01/13 PÁG.: 4 DE 17 
+2. INPUT REGISTERS 
+Relevant data in each 3-phase Ingecon Sun is identified as a 16 bit Input Registers in 
+the 30001 Modbus Range. 
+ 
+Dir. 
+H.R. 
+Description Signed Since 
+firmware 
+versión 
+30001 Total Energy (High)  _ 
+30002 Total Energy (Low) 
+30001-30002:  30001 and 30002 registers are the High and Low parts, 
+respectively, of the 32 bit variable that stores, in kWh, the total Value of  
+produced energy over its lifecycle. 
+ _ 
+30003 Hours up and running (High)  _ 
+30004 Hours up and running (Low) 
+30003-30004: 30003 y 30004 registers are the High and Low parts, 
+respectively, of the 32 bit variable that stores the number of hours that the 
+inverter has been running. 
+ _ 
+30005 Number of connections to grid (High)  _ 
+30006 Number of connections to grid (Low) 
+30005-30006: 30005 y 30006 registers are the High and Low parts, 
+respectively, of the 32 bit variable that stores the number of times that the 
+inverter has connected to the grid since first startup. 
+ _ 
+30007 Inverter alarms (high)  _ 
+30008 Inverter alarms (low) 
+30007-30008 Inverter alarm codes. 
+-. ALARMA_FRED (0x0001): Grid frequency outside limits. 
+-. ALARMA_VRED (0x0002): Grid voltage outside limits. 
+-. ALARMA_PI_ANA (0x0004): Current PI saturation. 
+-. ALARMA_RESET_WD (0x0008): inverter reset by Watch Dog 
+-. ALARMA_IRED_EFICAZ (0x0010): Excessive RMS grid current 
+-. ALARMA_TEMPERATURA (0x0020): Max. Temperature reached. 
+-. ALARMA_LEC_ADC (0x0040): A/D converters reading error 
+-. ALARMA_IRED_INSTA (0x0080): AC overcurrent 
+-. ALARMA_PROT_AC (0x0100): AC protections 
+-. ALARMA_PROT_DC (0x0200): DC protections 
+-. ALARMA_PARO_AISL_DC (0x0400): DC Isolation Failure. 
+-. ALARMA_FRAMA (0x0800): Failure in power electronics 
+-. ALARMA_PARO_MANUAL (0x1000): Manual stop 
+-. ALARMA_CONFIG (0x2000): Change in configuration 
+-. ALARMA_VIN ( 0x4000): Excessive input voltage 
+-. ALARMA_VPV_MED_MIN ( 0x8000): Tensión mínima en la entrada 
+ _ 
+30009 Vdc : DC input voltaje, in Volts  _ 

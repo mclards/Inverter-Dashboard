@@ -1,0 +1,50 @@
+ DOCUMENTO DE ANÁLISIS DE DETALLE 
+INGETEAM REV.:_ FECHA: 09/01/13 PÁG.: 16 DE 17 
+ 
+ 
+Command / Data table for Query: 
+Command  
+number 
+Command Data parameter Data parameter limits 
+0 No command (not used) (not used) 
+1 Change phi tangent target New phi tangent 
+reference in Int16* 
+Max: 0.48 (15870) 
+Min: -0.48 (-15870) 
+2 Read phi tangent target (not used) (not used) 
+3 Change power reduction target Inverter Power in Uint16 
+** 
+Max: 100% (32767) 
+Min: 0% (0) 
+4 Read power reduction target (not used) (not used) 
+5 Stop inverter Sender Node number Max: 254 
+Min:  1 
+6 Start Inverter Sender Node number Max: 254 
+Min:  1 
+7 No command  (not used) (not used) 
+8 No command  (not used) (not used) 
+9 Change reactive power ref React. power in (KVAr/10) Nominal power of the 
+inverter div 10 
+10’ No command (not used) (not used) 
+11 Disable reactive power ref*** (not used) (not used) 
+12 Enable restrictive frequency limits**** 1: Restrictive limits ON 
+0: Restrictive limits OFF 
+Max: 1 
+Min: 0 
+13 Inject reactive power without DC 
+source 
+React. power in (KVAr/10) Nominal power of the 
+inveter div 10 
+14 Stop reactive power inje ction without 
+DC source 
+(not used) (not used) 
+*Int16 bit phi tangent: 32767 is equal to 1, -32767 I equal to -1. (Tan*32767) 
+**Uint16 Inverter power: 100% of max power: 32767. 0% of max power: 0 (%/100*32767) The 
+maximum reduction is chosen, 0%, the inverter stops with “manual stop” alarm. 
+*** It changes to 0 the reactive power reference if previously is set to a given value  
+****Restrictive limits are 49,5Hz/50,5Hz. Non restrictive limits are 47,5Hz/51,5Hz. According to the 
+CEI 0-21 regulation 
+ 
+Reactive Co ntrol works as a Generator. When the invert er is commanded with a 
+positive tangent target, injected current will be delayed from voltage.  
+Otherwise, if tangent target is negative, injected current will be before the voltage. 

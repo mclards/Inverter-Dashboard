@@ -1,0 +1,48 @@
+ DOCUMENTO DE ANÁLISIS DE DETALLE 
+INGETEAM REV.:_ FECHA: 09/01/13 PÁG.: 17 DE 17 
+ 
+If the INGECON SUN receives a  command it resends the frame to the sender. On 
+table 3 there are the reponse parameters 
+ 
+ 
+ 
+Command / Data table for Response: 
+Command  
+number 
+Command Data parameter Data parameter limits 
+0 No command (not used) (not used) 
+1 Change phi tangent target Current phi tangent 
+reference in Int16 
+Max: 0.48 (15870) 
+Min: -0.48 (-15870) 
+2 Read phi tangent target Current phi tangent 
+reference in Int16 
+Max: 0.48 (15870) 
+Min: -0.48 (-15870) 
+3 Change power reduction target Current Inverter Power in 
+Uint16  
+Max: 100% (32767) 
+Min: 5% (1638) 
+4 Read power reduction target Current Inverter Power in 
+Uint16  
+Max: 100% (32767) 
+Min: 5% (1638) 
+5 Stop inverter Stop-Start status 1: Stopped, 2:Started 
+6 Start Inverter Stop-Start status 1: Stopped, 2:Started 
+7 No command  (not used) (not used) 
+8 No command  (not used) (not used) 
+9 Change reactive power ref React. power in (KVAr/10) Nominal power of the 
+inveter div 10 
+10’ No command (not used) (not used) 
+11 Disable reactive power ref (not used) (not used) 
+12 Enable restrictive frequency limits 1: Restrictive limits ON 
+0: Restrictive limits OFF 
+(not used) 
+13 Inject reactive power without DC 
+source 
+React. power in (KVAr/10) Nominal power of the 
+inveter div 10 
+14 Stop reactive power injection without 
+DC source 
+(not used) (not used) 
+ 

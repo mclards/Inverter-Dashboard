@@ -1,0 +1,8 @@
+ DOCUMENTO DE ANÁLISIS DE DETALLE 
+INGETEAM REV.:_ FECHA: 09/01/13 PÁG.: 3 DE 17 
+1. INTRODUCTION 
+ 
+This report contains some documen tation about all Ingecon Sun Three -phase 
+family. The following information explains on one hand how to get information of the 
+inverter and on the other hand how to manage the inverter using the MODBUS RTU 
+protocol.  

@@ -1,0 +1,1754 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ADSI Global Configuration</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/x-icon" href="/assets/icon.ico" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #f3f6fb;
+        --surface: #ffffff;
+        --surface2: #eef3fb;
+        --surface3: #f7faff;
+        --border: #d7e2f1;
+        --border2: #bdd0e8;
+        --accent: #0d6efd;
+        --accent2: #0a58ca;
+        --accent-glow: rgba(13, 110, 253, 0.18);
+        --text: #1a2b44;
+        --text2: #4f6788;
+        --ok: #0ea765;
+        --warn: #e0315b;
+        --radius: 12px;
+      }
+      html.dark {
+        --bg: #061022;
+        --surface: #0b162b;
+        --surface2: #0f1e38;
+        --surface3: #102245;
+        --border: #1f3252;
+        --border2: #2a4772;
+        --accent: #60a5fa;
+        --accent2: #2563eb;
+        --accent-glow: rgba(96, 165, 250, 0.18);
+        --text: #dbe7ff;
+        --text2: #8ea4c8;
+        --ok: #10b981;
+        --warn: #ef476f;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font: 13px "Sora", sans-serif;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      /* ── Header ──────────────────────────────────────────── */
+      .header {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 18px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+      }
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        min-width: 0;
+      }
+      #header-logo {
+        height: 34px;
+        width: auto;
+        object-fit: contain;
+      }
+      .h-title {
+        font: 800 16px Sora, sans-serif;
+        letter-spacing: 0.01em;
+        line-height: 1.1;
+      }
+      .h-sub {
+        margin-top: 1px;
+        font: 600 9px "JetBrains Mono", monospace;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--text2);
+      }
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: auto;
+      }
+      .reach-badge {
+        padding: 6px 11px;
+        background: var(--surface2);
+        border: 1px solid var(--border2);
+        border-radius: 8px;
+        font: 700 11px "JetBrains Mono", monospace;
+        color: var(--text2);
+        white-space: nowrap;
+      }
+      .scan-indicator {
+        display: none;
+        color: var(--accent);
+        font: 10px "JetBrains Mono", monospace;
+      }
+      .scan-indicator.active {
+        display: flex;
+        gap: 7px;
+        align-items: center;
+      }
+      .scan-ring {
+        width: 14px;
+        height: 14px;
+        border: 2px solid var(--accent);
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .clock-wrap {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        height: 32px;
+        padding: 0 10px;
+        border: 1px solid var(--border2);
+        border-radius: 8px;
+        background: var(--surface2);
+      }
+      .ws-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--ok);
+        box-shadow: 0 0 8px var(--ok);
+      }
+      #clock {
+        font: 700 12px "JetBrains Mono", monospace;
+        color: var(--text2);
+        min-width: 62px;
+        text-align: right;
+      }
+      .btn {
+        border: none;
+        border-radius: 8px;
+        height: 32px;
+        padding: 0 13px;
+        cursor: pointer;
+        font: 700 12px "Sora", sans-serif;
+        transition: filter 0.14s, transform 0.1s, border-color 0.15s, background 0.15s, color 0.15s;
+      }
+      .btn:active {
+        transform: translateY(1px);
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, var(--accent2), var(--accent));
+        color: #fff;
+        box-shadow: 0 4px 14px var(--accent-glow);
+      }
+      .btn-primary:hover {
+        filter: brightness(1.08);
+      }
+      .btn-ghost {
+        background: var(--surface2);
+        color: var(--text2);
+        border: 1px solid var(--border2);
+      }
+      .btn-ghost:hover {
+        color: var(--accent);
+        border-color: var(--accent);
+      }
+
+      /* ── Main scroll area ────────────────────────────────── */
+      .main {
+        flex: 1 1 auto;
+        overflow: auto;
+        padding: 14px 18px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 9px;
+        max-width: 1040px;
+        margin: 0 auto;
+      }
+      .grid-loading {
+        padding: 40px;
+        text-align: center;
+        color: var(--text2);
+      }
+
+      /* ── Inverter card (single-line strip) ───────────────── */
+      .inv-card {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        flex-wrap: wrap;
+        padding: 7px 11px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        transition: border-color 0.15s, box-shadow 0.15s;
+      }
+      .inv-card:hover {
+        border-color: var(--border2);
+      }
+      .inv-card.dirty {
+        border-color: var(--accent);
+        box-shadow: inset 3px 0 0 var(--accent);
+      }
+      .inv-id {
+        font: 700 11px Sora, sans-serif;
+        color: var(--text);
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+        min-width: 50px;
+      }
+      .inv-id span {
+        font-family: "JetBrains Mono", monospace;
+      }
+      .cfg-icon {
+        flex: 0 0 auto;
+        width: 26px;
+        height: 26px;
+        border-radius: 7px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 13px;
+        line-height: 1;
+        border: 1px solid transparent;
+        transition: filter 0.14s;
+      }
+      .cfg-icon:hover {
+        filter: brightness(1.12);
+      }
+      .ip-empty {
+        background: var(--surface3);
+        color: var(--text2);
+        border-color: var(--border2);
+      }
+      .ip-unreachable {
+        background: color-mix(in srgb, var(--warn) 13%, transparent);
+        color: var(--warn);
+        border-color: color-mix(in srgb, var(--warn) 30%, transparent);
+      }
+      .ip-ok {
+        background: color-mix(in srgb, var(--ok) 14%, transparent);
+        color: var(--ok);
+        border-color: color-mix(in srgb, var(--ok) 30%, transparent);
+      }
+      input[type="text"],
+      input[type="number"] {
+        background: var(--surface3);
+        color: var(--text);
+        border: 1px solid var(--border2);
+        border-radius: 7px;
+        padding: 6px 9px;
+        font: 12px "JetBrains Mono", monospace;
+        text-align: center;
+        outline: none;
+        transition: border-color 0.15s, box-shadow 0.15s;
+      }
+      input[type="text"]:focus,
+      input[type="number"]:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-glow);
+      }
+      .inv-card .f-ip {
+        flex: 1 1 110px;
+        min-width: 104px;
+        width: auto;
+        text-align: left;
+      }
+      .mini {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        flex: 0 0 auto;
+      }
+      .mini > span {
+        font: 700 8px "JetBrains Mono", monospace;
+        letter-spacing: 0.1em;
+        color: var(--text2);
+      }
+      .inv-card .mini input {
+        width: 56px;
+        padding: 6px 6px;
+      }
+      .units {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        flex: 0 0 auto;
+      }
+      .unit-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        padding: 3px 6px;
+        border-radius: 6px;
+        background: var(--surface3);
+        border: 1px solid var(--border2);
+        font: 700 10px "JetBrains Mono", monospace;
+        color: var(--text2);
+        cursor: pointer;
+        user-select: none;
+      }
+      .unit-chip:has(input:checked) {
+        color: var(--accent);
+        border-color: var(--accent);
+        background: var(--accent-glow);
+      }
+      .unit-chip input {
+        width: 11px;
+        height: 11px;
+        accent-color: var(--accent);
+        cursor: pointer;
+        margin: 0;
+      }
+      .save-btn {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        border-radius: 7px;
+        border: 1px solid var(--border2);
+        background: var(--surface2);
+        color: var(--text2);
+        cursor: pointer;
+        transition: color 0.14s, border-color 0.14s, background 0.14s, transform 0.1s;
+      }
+      .save-btn:hover {
+        color: var(--accent);
+        border-color: var(--accent);
+        background: var(--accent-glow);
+      }
+      .save-btn:active {
+        transform: translateY(1px);
+      }
+
+      /* Reconnect-comms button — mirrors .save-btn, orange accent on hover. */
+      .recon-btn {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        border-radius: 7px;
+        border: 1px solid var(--border2);
+        background: var(--surface2);
+        color: var(--text2);
+        cursor: pointer;
+        transition: color 0.14s, border-color 0.14s, background 0.14s, transform 0.1s;
+      }
+      .recon-btn:hover {
+        color: var(--orange, #fb923c);
+        border-color: var(--orange, #fb923c);
+        background: rgba(251, 146, 60, 0.12);
+      }
+      .recon-btn:active {
+        transform: translateY(1px);
+      }
+      .recon-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      /* ── Action bar ──────────────────────────────────────── */
+      .actionbar {
+        flex: 0 0 auto;
+        padding: 10px 18px;
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+      }
+      .bar-inner {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        max-width: 1040px;
+        margin: 0 auto;
+      }
+      .status-bar {
+        flex: 1;
+        min-height: 34px;
+        display: flex;
+        align-items: center;
+        padding: 7px 13px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font: 11px "JetBrains Mono", monospace;
+        color: var(--text2);
+      }
+      .status-bar.success {
+        color: var(--ok);
+        border-color: color-mix(in srgb, var(--ok) 35%, transparent);
+      }
+      .status-bar.error {
+        color: var(--warn);
+        border-color: color-mix(in srgb, var(--warn) 35%, transparent);
+      }
+      .actionbar .btn-primary {
+        height: 36px;
+        padding: 0 20px;
+        font-size: 12.5px;
+      }
+
+      /* ── Auth Gate ─────────────────────────────────────── */
+      #auth-gate {
+        position: fixed;
+        inset: 0;
+        background: rgba(2, 8, 18, 0.82);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 99999;
+        animation: gate-in 0.18s ease both;
+      }
+      @keyframes gate-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      #auth-card {
+        width: min(90vw, 344px);
+        background: linear-gradient(158deg, var(--surface) 0%, var(--surface2) 100%);
+        border: 1px solid var(--border2);
+        border-top: 2px solid var(--accent);
+        border-radius: 14px;
+        padding: 26px 22px 20px;
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.04),
+          0 20px 56px rgba(0, 0, 0, 0.52),
+          0 6px 18px rgba(0, 0, 0, 0.28);
+        animation: card-in 0.24s cubic-bezier(0.34, 1.28, 0.64, 1) both;
+      }
+      @keyframes card-in {
+        from { opacity: 0; transform: scale(0.92) translateY(10px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+      }
+      .auth-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 7px;
+      }
+      .auth-icon {
+        width: 32px;
+        height: 32px;
+        flex-shrink: 0;
+        border-radius: 8px;
+        background: linear-gradient(135deg, var(--accent2), var(--accent));
+        box-shadow: 0 2px 10px var(--accent-glow);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .auth-icon svg {
+        width: 15px;
+        height: 15px;
+        fill: none;
+        stroke: #fff;
+        stroke-width: 2.2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      #auth-title {
+        font: 700 0.78rem Sora, sans-serif;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: var(--text);
+      }
+      #auth-sub {
+        font-size: 0.69rem;
+        line-height: 1.55;
+        color: var(--text2);
+        margin-bottom: 14px;
+      }
+      #auth-input {
+        width: 100%;
+        height: 38px;
+        padding: 0 12px;
+        background: var(--surface3);
+        color: var(--text);
+        border: 1px solid var(--border2);
+        border-radius: 8px;
+        font: 13px "JetBrains Mono", monospace;
+        outline: none;
+        transition: border-color 0.15s, box-shadow 0.15s;
+        margin-bottom: 10px;
+      }
+      #auth-input::placeholder { color: var(--text2); opacity: 0.55; }
+      #auth-input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-glow);
+      }
+      #auth-submit {
+        width: 100%;
+        height: 38px;
+        border: none;
+        border-radius: 8px;
+        background: linear-gradient(135deg, var(--accent2), var(--accent));
+        color: #fff;
+        font: 700 0.76rem Sora, sans-serif;
+        letter-spacing: 0.04em;
+        cursor: pointer;
+        transition: filter 0.15s, transform 0.1s;
+      }
+      #auth-submit:hover { filter: brightness(1.13); }
+      #auth-submit:active { transform: scale(0.975); filter: brightness(0.96); }
+      #auth-error {
+        margin-top: 10px;
+        font-size: 0.68rem;
+        color: var(--warn);
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        min-height: 0;
+        opacity: 0;
+        transition: opacity 0.18s;
+      }
+      #auth-error:not(:empty) { opacity: 1; }
+
+      /* ── Tabs ────────────────────────────────────────────── */
+      .tabs {
+        flex: 0 0 auto;
+        display: flex;
+        gap: 2px;
+        background: var(--surface2);
+        padding: 4px;
+        margin: 14px 18px 0;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+      }
+      .tab-btn {
+        flex: 1;
+        background: transparent;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font: 600 12px "Sora", sans-serif;
+        color: var(--text2);
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .tab-btn:hover {
+        background: var(--surface3);
+        color: var(--text);
+      }
+      .tab-btn.active {
+        background: var(--surface);
+        color: var(--accent);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      }
+      .tab-content {
+        display: none;
+        padding-top: 14px;
+      }
+      .tab-content.active {
+        display: block;
+      }
+      .simple-form {
+        display: grid;
+        grid-template-columns: 200px 1fr;
+        gap: 12px;
+        align-items: center;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+      }
+      .simple-form label {
+        font-weight: 600;
+        color: var(--text2);
+      }
+      .simple-form input, .simple-form select {
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--bg);
+        color: var(--text);
+        font: 400 13px "Sora", sans-serif;
+        width: 100%;
+      }
+      .simple-form h3 {
+        grid-column: 1 / -1;
+        margin-top: 10px;
+        margin-bottom: 5px;
+        color: var(--text);
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 5px;
+      }
+
+      /* ── Global settings panels ──────────────────────────── */
+      .settings-layout {
+        width: min(1040px, 100%);
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .settings-card {
+        min-width: 0;
+        padding: 16px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--surface);
+      }
+      .settings-card.wide { grid-column: 1 / -1; }
+      .settings-card-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        padding-bottom: 11px;
+        margin-bottom: 12px;
+        border-bottom: 1px solid var(--border);
+      }
+      .settings-card-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .settings-card-copy {
+        margin-top: 3px;
+        color: var(--text2);
+        font-size: 10.5px;
+        line-height: 1.45;
+      }
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 11px 12px;
+      }
+      .field {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .field.span-2 { grid-column: 1 / -1; }
+      .field > span,
+      .check-field > span {
+        color: var(--text2);
+        font-size: 10.5px;
+        font-weight: 700;
+      }
+      .field input,
+      .field select {
+        width: 100%;
+        min-width: 0;
+        height: 34px;
+        padding: 0 10px;
+        border: 1px solid var(--border2);
+        border-radius: 7px;
+        outline: none;
+        background: var(--surface3);
+        color: var(--text);
+        font: 11.5px "Sora", sans-serif;
+        text-align: left;
+        transition: border-color 0.15s, box-shadow 0.15s;
+      }
+      .field input[type="password"],
+      .field input.mono,
+      .field select.mono { font-family: "JetBrains Mono", monospace; }
+      .field input:focus,
+      .field select:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-glow);
+      }
+      .field small {
+        color: var(--text2);
+        font-size: 9.5px;
+        line-height: 1.4;
+      }
+      .check-field {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 34px;
+        padding: 7px 10px;
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        background: var(--surface3);
+        cursor: pointer;
+      }
+      .check-field input { accent-color: var(--accent); }
+      .info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .info-item {
+        min-width: 0;
+        padding: 10px 11px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface3);
+      }
+      .info-label {
+        color: var(--text2);
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .info-value {
+        margin-top: 4px;
+        overflow-wrap: anywhere;
+        color: var(--text);
+        font: 700 11px "JetBrains Mono", monospace;
+      }
+      .info-value.ok { color: var(--ok); }
+      .info-value.warn,
+      .info-value.error { color: var(--warn); }
+      .card-actions {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .inline-note {
+        flex: 1 1 180px;
+        color: var(--text2);
+        font: 10px "JetBrains Mono", monospace;
+        line-height: 1.45;
+      }
+      .inline-note.error { color: var(--warn); }
+      .inline-note.success { color: var(--ok); }
+      .remote-only-note {
+        padding: 10px 12px;
+        margin-bottom: 12px;
+        border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--accent) 9%, transparent);
+        color: var(--accent);
+        font-size: 10.5px;
+        line-height: 1.5;
+      }
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        filter: none;
+      }
+      #saveAllBtn.dirty::after {
+        content: " •";
+        color: #fff;
+      }
+      @media (max-width: 760px) {
+        .settings-layout,
+        .form-grid,
+        .info-grid { grid-template-columns: 1fr; }
+        .settings-card.wide,
+        .field.span-2 { grid-column: auto; }
+        .tabs { overflow-x: auto; }
+        .tab-btn { flex: 0 0 auto; min-width: 150px; }
+      }
+
+    </style>
+  </head>
+  <body>
+    <div id="auth-gate">
+      <div id="auth-card">
+        <div class="auth-header">
+          <div class="auth-icon">
+            <svg viewBox="0 0 24 24">
+              <rect x="3" y="11" width="18" height="11" rx="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </div>
+          <div id="auth-title">Global Configuration Access</div>
+        </div>
+        <div id="auth-sub">Enter the authorization key to continue.</div>
+        <input id="auth-input" type="password" autocomplete="off" placeholder="Authorization key" />
+        <button id="auth-submit">Continue</button>
+        <div id="auth-error" role="alert"></div>
+      </div>
+    </div>
+
+    <div class="header">
+      <div class="header-left">
+        <img id="header-logo" src="/assets/adsi_logo.png" alt="ADSI Inverter Dashboard" />
+        <div>
+          <div class="h-title">Global Configuration</div>
+          <div class="h-sub">Plant &amp; Inverter Administration</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div id="scanIndicator" class="scan-indicator">
+          <div class="scan-ring"></div>
+          <span>Checking</span>
+        </div>
+        <div class="reach-badge" id="ipCounter">Online: — / 27</div>
+        <button class="btn btn-ghost" onclick="scanAll()">Check Status</button>
+        <button class="btn btn-ghost" id="toTopologyBtn">Topology</button>
+        <button class="btn btn-ghost" id="themeToggle">Light</button>
+        <div class="clock-wrap">
+          <span class="ws-dot"></span>
+          <div id="clock">--:--:--</div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="remoteBanner"
+      style="
+        display: none;
+        align-items: center;
+        gap: 8px;
+        flex: 0 0 auto;
+        padding: 8px 18px;
+        background: color-mix(in srgb, var(--accent) 12%, transparent);
+        border-bottom: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+        color: var(--accent);
+        font: 600 11px 'JetBrains Mono', monospace;
+        letter-spacing: 0.02em;
+      "
+    >
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+      <span>Remote mode — changes are saved to the gateway and mirrored to this viewer. Device reachability is checked on the gateway LAN, not here.</span>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('tab-network', event)">Network & IP</button>
+      <button class="tab-btn" onclick="switchTab('tab-plant', event)">Plant & Data</button>
+      <button class="tab-btn" onclick="switchTab('tab-hardware', event)">Hardware & Clocks</button>
+      <button class="tab-btn" onclick="switchTab('tab-connectivity', event)">Connectivity & Backup</button>
+    </div>
+
+    <div class="main">
+      <div id="tab-network" class="tab-content active">
+        <div class="grid" id="inverterGrid">
+          <div class="grid-loading">Loading device configuration…</div>
+        </div>
+      </div>
+
+      <div id="tab-plant" class="tab-content">
+        <div class="settings-layout">
+          <section class="settings-card">
+            <div class="settings-card-head">
+              <div>
+                <div class="settings-card-title">Plant Identity</div>
+                <div class="settings-card-copy">Names used in the dashboard, audits, chat, and exported reports.</div>
+              </div>
+            </div>
+            <div class="form-grid">
+              <label class="field span-2"><span>Plant Name</span><input id="set_plantName" type="text" maxlength="120" autocomplete="off" /></label>
+              <label class="field span-2"><span>Operator Name</span><input id="set_operatorName" type="text" maxlength="80" autocomplete="off" /></label>
+            </div>
+          </section>
+
+          <section class="settings-card">
+            <div class="settings-card-head">
+              <div>
+                <div class="settings-card-title">Fleet Layout</div>
+                <div class="settings-card-copy">Configured inverter and node counts plus the main dashboard card layout.</div>
+              </div>
+            </div>
+            <div class="form-grid">
+              <label class="field"><span>Inverter Count</span><input id="set_inverterCount" type="number" min="1" max="100" step="1" /></label>
+              <label class="field"><span>Nodes / Inverter</span><input id="set_nodeCount" type="number" min="1" max="16" step="1" /></label>
+              <label class="field span-2"><span>Dashboard Grid</span><select id="set_invGridLayout"><option value="auto">Auto</option><option value="2">2 columns</option><option value="3">3 columns</option><option value="4">4 columns</option><option value="5">5 columns</option><option value="6">6 columns</option><option value="7">7 columns</option></select></label>
+            </div>
+          </section>
+
+          <section class="settings-card">
+            <div class="settings-card-head">
+              <div>
+                <div class="settings-card-title">Data Storage</div>
+                <div class="settings-card-copy">Export destination and hot-database retention policy.</div>
+              </div>
+            </div>
+            <div class="form-grid">
+              <label class="field span-2"><span>Export Folder</span><input id="set_csvSavePath" class="mono" type="text" autocomplete="off" /></label>
+              <label class="field"><span>Retention Window</span><input id="set_retainDays" type="number" min="1" max="1095" step="1" /><small>Days before raw telemetry is archived.</small></label>
+            </div>
+          </section>
+
+          <section class="settings-card">
+            <div class="settings-card-head">
+              <div>
+                <div class="settings-card-title">Forecast Authority</div>
+                <div class="settings-card-copy">Provider used by the gateway's shared day-ahead generation plan.</div>
+              </div>
+            </div>
+            <div class="form-grid">
+              <label class="field span-2"><span>Forecast Provider</span><select id="set_forecastProvider"><option value="ml_local">Local ML engine</option><option value="solcast">Solcast</option></select><small>Provider routing is evaluated by the gateway. Detailed Solcast credentials remain in the main Forecast settings.</small></label>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div id="tab-hardware" class="tab-content">
+        <div class="settings-layout">
+          <section class="settings-card wide">
+            <div class="settings-card-head">
+              <div>
+                <div class="settings-card-title">Inverter Service Endpoints</div>
+                <div class="settings-card-copy">Gateway-local Python service endpoints for Modbus reads and control writes.</div>
+              </div>
+            </div>
+            <div class="form-grid">
+              <label class="field"><span>Data API URL</span><input id="set_apiUrl" class="mono" type="text" inputmode="url" autocomplete="off" /></label>
+              <label class="field"><span>Write API URL</span><input id="set_writeUrl" class="mono" type="text" inputmode="url" autocomplete="off" /></label>
+            </div>
+          </section>
+
+          <section class="settings-card wide">
+            <div class="settings-card-head">
+              <div>
+                <div class="settings-card-title">Inverter Clock Schedule</div>
+                <div class="settings-card-copy">Daily gateway-driven RTC synchronization and drift alert threshold.</div>
+              </div>
+            </div>
+            <div id="clockRemoteNote" class="remote-only-note" hidden>Remote mode — clock settings are saved to and executed by the gateway.</div>
+            <div class="form-grid">
+              <label class="check-field"><input id="set_inverterClockAutoSyncEnabled" type="checkbox" /><span>Enable daily auto-sync</span></label>
+              <label class="field"><span>Daily Sync Time</span><input id="set_inverterClockAutoSyncAt" class="mono" type="time" step="60" /></label>
+              <label class="field"><span>Drift Threshold (seconds)</span><input id="set_inverterClockDriftThresholdS" type="number" min="60" max="86400" step="60" /><small>Valid range: 60–86,400 seconds.</small></label>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div id="tab-connectivity" class="tab-content">
+        <div class="settings-layout">
+          <section class="settings-card wide">
+            <div class="settings-card-head">
+              <div>
+                <div class="settings-card-title">Operation Mode &amp; Remote Access</div>
+                <div class="settings-card-copy">The gateway polls the plant; a remote viewer consumes and manages gateway-owned data.</div>
+              </div>
+            </div>
+            <div class="form-grid">
+              <label class="field"><span>Operation Mode</span><select id="set_operationMode"><option value="gateway">Gateway (plant-connected)</option><option value="remote">Remote (gateway-linked)</option></select></label>
+              <label class="check-field"><input id="set_remoteAutoSync" type="checkbox" /><span>Refresh standby data automatically</span></label>
+              <label class="field span-2"><span>Remote Gateway URL</span><input id="set_remoteGatewayUrl" class="mono" type="text" inputmode="url" placeholder="http://100.x.x.x:3500" autocomplete="off" /></label>
+              <label class="field span-2"><span>Remote API Token</span><input id="set_remoteApiToken" class="mono" type="password" maxlength="256" autocomplete="new-password" /><small>Stored locally and redacted from audit details.</small></label>
+              <label class="field span-2"><span>Tailscale Device Hint</span><input id="set_tailscaleDeviceHint" class="mono" type="text" maxlength="120" placeholder="plant-gateway" autocomplete="off" /></label>
+            </div>
+          </section>
+
+          <section class="settings-card">
+            <div class="settings-card-head"><div><div class="settings-card-title">Gateway Link</div><div class="settings-card-copy">Current runtime connection state.</div></div></div>
+            <div class="info-grid">
+              <div class="info-item"><div class="info-label">Mode</div><div id="runtimeMode" class="info-value">—</div></div>
+              <div class="info-item"><div class="info-label">Gateway</div><div id="runtimeGateway" class="info-value">—</div></div>
+              <div class="info-item"><div class="info-label">Live Link</div><div id="runtimeConnected" class="info-value">—</div></div>
+              <div class="info-item"><div class="info-label">Last Contact</div><div id="runtimeLastContact" class="info-value">—</div></div>
+            </div>
+            <div class="card-actions"><button id="refreshRuntimeBtn" class="btn btn-ghost" type="button">Refresh Link</button><span id="runtimeMsg" class="inline-note"></span></div>
+          </section>
+
+          <section class="settings-card">
+            <div class="settings-card-head"><div><div class="settings-card-title">Backup Readiness</div><div class="settings-card-copy">Provider connection and current backup activity.</div></div></div>
+            <div class="info-grid">
+              <div class="info-item"><div class="info-label">Cloud Providers</div><div id="backupProviders" class="info-value">—</div></div>
+              <div class="info-item"><div class="info-label">Backup State</div><div id="backupProgress" class="info-value">—</div></div>
+            </div>
+            <div class="card-actions">
+              <button id="refreshBackupBtn" class="btn btn-ghost" type="button">Refresh Backup</button>
+              <button id="portableBackupBtn" class="btn btn-primary" type="button">Export .adsibak</button>
+              <span id="backupMsg" class="inline-note"></span>
+            </div>
+          </section>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="actionbar">
+      <div class="bar-inner">
+        <div class="status-bar" id="statusBar">
+          <span id="statusText">Ready for review</span>
+        </div>
+        <button id="saveAllBtn" class="btn btn-primary" onclick="saveAll()">Save All Changes</button>
+      </div>
+    </div>
+
+    <script>
+      if (!window.electronAPI) {
+        window.electronAPI = {
+          __stub: true, // running in a plain browser (web UI), not the Electron shell
+          getConfig: async () => ({
+            inverters: {},
+            poll_interval: {},
+            units: {},
+            losses: {},
+          }),
+          saveConfig: async () => ({ success: true }),
+          openIP: () => {},
+          openIPCheck: () => {},
+          onIPStatus: () => {},
+          saveAdsibak: async () => null,
+        };
+      }
+      // True only inside the Electron shell (real preload), where openIP can
+      // spawn a native device-page window. In a plain browser the stub above
+      // is installed instead.
+      const IS_ELECTRON = !(window.electronAPI && window.electronAPI.__stub);
+      const grid = document.getElementById("inverterGrid");
+      const statusBar = document.getElementById("statusBar");
+      const statusText = document.getElementById("statusText");
+      const themeToggle = document.getElementById("themeToggle");
+      const THEME_KEY = "topology_theme";
+      const DEFAULT_INTERVAL = 0.05;
+      const DEFAULT_LOSS_PCT = 2.5;
+      const INVERTER_COUNT = 27;
+      const dirtyRows = new Set();
+      let config = {};
+      let ipState = {};
+      let reachableCount = 0;
+      let remoteMode = false;
+
+      function initTheme() {
+        const saved = localStorage.getItem(THEME_KEY);
+        setTheme(saved === "light" ? "light" : "dark");
+      }
+      function setTheme(mode) {
+        const dark = mode !== "light";
+        document.documentElement.classList.toggle("dark", dark);
+        themeToggle.textContent = dark ? "Light" : "Dark";
+        localStorage.setItem(THEME_KEY, dark ? "dark" : "light");
+      }
+      function toggleTheme() {
+        setTheme(
+          document.documentElement.classList.contains("dark") ? "light" : "dark",
+        );
+      }
+
+      function setStatus(msg, kind = "") {
+        statusText.textContent = msg;
+        statusBar.className = "status-bar" + (kind ? ` ${kind}` : "");
+      }
+      function markDirty(n) {
+        dirtyRows.add(n);
+        document.getElementById(`card-${n}`)?.classList.add("dirty");
+      }
+      function isValidIP(ip) {
+        const parts = String(ip).split(".");
+        return (
+          parts.length === 4 &&
+          parts.every(
+            (p) => p !== "" && !isNaN(p) && Number(p) >= 0 && Number(p) <= 255,
+          )
+        );
+      }
+      function updateCounter() {
+        document.getElementById("ipCounter").textContent =
+          `Online: ${reachableCount} / ${INVERTER_COUNT}`;
+      }
+      function showScanIndicator(on) {
+        document.getElementById("scanIndicator").classList.toggle("active", !!on);
+      }
+
+      function getUnits(num) {
+        const selected = [];
+        for (let u = 1; u <= 4; u++) {
+          if (document.getElementById(`u-${num}-${u}`).checked) selected.push(u);
+        }
+        return selected;
+      }
+      function toggleAll(num) {
+        const all = document.getElementById(`u-${num}-all`).checked;
+        for (let u = 1; u <= 4; u++)
+          document.getElementById(`u-${num}-${u}`).checked = all;
+        markDirty(num);
+      }
+      function unitChanged(num) {
+        document.getElementById(`u-${num}-all`).checked =
+          getUnits(num).length === 4;
+        markDirty(num);
+      }
+
+      function cardHtml(num, ip, interval, units, loss) {
+        const checked = (n) => (units.includes(n) ? "checked" : "");
+        const allChecked = units.length === 4 ? "checked" : "";
+        const nn = String(num).padStart(2, "0");
+        return `<div class="inv-card" id="card-${num}">
+    <div class="cfg-icon ip-empty" id="cfg-${num}" onclick="openInverter(${num})" title="Open device web page" role="button" aria-label="Open device web page for INV-${nn}">⚙</div>
+    <div class="inv-id">INV-<span>${nn}</span></div>
+    <input id="ip-${num}" class="f-ip" type="text" value="${ip}" placeholder="IP address" inputmode="numeric" oninput="markDirty(${num})" aria-label="INV-${nn} IP address">
+    <label class="mini" title="Polling interval (seconds)"><span>POLL</span><input id="poll-${num}" type="number" step="0.01" min="0.01" value="${interval}" oninput="markDirty(${num})"></label>
+    <div class="units" title="Enabled units"><label class="unit-chip"><input type="checkbox" id="u-${num}-all" ${allChecked} onclick="toggleAll(${num})">A</label><label class="unit-chip"><input type="checkbox" id="u-${num}-1" ${checked(1)} onclick="unitChanged(${num})">1</label><label class="unit-chip"><input type="checkbox" id="u-${num}-2" ${checked(2)} onclick="unitChanged(${num})">2</label><label class="unit-chip"><input type="checkbox" id="u-${num}-3" ${checked(3)} onclick="unitChanged(${num})">3</label><label class="unit-chip"><input type="checkbox" id="u-${num}-4" ${checked(4)} onclick="unitChanged(${num})">4</label></div>
+    <label class="mini" title="Transmission loss % (inverter to substation)"><span>LOSS</span><input id="loss-${num}" type="number" step="0.1" min="0" max="100" value="${loss}" oninput="markDirty(${num})"></label>
+    <button class="recon-btn" id="recon-${num}" onclick="reconnectInverter(${num})" title="Reconnect comms — force the gateway to drop and rebuild its Modbus connection to INV-${nn}. Use when its nodes stop polling but the IP still pings. Changes no IP or setting." aria-label="Reconnect comms for INV-${nn}">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+    </button>
+    <button class="save-btn" onclick="saveIP(${num})" title="Save INV-${nn}" aria-label="Save INV-${nn}">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+    </button>
+  </div>`;
+      }
+
+      function openInverter(num) {
+        const ip = document.getElementById(`ip-${num}`).value.trim();
+        if (!ip) {
+          setStatus("No IP address is configured for this inverter.", "error");
+          return;
+        }
+        // The comm board's web page lives on the gateway LAN.
+        //  • Remote viewer: it can't reach the device directly, so route through
+        //    the gateway. We open our OWN /api/comm-proxy/<ip>/ (served by the
+        //    local app over loopback, which forwards to the gateway with the
+        //    remote token injected; the gateway then reverse-proxies the device).
+        //  • Gateway + Electron shell: spawn a native device-page window (also
+        //    runs a reachability check first).
+        //  • Gateway + plain browser: open the device page directly on the LAN.
+        if (remoteMode) {
+          window.open(`/api/comm-proxy/${encodeURIComponent(ip)}/`, "_blank", "noopener");
+          setStatus(`Opening INV-${String(num).padStart(2, "0")} web page via the gateway…`, "");
+          return;
+        }
+        if (IS_ELECTRON) {
+          window.electronAPI.openIP(ip);
+          return;
+        }
+        window.open(`http://${ip}/`, "_blank", "noopener");
+      }
+
+      // Force the gateway to drop and rebuild its Modbus connection to one
+      // inverter. Replaces the field workaround of changing the inverter's IP
+      // to recover a wedged session — it touches no IP and no setting. Works in
+      // both gateway and remote mode: /api/reconnect proxies to the gateway when
+      // this viewer is remote.
+      async function reconnectInverter(num) {
+        const nn = String(num).padStart(2, "0");
+        const btn = document.getElementById(`recon-${num}`);
+        if (btn) btn.disabled = true;
+        setStatus(`Reconnecting INV-${nn} comms…`, "");
+        try {
+          const r = await fetch(`/api/reconnect/inverter/${num}`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ trigger: "operator" }),
+          });
+          const body = await r.json().catch(() => ({}));
+          if (r.ok && body && body.ok) {
+            setStatus(`INV-${nn} comms reconnected — polling should resume shortly.`, "success");
+          } else {
+            setStatus(`INV-${nn} reconnect failed: ${(body && body.error) || `HTTP ${r.status}`}`, "error");
+          }
+        } catch (e) {
+          setStatus(`INV-${nn} reconnect error: ${e.message}`, "error");
+        } finally {
+          if (btn) btn.disabled = false;
+        }
+      }
+
+      async function load() {
+        const loaded = await window.electronAPI.getConfig();
+        config =
+          loaded && loaded.inverters
+            ? loaded
+            : { inverters: {}, poll_interval: {}, units: {}, losses: {} };
+        if (!config.poll_interval) config.poll_interval = {};
+        if (!config.units) config.units = {};
+        if (!config.losses) config.losses = {};
+        grid.innerHTML = "";
+        for (let n = 1; n <= INVERTER_COUNT; n++) {
+          const ip = config.inverters[n] || "";
+          const interval = Number(config.poll_interval[n]) || DEFAULT_INTERVAL;
+          const units = Array.isArray(config.units[n])
+            ? config.units[n]
+            : [1, 2, 3, 4];
+          const rawLoss = Number(config.losses[n]);
+          const loss =
+            Number.isFinite(rawLoss) && rawLoss >= 0 && rawLoss <= 100
+              ? rawLoss
+              : DEFAULT_LOSS_PCT;
+          grid.insertAdjacentHTML("beforeend", cardHtml(n, ip, interval, units, loss));
+        }
+        dirtyRows.clear();
+        setStatus("Device configuration loaded.", "success");
+        scanAll();
+      }
+
+      function collectRow(num) {
+        const ip = document.getElementById(`ip-${num}`).value.trim();
+        const poll = Number(document.getElementById(`poll-${num}`).value.trim());
+        const units = getUnits(num);
+        const loss = Number(document.getElementById(`loss-${num}`).value.trim());
+        if (!ip || !isValidIP(ip))
+          throw new Error(`Enter a valid IPv4 address for inverter ${num}.`);
+        if (!Number.isFinite(poll) || poll < 0.01)
+          throw new Error(`Enter a valid polling interval for inverter ${num}.`);
+        if (!Number.isFinite(loss) || loss < 0 || loss > 100)
+          throw new Error(`Enter a valid loss % (0–100) for inverter ${num}.`);
+        return { ip, poll, units, loss };
+      }
+
+      // Re-pull the persisted config from the server and rebuild the form so
+      // the operator sees the authoritative state immediately after a save —
+      // catches sanitization tweaks (e.g. blank IPs, clamped intervals) and
+      // wins races against another tab that may have saved concurrently.
+      async function refreshFromServer(statusOnSuccess) {
+        try {
+          await load();
+          if (statusOnSuccess) setStatus(statusOnSuccess, "success");
+        } catch (e) {
+          setStatus(`Saved, but reload failed: ${e.message}`, "error");
+        }
+      }
+
+      async function saveIP(num) {
+        try {
+          const row = collectRow(num);
+          config.inverters[num] = row.ip;
+          config.poll_interval[num] = row.poll;
+          config.units[num] = row.units;
+          config.losses[num] = row.loss;
+          const ret = await window.electronAPI.saveConfig(config);
+          if (ret && ret.success === false)
+            throw new Error(ret.error || "Unable to save the configuration.");
+          if (ret?.config) config = ret.config;
+          dirtyRows.delete(num);
+          document.getElementById(`card-${num}`)?.classList.remove("dirty");
+          updateSaveButton();
+          setStatus(`Inverter ${num} settings saved. Other unsaved rows were preserved.`, "success");
+        } catch (e) {
+          setStatus(`Save failed: ${e.message}`, "error");
+        }
+      }
+
+      async function saveNetworkSettings() {
+        try {
+          for (let n = 1; n <= INVERTER_COUNT; n++) {
+            const row = collectRow(n);
+            config.inverters[n] = row.ip;
+            config.poll_interval[n] = row.poll;
+            config.units[n] = row.units;
+            config.losses[n] = row.loss;
+          }
+          const ret = await window.electronAPI.saveConfig(config);
+          if (ret && ret.success === false)
+            throw new Error(ret.error || "Unable to save the configuration.");
+          dirtyRows.clear();
+          await refreshFromServer("All inverter network settings were saved.");
+          return true;
+        } catch (e) {
+          setStatus(`Save failed: ${e.message}`, "error");
+          return false;
+        }
+      }
+
+      function scanAll() {
+        if (remoteMode) {
+          // Reachability is probed from the machine running this window. In
+          // remote mode the inverters live on the gateway's LAN and are not
+          // reachable from here, so skip the scan instead of falsely flagging
+          // every device "unreachable". The gateway still polls them.
+          showScanIndicator(false);
+          for (let n = 1; n <= INVERTER_COUNT; n++) {
+            const icon = document.getElementById(`cfg-${n}`);
+            if (icon) icon.className = "cfg-icon ip-empty";
+          }
+          document.getElementById("ipCounter").textContent = "Gateway-managed";
+          return;
+        }
+        showScanIndicator(true);
+        ipState = {};
+        reachableCount = 0;
+        updateCounter();
+        for (let n = 1; n <= INVERTER_COUNT; n++) {
+          const ip = document.getElementById(`ip-${n}`)?.value.trim();
+          const icon = document.getElementById(`cfg-${n}`);
+          if (!icon) continue;
+          if (!ip) {
+            icon.className = "cfg-icon ip-empty";
+            continue;
+          }
+          icon.className = "cfg-icon ip-unreachable";
+          window.electronAPI.openIPCheck(ip);
+        }
+        setTimeout(() => showScanIndicator(false), 3000);
+      }
+
+      window.electronAPI.onIPStatus(({ ip, ok }) => {
+        ipState[ip] = ok;
+        reachableCount = 0;
+        for (let n = 1; n <= INVERTER_COUNT; n++) {
+          const ipBox = document.getElementById(`ip-${n}`);
+          const icon = document.getElementById(`cfg-${n}`);
+          if (!ipBox || !icon) continue;
+          const v = ipBox.value.trim();
+          if (!v) icon.className = "cfg-icon ip-empty";
+          else if (ipState[v] === true) {
+            icon.className = "cfg-icon ip-ok";
+            reachableCount++;
+          } else if (ipState[v] === false) icon.className = "cfg-icon ip-unreachable";
+        }
+        updateCounter();
+      });
+
+      function getMinuteKeys() {
+        // ±1 minute in BOTH directions (prior + current + next) so this local
+        // gate matches the server's window. Current-minute-only used to falsely
+        // reject a valid key when the clock ticked over between the operator
+        // reading it and clicking Continue.
+        const m = new Date().getMinutes();
+        const prev = (m + 59) % 60;
+        const next = (m + 1) % 60;
+        return [
+          `adsi${m}`, `adsi${String(m).padStart(2, "0")}`,
+          `adsi${prev}`, `adsi${String(prev).padStart(2, "0")}`,
+          `adsi${next}`, `adsi${String(next).padStart(2, "0")}`,
+        ];
+      }
+      function verifyKey(v) {
+        return getMinuteKeys().includes(
+          String(v || "").trim().toLowerCase(),
+        );
+      }
+      const AUTH_SESSION_KEY = "adsi_auth_until";
+      // sessionStorage is cleared whenever the window closes, so reopening always
+      // resets the gate regardless of time. The 1-hour limit guards against leaving
+      // the window open unattended for extended periods.
+      const AUTH_SESSION_MS = 60 * 60 * 1000;
+      function hasAuthSession() {
+        return Number(sessionStorage.getItem(AUTH_SESSION_KEY) || 0) > Date.now();
+      }
+      function setAuthSession() {
+        sessionStorage.setItem(
+          AUTH_SESSION_KEY,
+          String(Date.now() + AUTH_SESSION_MS),
+        );
+      }
+      function initAuthGate() {
+        const gate = document.getElementById("auth-gate");
+        const input = document.getElementById("auth-input");
+        const submit = document.getElementById("auth-submit");
+        const err = document.getElementById("auth-error");
+        if (hasAuthSession()) {
+          gate.style.display = "none";
+          load();
+          return;
+        }
+        const unlock = async () => {
+          if (!verifyKey(input.value)) {
+            err.textContent = "Invalid authorization key. Please try again.";
+            input.select();
+            return;
+          }
+          err.textContent = "";
+          setAuthSession();
+          gate.style.display = "none";
+          await load();
+        };
+        submit.addEventListener("click", unlock);
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") unlock();
+        });
+        input.focus();
+      }
+      function applyRemoteModeUi() {
+        if (!remoteMode) return;
+        const banner = document.getElementById("remoteBanner");
+        if (banner) banner.style.display = "flex";
+        const counter = document.getElementById("ipCounter");
+        if (counter) counter.textContent = "Gateway-managed";
+        // The local LAN reachability scan is meaningless from a remote viewer —
+        // hide its trigger and indicator; scanAll() is also guarded as a no-op.
+        document
+          .querySelectorAll('button.btn-ghost[onclick="scanAll()"]')
+          .forEach((b) => (b.style.display = "none"));
+        document.title =
+          "ADSI Inverter Dashboard Global Configuration (Remote → Gateway)";
+      }
+
+      // Resolve the operation mode BEFORE the auth gate / first load so the
+      // remote banner and scan suppression are in place when the grid renders.
+      (async () => {
+        try {
+          remoteMode = await isClientMode();
+        } catch (_) {
+          remoteMode = false;
+        }
+        applyRemoteModeUi();
+        initAuthGate();
+      })();
+      initTheme();
+      themeToggle.addEventListener("click", toggleTheme);
+      async function isClientMode() {
+        try {
+          const r = await fetch("/api/settings", { cache: "no-store" });
+          if (!r.ok) return false;
+          const s = await r.json();
+          return (
+            String(s?.operationMode || "gateway").trim().toLowerCase() === "remote"
+          );
+        } catch {
+          return false;
+        }
+      }
+      function alertClientModeUnavailable(feature) {
+        alert(
+          `${feature} view is available only in Gateway mode.\nChange Operation Mode in Settings to continue.`,
+        );
+      }
+      document.getElementById("toTopologyBtn").addEventListener("click", async () => {
+        if (await isClientMode()) {
+          alertClientModeUnavailable("Topology");
+          return;
+        }
+        if (
+          dirtyRows.size > 0 &&
+          !confirm("Unsaved changes will be discarded. Continue to the topology view?")
+        )
+          return;
+        if (window.electronAPI?.openTopologyWindow) {
+          window.electronAPI.openTopologyWindow();
+          return;
+        }
+        window.location.href = "/topology.html?from=ip-config";
+      });
+      function tickClock() {
+        const d = new Date();
+        const p = (n) => String(n).padStart(2, "0");
+        document.getElementById("clock").textContent =
+          `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+      }
+      setInterval(tickClock, 1000);
+      tickClock();
+      document.addEventListener("keydown", (e) => {
+        if (e.ctrlKey && e.key.toLowerCase() === "l") {
+          e.preventDefault();
+          toggleTheme();
+        }
+      });
+
+      // ── Global settings tabs and shared state ─────────────────────────────
+      const SETTING_FIELDS = [
+        "plantName", "operatorName", "csvSavePath", "retainDays",
+        "inverterCount", "nodeCount", "invGridLayout", "apiUrl", "writeUrl",
+        "remoteGatewayUrl", "remoteApiToken", "tailscaleDeviceHint",
+        "operationMode", "forecastProvider", "inverterClockAutoSyncAt",
+        "inverterClockDriftThresholdS",
+      ];
+      let generalDirty = false;
+      let settingsSnapshot = {};
+
+      function setInlineMessage(id, text, type = "") {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = text || "";
+        el.className = `inline-note${type ? ` ${type}` : ""}`;
+      }
+
+      function updateSaveButton() {
+        const btn = document.getElementById("saveAllBtn");
+        if (!btn) return;
+        const dirty = generalDirty || dirtyRows.size > 0;
+        btn.classList.toggle("dirty", dirty);
+        btn.title = dirty ? "Save pending settings and network changes" : "No pending edits";
+      }
+
+      function markGeneralDirty() {
+        generalDirty = true;
+        updateSaveButton();
+        setStatus("Unsaved global settings changes.", "");
+      }
+
+      document.querySelectorAll('[id^="set_"]').forEach((el) => {
+        el.addEventListener("input", markGeneralDirty);
+        el.addEventListener("change", markGeneralDirty);
+      });
+
+      // Keep the existing row-level dirty marker and also refresh the global
+      // save indicator. Inline onclick handlers resolve this reassigned name.
+      const markNetworkDirty = markDirty;
+      markDirty = function(num) {
+        markNetworkDirty(num);
+        updateSaveButton();
+      };
+
+      window.switchTab = function(tabId, event) {
+        const target = document.getElementById(tabId);
+        if (!target) return;
+        document.querySelectorAll(".tab-content").forEach((el) => el.classList.remove("active"));
+        document.querySelectorAll(".tab-btn").forEach((el) => {
+          el.classList.remove("active");
+          el.setAttribute("aria-selected", "false");
+        });
+        target.classList.add("active");
+        if (event?.currentTarget) {
+          event.currentTarget.classList.add("active");
+          event.currentTarget.setAttribute("aria-selected", "true");
+        }
+        if (tabId === "tab-connectivity") {
+          loadRuntimeStatus();
+          loadBackupStatus();
+        }
+      };
+
+      async function fetchJson(url, options = {}) {
+        const response = await fetch(url, { cache: "no-store", ...options });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok || body?.ok === false) {
+          throw new Error(body?.error || body?.message || `HTTP ${response.status}`);
+        }
+        return body;
+      }
+
+      function validateGeneralSettings(payload) {
+        if (!payload.plantName.trim()) throw new Error("Plant Name is required.");
+        if (!payload.operatorName.trim()) throw new Error("Operator Name is required.");
+        if (!payload.csvSavePath.trim()) throw new Error("Export Folder is required.");
+        if (!Number.isInteger(payload.inverterCount) || payload.inverterCount < 1 || payload.inverterCount > 100)
+          throw new Error("Inverter Count must be between 1 and 100.");
+        if (!Number.isInteger(payload.nodeCount) || payload.nodeCount < 1 || payload.nodeCount > 16)
+          throw new Error("Nodes / Inverter must be between 1 and 16.");
+        if (!Number.isInteger(payload.retainDays) || payload.retainDays < 1 || payload.retainDays > 1095)
+          throw new Error("Retention Window must be between 1 and 1,095 days.");
+        if (!/^https?:\/\//i.test(payload.apiUrl) || !/^https?:\/\//i.test(payload.writeUrl))
+          throw new Error("Data and Write API URLs must begin with http:// or https://.");
+        if (payload.operationMode === "remote" && !payload.remoteGatewayUrl.trim())
+          throw new Error("Remote mode requires a Remote Gateway URL.");
+        if (payload.remoteGatewayUrl && !/^https?:\/\//i.test(payload.remoteGatewayUrl))
+          throw new Error("Remote Gateway URL must begin with http:// or https://.");
+        if (!/^\d{2}:\d{2}$/.test(payload.inverterClockAutoSyncAt))
+          throw new Error("Daily Sync Time must use HH:MM format.");
+        if (!Number.isFinite(payload.inverterClockDriftThresholdS) || payload.inverterClockDriftThresholdS < 60 || payload.inverterClockDriftThresholdS > 86400)
+          throw new Error("Clock drift threshold must be between 60 and 86,400 seconds.");
+      }
+
+      function collectGeneralSettings() {
+        const payload = {};
+        SETTING_FIELDS.forEach((field) => {
+          const el = document.getElementById(`set_${field}`);
+          if (el) payload[field] = el.value;
+        });
+        payload.inverterCount = Number(payload.inverterCount);
+        payload.nodeCount = Number(payload.nodeCount);
+        payload.retainDays = Number(payload.retainDays);
+        payload.inverterClockDriftThresholdS = Number(payload.inverterClockDriftThresholdS);
+        payload.remoteAutoSync = Boolean(document.getElementById("set_remoteAutoSync")?.checked);
+        payload.inverterClockAutoSyncEnabled = Boolean(
+          document.getElementById("set_inverterClockAutoSyncEnabled")?.checked,
+        ) ? "1" : "0";
+        validateGeneralSettings(payload);
+        return payload;
+      }
+
+      function applyGeneralSettings(data) {
+        SETTING_FIELDS.forEach((field) => {
+          const el = document.getElementById(`set_${field}`);
+          if (el && data[field] !== undefined && data[field] !== null) {
+            el.value = String(data[field]);
+          }
+        });
+        const autoSync = document.getElementById("set_remoteAutoSync");
+        if (autoSync) autoSync.checked = Boolean(data.remoteAutoSync);
+        const clockSync = document.getElementById("set_inverterClockAutoSyncEnabled");
+        if (clockSync) clockSync.checked = String(data.inverterClockAutoSyncEnabled ?? "1") !== "0";
+        document.getElementById("clockRemoteNote")?.toggleAttribute(
+          "hidden",
+          String(data.operationMode || "gateway").toLowerCase() !== "remote",
+        );
+        settingsSnapshot = { ...data };
+        generalDirty = false;
+        updateSaveButton();
+      }
+
+      async function loadGeneralSettings() {
+        try {
+          const data = await fetchJson("/api/settings");
+          applyGeneralSettings(data);
+          return data;
+        } catch (e) {
+          console.error("Failed to load settings:", e);
+          setStatus(`Global settings load failed: ${e.message}`, "error");
+          return null;
+        }
+      }
+
+      async function saveGeneralSettings() {
+        const payload = collectGeneralSettings();
+        const previousMode = String(settingsSnapshot.operationMode || "gateway").toLowerCase();
+        const nextMode = String(payload.operationMode || "gateway").toLowerCase();
+        const result = await fetchJson("/api/settings", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        applyGeneralSettings(result.settings || payload);
+        return { result, previousMode, nextMode };
+      }
+
+      window.saveAll = async function() {
+        const btn = document.getElementById("saveAllBtn");
+        if (btn?.disabled) return;
+        if (!generalDirty && dirtyRows.size === 0) {
+          setStatus("No pending changes to save.", "success");
+          return;
+        }
+        if (btn) btn.disabled = true;
+        setStatus("Saving changes…", "");
+        try {
+          // Validate every global field before either persistence channel is
+          // touched, preventing an invalid form from producing a partial save.
+          if (generalDirty) collectGeneralSettings();
+          const previousMode = String(settingsSnapshot.operationMode || "gateway").toLowerCase();
+          const requestedMode = String(
+            document.getElementById("set_operationMode")?.value || previousMode,
+          ).toLowerCase();
+          if (
+            generalDirty &&
+            previousMode === "remote" &&
+            requestedMode === "gateway" &&
+            !confirm(
+              "Switch this workstation to Gateway mode?\n\nRemote mode does not continuously maintain the local database. Refresh the standby database in the main Settings page first if current history is required. The desktop app should restart after this change.",
+            )
+          ) {
+            setStatus("Save cancelled. No changes were sent.", "");
+            return;
+          }
+          // In remote mode, send IP edits to the gateway before a possible
+          // Remote → Gateway mode switch changes routing on this workstation.
+          if (dirtyRows.size > 0) {
+            const networkSaved = await saveNetworkSettings();
+            if (!networkSaved) return;
+          }
+          let modeTransition = null;
+          if (generalDirty) modeTransition = await saveGeneralSettings();
+          dirtyRows.clear();
+          generalDirty = false;
+          updateSaveButton();
+          setStatus("All pending global configuration changes were saved.", "success");
+          if (
+            modeTransition?.previousMode === "remote" &&
+            modeTransition?.nextMode === "gateway" &&
+            window.electronAPI?.restartApp
+          ) {
+            setStatus("Gateway mode saved. Restarting the desktop app…", "success");
+            await window.electronAPI.restartApp();
+          }
+        } catch (e) {
+          setStatus(`Save failed: ${e.message}`, "error");
+        } finally {
+          if (btn) btn.disabled = false;
+        }
+      };
+
+      function formatDateTime(value) {
+        const n = Number(value || 0);
+        if (!Number.isFinite(n) || n <= 0) return "—";
+        return new Date(n).toLocaleString();
+      }
+
+      async function loadRuntimeStatus() {
+        setInlineMessage("runtimeMsg", "Refreshing…");
+        try {
+          const data = await fetchJson("/api/runtime/network");
+          const mode = String(data.operationMode || "gateway").toLowerCase();
+          document.getElementById("runtimeMode").textContent = mode === "remote" ? "Remote" : "Gateway";
+          document.getElementById("runtimeGateway").textContent = data.remoteGatewayUrl || (mode === "gateway" ? "This workstation" : "Not configured");
+          const connectedEl = document.getElementById("runtimeConnected");
+          connectedEl.textContent = mode === "gateway" ? "Local authority" : data.remoteConnected ? "Connected" : "Disconnected";
+          connectedEl.className = `info-value ${mode === "gateway" || data.remoteConnected ? "ok" : "error"}`;
+          document.getElementById("runtimeLastContact").textContent = mode === "gateway" ? "Local" : formatDateTime(data.remoteLastSuccessTs);
+          setInlineMessage("runtimeMsg", "Link state refreshed.", "success");
+        } catch (e) {
+          setInlineMessage("runtimeMsg", e.message, "error");
+        }
+      }
+
+      async function loadBackupStatus() {
+        setInlineMessage("backupMsg", "Refreshing…");
+        try {
+          const data = await fetchJson("/api/backup/status");
+          const providers = Array.isArray(data.connected) ? data.connected : [];
+          document.getElementById("backupProviders").textContent = providers.length
+            ? providers.map((p) => String(p.provider || "provider")).join(", ")
+            : "None connected";
+          const progress = data.progress || {};
+          document.getElementById("backupProgress").textContent =
+            String(progress.status || "idle").toLowerCase() === "idle"
+              ? "Idle"
+              : (progress.message || progress.status || "Active");
+          const portableBtn = document.getElementById("portableBackupBtn");
+          if (portableBtn) {
+            portableBtn.disabled = remoteMode || !IS_ELECTRON;
+            portableBtn.title = remoteMode
+              ? "Portable backups must be created on the gateway workstation."
+              : IS_ELECTRON ? "Create a complete portable backup" : "Desktop app required";
+          }
+          setInlineMessage("backupMsg", remoteMode ? "Portable export is gateway-only." : "Backup state refreshed.", remoteMode ? "" : "success");
+        } catch (e) {
+          setInlineMessage("backupMsg", e.message, "error");
+        }
+      }
+
+      async function createPortableBackup() {
+        if (remoteMode) {
+          setInlineMessage("backupMsg", "Portable backups must be created on the gateway workstation.", "error");
+          return;
+        }
+        const btn = document.getElementById("portableBackupBtn");
+        try {
+          const destPath = await window.electronAPI?.saveAdsibak?.();
+          if (!destPath) {
+            setInlineMessage("backupMsg", "Backup export cancelled.");
+            return;
+          }
+          if (btn) btn.disabled = true;
+          const result = await fetchJson("/api/backup/create-portable", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ destPath }),
+          });
+          setInlineMessage("backupMsg", result.message || "Portable backup queued.", "success");
+          setTimeout(loadBackupStatus, 1200);
+        } catch (e) {
+          setInlineMessage("backupMsg", e.message, "error");
+        } finally {
+          if (btn) btn.disabled = remoteMode || !IS_ELECTRON;
+        }
+      }
+
+      document.getElementById("refreshRuntimeBtn")?.addEventListener("click", loadRuntimeStatus);
+      document.getElementById("refreshBackupBtn")?.addEventListener("click", loadBackupStatus);
+      document.getElementById("portableBackupBtn")?.addEventListener("click", createPortableBackup);
+
+      loadGeneralSettings();
+      updateSaveButton();
+
+    </script>
+  </body>
+</html>

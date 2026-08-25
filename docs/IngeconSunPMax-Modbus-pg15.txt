@@ -1,0 +1,36 @@
+ DOCUMENTO DE ANÁLISIS DE DETALLE 
+INGETEAM REV.:_ FECHA: 09/01/13 PÁG.: 15 DE 17 
+3. SENDING COMMANDS (PRESET HOLDING REGISTERS) 
+Using the Modbus RTU protocol preset holding registers fu nction commands 
+also can be sent. On table 4 are represented command holding registers 
+(between 41001 and  42000). 
+ 
+Modbus 
+Register Flash Ad (P) Description MIN MAX 
+TYPE 
+41001  Command code 0 12 RW 
+41002  Command Data 1 - - RW 
+41003  Reserved - - R 
+41004  Reserved - - R 
+41005  Reserved - - R 
+41006  Power reduction target 0 32767 R 
+41007  Phi tangent target -15729 15729 R 
+41008  Reactive target -32767 32767 R 
+41009  Reserved   R 
+41010  Restrictive Freq Limits 0 1 R 
+41011  Reserved   R 
+41012  Reserved   R 
+ 
+To send a command the command has to be written on 41001. The command 
+code is represented on next table. Data has to be written on 41002 holding 
+register if necessary. Writing in those two register using standard modbus (0x10 
+function) desired command will be applied.  
+ 
+After executing the command readable holding registers will be upgraded with 
+new values.  
+ 
+NOTE: Starting address of command holding registers is 41001, on terms of 
+sending frames it will be 1000 on dec or 0x03E8. 
+ 
+ 
+ 

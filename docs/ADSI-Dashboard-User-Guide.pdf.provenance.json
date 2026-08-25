@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "generator": "scripts/_gen_userguide_pdf.js",
+  "source_path": "docs/ADSI-Dashboard-User-Guide.html",
+  "source_sha256": "66f046dad144f4054eb943d6275046f654649d485fb1fa59e5dbbf22fbb180d1",
+  "source_bytes": 161076,
+  "source_heading_count": 27,
+  "pdf_path": "docs/ADSI-Dashboard-User-Guide.pdf",
+  "pdf_sha256": "d13e7cf8b621c674153217d5d16b8291dc4f85018a3e299e48cd31384d3e2625",
+  "pdf_bytes": 1399186,
+  "pdf_page_count": 48
+}

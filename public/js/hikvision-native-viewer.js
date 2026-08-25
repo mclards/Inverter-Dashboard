@@ -1,0 +1,201 @@
+"use strict";
+
+(() => {
+  const api = window.electronAPI;
+  const surface = document.getElementById("nativeSurface");
+  const video = document.getElementById("nativeVideo");
+  const placeholder = document.getElementById("nativePlaceholder");
+  const placeholderText = document.getElementById("nativePlaceholderText");
+  const retryButton = document.getElementById("nativeRetry");
+
+  let nativeRunning = false;
+  let hlsInstance = null;
+  let updateQueued = false;
+
+  const requestedTheme = new URLSearchParams(window.location.search).get("theme") || "dark";
+  if (["dark", "light", "classic", "midnight"].includes(requestedTheme)) {
+    document.body.dataset.theme = requestedTheme;
+  }
+
+  function nativeRect() {
+    const rect = surface?.getBoundingClientRect();
+    if (!rect || ![rect.left, rect.top, rect.width, rect.height].every(Number.isFinite)) return null;
+    if (rect.width < 2 || rect.height < 2) return null;
+    return {
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+      scaleFactor: window.devicePixelRatio || 1,
+    };
+  }
+
+  function showError(message) {
+    nativeRunning = false;
+    placeholder.classList.add("error");
+    placeholder.style.display = "flex";
+    placeholderText.textContent = message || "Hikvision camera could not start.";
+    retryButton.hidden = false;
+  }
+
+  async function nextLayoutFrame() {
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  }
+
+  function stopHls() {
+    if (hlsInstance) {
+      try { hlsInstance.destroy(); } catch (_) {}
+      hlsInstance = null;
+    }
+    if (video) {
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+      video.style.display = "none";
+    }
+  }
+
+  async function startHls(mode = "compatible") {
+    stopHls();
+    if (!video) return;
+    video.style.display = "block";
+    video.muted = true;
+    const url = `/api/hikvision/hls/master.m3u8?mode=${encodeURIComponent(mode)}&_=${Date.now()}`;
+
+    const onPlaying = () => {
+      placeholder.style.display = "none";
+      retryButton.hidden = true;
+    };
+    video.addEventListener("playing", onPlaying, { once: true });
+
+    if (typeof Hls !== "undefined" && Hls.isSupported()) {
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true,
+        backBufferLength: 0,
+        liveSyncDurationCount: 2,
+        liveMaxLatencyDurationCount: 5,
+        maxBufferLength: 8,
+        maxMaxBufferLength: 16,
+        maxBufferSize: 20 * 1024 * 1024,
+        manifestLoadingTimeOut: 15000,
+        manifestLoadingMaxRetry: 5,
+        levelLoadingTimeOut: 15000,
+        levelLoadingMaxRetry: 5,
+        fragLoadingTimeOut: 20000,
+        fragLoadingMaxRetry: 6,
+      });
+      hlsInstance = hls;
+      hls.loadSource(url);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        video.play().catch(() => {});
+      });
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              hls.startLoad();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              hls.recoverMediaError();
+              break;
+            default:
+              showError(`Hikvision stream error: ${data.details || "playback failed"}`);
+              break;
+          }
+        }
+      });
+    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = url;
+      video.play().catch(() => {});
+      video.addEventListener("error", () => showError("Hikvision HLS playback failed"), { once: true });
+    } else {
+      showError("HLS playback is unavailable in this runtime.");
+    }
+  }
+
+  async function startPlayback() {
+    retryButton.hidden = true;
+    placeholder.classList.remove("error");
+    placeholder.style.display = "flex";
+    placeholderText.textContent = "Connecting to Hikvision camera…";
+
+    let delivery = null;
+    let config = null;
+    try {
+      const resp = await fetch("/api/hikvision/config", { cache: "no-store" });
+      if (resp.ok) {
+        const data = await resp.json();
+        delivery = data?.delivery;
+        config = data?.config;
+      }
+    } catch (_) {}
+
+    const isRemote = delivery?.operationMode === "remote" || !delivery?.localFallback && delivery?.compactPath === "gateway-relay";
+    if (isRemote || !api?.hikvisionNativeStart) {
+      await fetch("/api/hikvision/start", { method: "POST" }).catch(() => {});
+      return startHls("compatible");
+    }
+
+    await nextLayoutFrame();
+    const rect = nativeRect();
+    if (!rect) {
+      await fetch("/api/hikvision/start", { method: "POST" }).catch(() => {});
+      return startHls("browser");
+    }
+    try {
+      await api.hikvisionNativeStart(rect);
+      nativeRunning = true;
+      placeholder.style.display = "none";
+    } catch (err) {
+      console.warn("[hikvision popout] Native start failed, falling back to HLS:", err?.message);
+      await fetch("/api/hikvision/start", { method: "POST" }).catch(() => {});
+      return startHls("browser");
+    }
+  }
+
+  async function updateGeometry() {
+    updateQueued = false;
+    if (!nativeRunning || document.hidden) return;
+    const rect = nativeRect();
+    if (!rect) return;
+    try { await api.hikvisionNativeUpdate(rect); } catch (_) {}
+  }
+
+  function queueGeometryUpdate() {
+    if (updateQueued) return;
+    updateQueued = true;
+    requestAnimationFrame(updateGeometry);
+  }
+
+  retryButton.addEventListener("click", async () => {
+    retryButton.disabled = true;
+    try { await api?.hikvisionNativeStop?.(); } catch (_) {}
+    stopHls();
+    retryButton.disabled = false;
+    startPlayback();
+  });
+  window.addEventListener("resize", queueGeometryUpdate);
+  document.addEventListener("visibilitychange", async () => {
+    if (!nativeRunning) return;
+    try {
+      if (document.hidden) await api.hikvisionNativeHide();
+      else {
+        const rect = nativeRect();
+        if (rect) await api.hikvisionNativeUpdate(rect);
+        await api.hikvisionNativeShow();
+      }
+    } catch (_) {}
+  });
+  window.addEventListener("beforeunload", () => {
+    stopHls();
+    if (nativeRunning) api?.hikvisionNativeStop?.().catch(() => {});
+  });
+
+  if (typeof ResizeObserver !== "undefined" && surface) {
+    new ResizeObserver(queueGeometryUpdate).observe(surface);
+  }
+
+  startPlayback();
+})();

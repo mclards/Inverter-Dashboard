@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inverter Dashboard</title>
+    <link rel="icon" type="image/png" href="/assets/icon-256.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      // Mirror login.html: honor the saved theme so the login → loading hand-off
+      // stays seamless instead of snapping from light back to dark.
+      (function () {
+        try {
+          const theme = localStorage.getItem("adsi_theme") === "light" ? "light" : "dark";
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch (_) {
+          document.documentElement.setAttribute("data-theme", "dark");
+        }
+      })();
+    </script>
+    <style>
+      /* Palette mirrors login.html so the login → loading hand-off is seamless. */
+      :root {
+        --bg: #050c17;
+        --bg2: #080f1c;
+        --surface: #0c1526;
+        --border: #182a48;
+        --border2: #243d66;
+        --text: #dce8fa;
+        --text2: #8aa3cc;
+        --text3: #526a92;
+        --accent: #2d7ef7;
+        --accent2: #1a60d0;
+        --green: #10b370;
+        --red: #e03560;
+      }
+
+      :root[data-theme="light"] {
+        --bg: #e8dfcf;
+        --bg2: #ded4c2;
+        --surface: #f1e8d8;
+        --border: #b9ab96;
+        --border2: #a8967f;
+        --text: #2f271a;
+        --text2: #524533;
+        --text3: #7b6a54;
+        --accent: #2b67ad;
+        --accent2: #1f4f89;
+        --green: #0f8f5b;
+        --red: #ba3555;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      body {
+        font-family: "Sora", "Segoe UI", sans-serif;
+        color: var(--text);
+        background: var(--bg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+
+      /* Faint grid + corner glows — identical treatment to login.html. */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(45, 126, 247, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(45, 126, 247, 0.03) 1px, transparent 1px);
+        background-size: 32px 32px;
+      }
+
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(ellipse 60% 40% at 15% -10%, rgba(45, 126, 247, 0.1) 0%, transparent 60%),
+          radial-gradient(ellipse 50% 35% at 90% -5%, rgba(16, 179, 112, 0.06) 0%, transparent 55%);
+      }
+
+      :root[data-theme="light"] body::before {
+        background-image:
+          linear-gradient(rgba(126, 106, 78, 0.14) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(126, 106, 78, 0.14) 1px, transparent 1px);
+      }
+
+      :root[data-theme="light"] body::after {
+        background:
+          radial-gradient(ellipse 60% 40% at 15% -10%, rgba(178, 144, 86, 0.18) 0%, transparent 60%),
+          radial-gradient(ellipse 50% 35% at 90% -5%, rgba(138, 118, 87, 0.11) 0%, transparent 55%);
+      }
+
+      /* ── Card ──────────────────────────────────────────────────────────── */
+      .card {
+        position: relative;
+        z-index: 1;
+        width: min(100%, 480px);
+        padding: 30px 34px 26px;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        background:
+          linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, transparent) 0%, transparent 40%),
+          linear-gradient(160deg, var(--surface) 0%, var(--bg2) 100%);
+        box-shadow:
+          0 20px 48px rgba(0, 0, 0, 0.44),
+          0 2px 8px rgba(0, 0, 0, 0.2),
+          inset 0 1px 0 rgba(148, 179, 230, 0.1);
+        overflow: hidden;
+        animation: cardIn 0.42s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+      }
+
+      .card::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent 5%, var(--accent) 50%, transparent 95%);
+        opacity: 0.5;
+        pointer-events: none;
+      }
+
+      @keyframes cardIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px) scale(0.985);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      /* ── Brand ─────────────────────────────────────────────────────────── */
+      .brand {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        margin-bottom: 22px;
+      }
+
+      .icon-ring {
+        position: relative;
+        display: grid;
+        place-items: center;
+        width: 78px;
+        height: 78px;
+        margin-bottom: 12px;
+      }
+
+      .icon-ring::before {
+        content: "";
+        position: absolute;
+        width: 78px;
+        height: 78px;
+        border-radius: 50%;
+        background: radial-gradient(circle, color-mix(in srgb, var(--accent) 20%, transparent) 0%, transparent 70%);
+        pointer-events: none;
+      }
+
+      .app-icon {
+        position: relative;
+        width: 56px;
+        height: 56px;
+        object-fit: contain;
+        filter: drop-shadow(0 2px 8px rgba(45, 126, 247, 0.22));
+      }
+
+      .title {
+        font-size: 17px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text);
+      }
+
+      /* ── Status line ───────────────────────────────────────────────────── */
+      .status-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 10px;
+      }
+
+      .status-current {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        min-width: 0;
+      }
+
+      .status-text {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .status-pct {
+        flex: 0 0 auto;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--accent);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .spinner {
+        flex: 0 0 auto;
+        display: inline-flex;
+      }
+
+      .spinner-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 60%, transparent);
+        animation: pulse 1.2s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%, 100% { transform: scale(0.72); opacity: 0.6; }
+        50% { transform: scale(1.1); opacity: 1; }
+      }
+
+      .progress {
+        position: relative;
+        height: 10px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: color-mix(in srgb, var(--bg) 60%, var(--surface));
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+      }
+
+      .progress-fill {
+        width: 0%;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--accent2), var(--accent) 70%, var(--green));
+        box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 30%, transparent);
+        transition: width 0.35s ease;
+      }
+
+      .progress-fill::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+        animation: sheen 1.8s linear infinite;
+      }
+
+      @keyframes sheen {
+        from { transform: translateX(-100%); }
+        to { transform: translateX(100%); }
+      }
+
+      /* ── Steps ─────────────────────────────────────────────────────────── */
+      .steps {
+        margin-top: 18px;
+        padding: 6px 14px;
+        border-radius: 14px;
+        background: color-mix(in srgb, var(--bg) 55%, transparent);
+        border: 1px solid var(--border);
+      }
+
+      .step {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        padding: 9px 2px;
+        color: var(--text3);
+        font-size: 12px;
+        transition: color 0.2s ease;
+      }
+
+      .step + .step {
+        border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+      }
+
+      .step-bullet {
+        flex: 0 0 auto;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 10.5px;
+        font-weight: 700;
+        color: var(--bg);
+        background: var(--text3);
+        transition: all 0.2s ease;
+      }
+
+      .step.active {
+        color: var(--text);
+      }
+
+      .step.active .step-bullet {
+        background: var(--accent);
+        box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 45%, transparent);
+      }
+
+      .step.done {
+        color: var(--text2);
+      }
+
+      .step.done .step-bullet {
+        background: var(--green);
+        box-shadow: 0 0 12px color-mix(in srgb, var(--green) 40%, transparent);
+        color: transparent;
+        font-size: 0;
+      }
+
+      .step.done .step-bullet::before {
+        content: "✓";
+        color: var(--bg);
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .step.failed {
+        color: var(--red);
+      }
+
+      .step.failed .step-bullet {
+        background: var(--red);
+        box-shadow: 0 0 12px color-mix(in srgb, var(--red) 40%, transparent);
+        color: transparent;
+        font-size: 0;
+      }
+
+      .step.failed .step-bullet::before {
+        content: "!";
+        color: #fff;
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      /* ── Error + mode panels ───────────────────────────────────────────── */
+      .panel {
+        display: none;
+        margin-top: 16px;
+        padding: 15px 16px 14px;
+        border-radius: 14px;
+        background: color-mix(in srgb, var(--red) 14%, transparent);
+        border: 1px solid color-mix(in srgb, var(--red) 38%, transparent);
+      }
+
+      .panel.visible {
+        display: block;
+        animation: fadeSlideIn 0.3s ease-out;
+      }
+
+      @keyframes fadeSlideIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      .panel-title {
+        font-size: 13px;
+        font-weight: 800;
+        color: var(--red);
+      }
+
+      .panel-text {
+        margin-top: 8px;
+        color: var(--text);
+        font-size: 12px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+      }
+
+      .panel-actions {
+        margin-top: 12px;
+      }
+
+      .btn {
+        border: 1px solid transparent;
+        border-radius: 10px;
+        padding: 9px 16px;
+        font-family: "Sora", "Segoe UI", sans-serif;
+        font-size: 12.5px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: filter 0.14s, transform 0.1s, box-shadow 0.18s, border-color 0.18s;
+      }
+
+      .btn:active {
+        transform: translateY(1px);
+      }
+
+      .btn-primary {
+        color: #fff;
+        background: linear-gradient(135deg, var(--accent2), var(--accent));
+        box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 30%, transparent);
+      }
+
+      .btn-primary:hover {
+        filter: brightness(1.08);
+      }
+
+      /* Mode picker */
+      #modePickerPanel {
+        background: color-mix(in srgb, var(--accent) 10%, transparent);
+        border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+      }
+
+      #modePickerPanel .panel-title {
+        color: var(--accent);
+      }
+
+      .mode-picker-options {
+        display: flex;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .mode-btn {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+        padding: 14px 10px 12px;
+        border: 1px solid var(--border2);
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--bg) 40%, transparent);
+        color: var(--text);
+        cursor: pointer;
+        transition: border-color 0.18s, background 0.18s, box-shadow 0.18s, transform 0.1s;
+      }
+
+      .mode-btn:hover {
+        background: color-mix(in srgb, var(--accent) 12%, transparent);
+        border-color: var(--accent);
+        box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 14%, transparent);
+      }
+
+      .mode-btn:active {
+        transform: translateY(1px);
+      }
+
+      .mode-btn-icon {
+        font-size: 22px;
+        line-height: 1;
+      }
+
+      .mode-btn-label {
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .mode-btn-desc {
+        font-size: 11px;
+        line-height: 1.4;
+        color: var(--text2);
+        text-align: center;
+      }
+
+      .mode-btn-gateway {
+        border-color: color-mix(in srgb, var(--green) 35%, transparent);
+      }
+
+      /* ── Theme Toggle Button ──────────────────────────────────────────────── */
+      .theme-toggle-btn {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        width: 32px;
+        height: 32px;
+        border-radius: 9px;
+        background: var(--surface2);
+        border: 1px solid var(--border2);
+        color: var(--text2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.18s ease;
+        z-index: 10;
+      }
+      .theme-toggle-btn:hover {
+        background: color-mix(in srgb, var(--accent) 18%, transparent);
+        border-color: var(--accent);
+        color: var(--text);
+        transform: scale(1.05);
+      }
+      .theme-icon {
+        width: 16px;
+        height: 16px;
+        pointer-events: none;
+      }
+      :root[data-theme="dark"] .theme-icon-sun { display: none; }
+      :root[data-theme="dark"] .theme-icon-moon { display: block; }
+      :root[data-theme="light"] .theme-icon-sun { display: block; }
+      :root[data-theme="light"] .theme-icon-moon { display: none; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <button type="button" id="loadingThemeToggle" class="theme-toggle-btn" aria-label="Toggle light / dark theme" title="Toggle Light / Dark Theme">
+        <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+        </svg>
+        <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+        </svg>
+      </button>
+
+      <div class="brand">
+        <div class="icon-ring">
+          <img id="brandIcon" class="app-icon" src="assets/icon-256.png" alt="Inverter Dashboard" onerror="if(!this.dataset.tried){this.dataset.tried=1;this.src='../assets/icon-256.png'}else if(this.dataset.tried==1){this.dataset.tried=2;this.src='assets/logo.png'}else if(this.dataset.tried==2){this.dataset.tried=3;this.src='/assets/icon-256.png'}" />
+        </div>
+        <div class="title">Inverter Dashboard</div>
+      </div>
+
+      <div class="status-head">
+        <div class="status-current">
+          <span class="spinner" id="spinner"><span class="spinner-dot"></span></span>
+          <span class="status-text" id="statusText">Initializing application services…</span>
+        </div>
+        <div class="status-pct" id="statusPct">0%</div>
+      </div>
+      <div class="progress" aria-hidden="true">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+
+      <div class="steps" id="stepsPanel">
+        <div class="step active" id="step1">
+          <div class="step-bullet">1</div>
+          <div>Initializing application shell</div>
+        </div>
+        <div class="step" id="step2">
+          <div class="step-bullet">2</div>
+          <div>Loading configuration & database</div>
+        </div>
+        <div class="step" id="step3">
+          <div class="step-bullet">3</div>
+          <div>Starting dashboard services</div>
+        </div>
+      </div>
+
+      <div class="panel" id="errorPanel">
+        <div class="panel-title" id="errorTitle">Startup Check Required</div>
+        <div class="panel-text" id="errorMsg">
+          The application did not finish starting. Verify the local services and try again.
+        </div>
+        <div class="panel-actions" id="errorActions">
+          <button class="btn btn-primary" type="button" onclick="location.reload()">Retry Startup</button>
+        </div>
+      </div>
+
+      <!-- Mode-selection panel: shown when Remote mode fails due to unreachable gateway -->
+      <div class="panel" id="modePickerPanel">
+        <div class="panel-title">Connection Mode</div>
+        <div class="panel-text" id="modePickerMsg">
+          The remote gateway did not respond. Choose how to proceed:
+        </div>
+        <div class="mode-picker-options">
+          <button class="mode-btn mode-btn-gateway" type="button" id="btnPickGateway">
+            <span class="mode-btn-icon">&#9878;</span>
+            <span class="mode-btn-label">Gateway Mode</span>
+            <span class="mode-btn-desc">Run as a local gateway — poll inverters directly via Modbus.</span>
+          </button>
+          <button class="mode-btn mode-btn-remote" type="button" id="btnPickRemote">
+            <span class="mode-btn-icon">&#8644;</span>
+            <span class="mode-btn-label">Remote Mode</span>
+            <span class="mode-btn-desc">Retry connecting to the remote gateway server.</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const STEP_COUNT = 3;
+      let currentStep = 1;
+
+      const progressFill = document.getElementById("progressFill");
+      const statusText = document.getElementById("statusText");
+      const statusPct = document.getElementById("statusPct");
+      const spinner = document.getElementById("spinner");
+      const errorPanel = document.getElementById("errorPanel");
+      const errorMsg = document.getElementById("errorMsg");
+      const brandIcon = document.getElementById("brandIcon");
+
+      const loadingThemeToggle = document.getElementById("loadingThemeToggle");
+      if (loadingThemeToggle) {
+        loadingThemeToggle.addEventListener("click", () => {
+          const current = document.documentElement.getAttribute("data-theme") || "dark";
+          const next = current === "light" ? "dark" : "light";
+          document.documentElement.setAttribute("data-theme", next);
+          localStorage.setItem("adsi_theme", next);
+        });
+      }
+
+      function setProgress(percent) {
+        const safe = Math.max(0, Math.min(100, Number(percent) || 0));
+        if (progressFill) progressFill.style.width = `${safe}%`;
+        if (statusPct) statusPct.textContent = `${Math.round(safe)}%`;
+      }
+
+      function markStep(stepNum, state) {
+        const el = document.getElementById(`step${stepNum}`);
+        if (!el) return;
+        el.classList.remove("active", "done", "failed");
+        if (state) el.classList.add(state);
+      }
+
+      function setErrorVisuals() {
+        if (spinner) spinner.style.display = "none";
+        for (let i = 1; i <= STEP_COUNT; i += 1) {
+          if (i < currentStep) markStep(i, "done");
+          else if (i === currentStep) markStep(i, "failed");
+          else markStep(i, "");
+        }
+      }
+
+      function showStartupError(message) {
+        setErrorVisuals();
+        if (statusText) statusText.textContent = "Startup requires attention";
+        if (errorMsg) errorMsg.textContent = String(message || "The dashboard could not finish starting.");
+        if (errorPanel) errorPanel.classList.add("visible");
+      }
+
+      window.showStartupError = showStartupError;
+
+      function showModePicker(message) {
+        setErrorVisuals();
+        if (statusText) statusText.textContent = "Connection mode selection";
+        const modePanel = document.getElementById("modePickerPanel");
+        const modeMsg = document.getElementById("modePickerMsg");
+        if (modeMsg && message) modeMsg.textContent = String(message);
+        if (modePanel) modePanel.classList.add("visible");
+        if (errorPanel) errorPanel.classList.remove("visible");
+      }
+
+      window.showModePicker = showModePicker;
+
+      // Mode picker button handlers — communicate back to Electron main process
+      document.getElementById("btnPickGateway")?.addEventListener("click", () => {
+        const modePanel = document.getElementById("modePickerPanel");
+        if (modePanel) modePanel.classList.remove("visible");
+        if (spinner) spinner.style.display = "inline-flex";
+        if (statusText) statusText.textContent = "Switching to Gateway mode…";
+        try { window.electronAPI?.switchOperationMode?.("gateway"); } catch (_) {}
+      });
+
+      document.getElementById("btnPickRemote")?.addEventListener("click", () => {
+        const modePanel = document.getElementById("modePickerPanel");
+        if (modePanel) modePanel.classList.remove("visible");
+        if (spinner) spinner.style.display = "inline-flex";
+        if (statusText) statusText.textContent = "Retrying Remote connection…";
+        location.reload();
+      });
+
+      function updateStartupState(state = {}) {
+        if (errorPanel) errorPanel.classList.remove("visible");
+        const modePanel = document.getElementById("modePickerPanel");
+        if (modePanel) modePanel.classList.remove("visible");
+        if (spinner) spinner.style.display = "inline-flex";
+
+        const nextStep = Math.max(1, Math.min(STEP_COUNT, Math.trunc(Number(state.step) || currentStep)));
+        if (nextStep !== currentStep) {
+          for (let i = 1; i < nextStep; i += 1) markStep(i, "done");
+          markStep(nextStep, "active");
+          for (let i = nextStep + 1; i <= STEP_COUNT; i += 1) markStep(i, "");
+          currentStep = nextStep;
+        }
+
+        if (statusText && String(state.text || "").trim()) {
+          statusText.textContent = String(state.text).trim();
+        }
+        if (Number.isFinite(Number(state.progress))) {
+          setProgress(Number(state.progress));
+        }
+      }
+
+      window.updateStartupState = updateStartupState;
+      updateStartupState({
+        step: 1,
+        progress: 14,
+        text: "Initializing application services…",
+      });
+    </script>
+  </body>
+</html>

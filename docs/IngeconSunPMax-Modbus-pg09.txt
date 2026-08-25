@@ -1,0 +1,13 @@
+ DOCUMENTO DE ANÁLISIS DE DETALLE 
+INGETEAM REV.:_ FECHA: 09/01/13 PÁG.: 9 DE 17 
+30116 1000V Kit usage Counter - _Y 
+30117 Power reduction register 
+- Bit 0: Power limitation on (The inverter is not injecting all the available 
+solar power). 
+- Bit 1: Modbus power reduction on. 
+- Bit 2: Max frequency power reduction on. 
+- Bit 3: Grid fault power reduction on. 
+- Bit 4: High Vdc power reduction on. 
+- Bit 5: High temperature power reduction on. 
+- _Z 
+  

@@ -1,0 +1,14 @@
+﻿{
+  "name": "ADSI Inverter Dashboard",
+  "short_name": "Dashboard",
+  "description": "Real-time solar inverter monitoring",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0c0608",
+  "theme_color": "#0c0608",
+  "icons": [
+    { "src": "/assets/icon-256.png", "sizes": "256x256", "type": "image/png" }
+  ]
+}

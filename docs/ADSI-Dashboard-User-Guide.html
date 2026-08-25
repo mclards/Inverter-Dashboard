@@ -1,0 +1,1810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="adsi-guide-source" content="complete">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADSI Inverter Dashboard — User Guide</title>
+<style>
+  /* ══════════════════════════════════════════════
+     CSS VARIABLES & RESET
+     ══════════════════════════════════════════════ */
+  :root {
+    --bg: #0b0e14;
+    --surface: #141820;
+    --card: #1a1f2e;
+    --card2: #1e2436;
+    --border: #2a3042;
+    --border2: #343c54;
+    --accent: #4d9fff;
+    --accent-light: #7ab8ff;
+    --accent2: #c084fc;
+    --accent2-light: #d4a5ff;
+    --green: #34d399;
+    --green-dim: rgba(52,211,153,.12);
+    --yellow: #fbbf24;
+    --yellow-dim: rgba(251,191,36,.10);
+    --orange: #fb923c;
+    --red: #f87171;
+    --red-dim: rgba(248,113,113,.10);
+    --text: #e8edf5;
+    --text2: #94a3b8;
+    --text3: #64748b;
+    --link: #4d9fff;
+    --tbl-head: #1e2436;
+    --tbl-alt: rgba(42,48,66,.4);
+    --glow-accent: rgba(77,159,255,.15);
+    --glow-accent2: rgba(192,132,252,.10);
+    --gradient-accent: linear-gradient(135deg, var(--accent), var(--accent2));
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 4px 24px rgba(0,0,0,.25);
+    --shadow-sm: 0 2px 12px rgba(0,0,0,.18);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 14.5px;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ══════════════════════════════════════════════
+     COVER PAGE
+     ══════════════════════════════════════════════ */
+  .cover {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background: linear-gradient(160deg, #080b10 0%, #0f1318 30%, #141a28 60%, #0b0e14 100%);
+    padding: 60px 32px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 600px 400px at 25% 35%, rgba(77,159,255,.07) 0%, transparent 100%),
+      radial-gradient(ellipse 500px 350px at 75% 55%, rgba(192,132,252,.05) 0%, transparent 100%),
+      radial-gradient(ellipse 400px 300px at 50% 80%, rgba(52,211,153,.04) 0%, transparent 100%);
+    pointer-events: none;
+    animation: coverPulse 10s ease-in-out infinite alternate;
+  }
+  @keyframes coverPulse {
+    0% { opacity: .6; } 100% { opacity: 1; }
+  }
+
+  .cover-icon {
+    margin-bottom: 32px;
+    position: relative;
+    filter: drop-shadow(0 0 30px rgba(77,159,255,.3));
+  }
+  .cover-badge {
+    display: inline-block;
+    padding: 7px 22px;
+    border-radius: 24px;
+    border: 1px solid rgba(77,159,255,.4);
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+    position: relative;
+    background: rgba(77,159,255,.06);
+  }
+  .cover h1 {
+    font-size: clamp(34px, 5vw, 54px);
+    font-weight: 800;
+    letter-spacing: -1.5px;
+    margin-bottom: 14px;
+    background: linear-gradient(135deg, #e8edf5 0%, #4d9fff 45%, #c084fc 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    position: relative;
+    animation: shimmer 8s ease-in-out infinite alternate;
+  }
+  @keyframes shimmer { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
+
+  .cover-sub {
+    font-size: 17px;
+    color: var(--text2);
+    max-width: 620px;
+    margin-bottom: 48px;
+    position: relative;
+    line-height: 1.7;
+  }
+  .cover-meta {
+    display: flex;
+    gap: 36px;
+    flex-wrap: wrap;
+    justify-content: center;
+    position: relative;
+  }
+  .cover-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    color: var(--text2);
+  }
+  .cover-meta-item svg { flex-shrink: 0; }
+  .cover-meta-item b { color: var(--text); font-weight: 600; }
+
+  /* ══════════════════════════════════════════════
+     TABLE OF CONTENTS
+     ══════════════════════════════════════════════ */
+  .toc {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 56px 32px 40px;
+  }
+  .toc-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2.5px;
+    color: var(--accent);
+    margin-bottom: 28px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+  }
+  .toc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 6px;
+  }
+  .toc-grid a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 16px;
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 13.5px;
+    font-weight: 500;
+    border: 1px solid transparent;
+    transition: all .2s;
+  }
+  .toc-grid a:hover {
+    background: var(--card);
+    border-color: var(--border);
+    text-decoration: none;
+    transform: translateX(3px);
+  }
+  .toc-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: rgba(77,159,255,.1);
+    color: var(--accent);
+    font-weight: 800;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+
+  /* ══════════════════════════════════════════════
+     CONTENT CONTAINER
+     ══════════════════════════════════════════════ */
+  .content {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 0 32px 80px;
+  }
+
+  /* ══════════════════════════════════════════════
+     SECTION HEADERS
+     ══════════════════════════════════════════════ */
+  section {
+    margin-bottom: 52px;
+    scroll-margin-top: 24px;
+  }
+  .section-head {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    position: relative;
+  }
+  .section-head::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2), transparent 80%);
+    border-radius: 2px;
+  }
+  .section-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, rgba(77,159,255,.15), rgba(192,132,252,.10));
+    border: 1px solid rgba(77,159,255,.2);
+    flex-shrink: 0;
+  }
+  .section-head h2 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  /* ══════════════════════════════════════════════
+     TYPOGRAPHY
+     ══════════════════════════════════════════════ */
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--accent2-light);
+    margin: 30px 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  h3::before {
+    content: '';
+    width: 3px;
+    height: 18px;
+    background: var(--accent2);
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 22px 0 8px;
+  }
+  p, ul, ol { margin-bottom: 14px; }
+  ul, ol { padding-left: 24px; }
+  li { margin-bottom: 6px; }
+  li::marker { color: var(--accent); }
+  code {
+    background: rgba(77,159,255,.1);
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 12.5px;
+    color: var(--accent-light);
+    font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  }
+  strong, b { font-weight: 600; }
+
+  /* ══════════════════════════════════════════════
+     CARDS
+     ══════════════════════════════════════════════ */
+  .info-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 22px;
+    box-shadow: var(--shadow-sm);
+    margin: 16px 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .info-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px;
+    height: 100%;
+    border-radius: 4px 0 0 4px;
+  }
+  .info-card.warn { border-color: rgba(251,191,36,.3); background: rgba(251,191,36,.05); }
+  .info-card.warn::before { background: var(--yellow); }
+  .info-card.tip { border-color: rgba(52,211,153,.25); background: rgba(52,211,153,.04); }
+  .info-card.tip::before { background: var(--green); }
+  .info-card.note { border-color: rgba(77,159,255,.25); background: rgba(77,159,255,.04); }
+  .info-card.note::before { background: var(--accent); }
+  .info-card.danger { border-color: rgba(248,113,113,.25); background: rgba(248,113,113,.04); }
+  .info-card.danger::before { background: var(--red); }
+
+  .info-card-label {
+    font-size: 10.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .info-card.warn .info-card-label { color: var(--yellow); }
+  .info-card.tip .info-card-label { color: var(--green); }
+  .info-card.note .info-card-label { color: var(--accent); }
+  .info-card.danger .info-card-label { color: var(--red); }
+
+  /* ══════════════════════════════════════════════
+     TABLES
+     ══════════════════════════════════════════════ */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0 20px;
+    font-size: 13px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border);
+  }
+  thead th {
+    background: var(--tbl-head);
+    color: var(--text2);
+    text-align: left;
+    padding: 12px 16px;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    border-bottom: 2px solid var(--accent);
+  }
+  tbody td {
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(42,48,66,.5);
+    vertical-align: top;
+  }
+  tbody tr:nth-child(even) { background: var(--tbl-alt); }
+  tbody tr:hover { background: rgba(77,159,255,.04); }
+  td code, th code {
+    background: rgba(77,159,255,.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--accent-light);
+  }
+
+  /* ══════════════════════════════════════════════
+     FEATURE GRID
+     ══════════════════════════════════════════════ */
+  .feat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 14px;
+    margin: 20px 0;
+  }
+  .feat-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    transition: all .25s;
+    position: relative;
+    overflow: hidden;
+  }
+  .feat-item:hover {
+    border-color: rgba(77,159,255,.3);
+    box-shadow: 0 8px 32px rgba(77,159,255,.08);
+    transform: translateY(-2px);
+  }
+  .feat-item-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    background: linear-gradient(135deg, rgba(77,159,255,.12), rgba(192,132,252,.08));
+  }
+  .feat-item h4 { margin: 0 0 6px; font-size: 14px; font-weight: 600; }
+  .feat-item p { font-size: 12.5px; color: var(--text2); margin: 0; line-height: 1.6; }
+
+  /* ══════════════════════════════════════════════
+     SVG DIAGRAM CONTAINERS
+     ══════════════════════════════════════════════ */
+  .diagram-container {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin: 20px 0;
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+    overflow-x: auto;
+  }
+  .diagram-container svg {
+    max-width: 100%;
+    height: auto;
+  }
+  .diagram-caption {
+    font-size: 11.5px;
+    color: var(--text3);
+    margin-top: 12px;
+    font-style: italic;
+  }
+
+  /* ══════════════════════════════════════════════
+     LEGEND
+     ══════════════════════════════════════════════ */
+  .legend-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin: 12px 0 18px;
+    padding: 14px 18px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .legend-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    font-weight: 500;
+  }
+  .legend-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    border: 1px solid rgba(255,255,255,.1);
+  }
+
+  /* ══════════════════════════════════════════════
+     STEP LIST
+     ══════════════════════════════════════════════ */
+  .steps { counter-reset: step; list-style: none; padding-left: 0; }
+  .steps li {
+    counter-increment: step;
+    position: relative;
+    padding-left: 48px;
+    margin-bottom: 16px;
+    line-height: 1.65;
+  }
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0; top: 1px;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(77,159,255,.15), rgba(192,132,252,.10));
+    border: 1px solid rgba(77,159,255,.25);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ══════════════════════════════════════════════
+     KEYBOARD SHORTCUTS
+     ══════════════════════════════════════════════ */
+  kbd {
+    display: inline-block;
+    padding: 3px 9px;
+    font-size: 11.5px;
+    font-family: 'Segoe UI', sans-serif;
+    background: var(--card2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    box-shadow: 0 2px 0 var(--border);
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  /* ══════════════════════════════════════════════
+     WORKFLOW CARDS
+     ══════════════════════════════════════════════ */
+  .wf-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px 24px;
+    margin: 18px 0;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
+  }
+  .wf-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px; height: 100%;
+    background: var(--gradient-accent);
+    border-radius: 4px 0 0 4px;
+  }
+  .wf-card h4 {
+    margin: 0 0 14px;
+    color: var(--accent-light);
+    font-size: 15px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ══════════════════════════════════════════════
+     ML HIGHLIGHT
+     ══════════════════════════════════════════════ */
+  .ml-highlight {
+    background: linear-gradient(135deg, rgba(77,159,255,.06), rgba(192,132,252,.04));
+    border: 1px solid rgba(77,159,255,.25);
+    border-left: 4px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin: 20px 0;
+    box-shadow: var(--shadow-sm);
+  }
+  .ml-highlight h4 { color: var(--accent-light); margin-top: 18px; }
+  .ml-highlight p, .ml-highlight li { font-size: 13.5px; line-height: 1.7; }
+
+  /* ══════════════════════════════════════════════
+     STAT ROW
+     ══════════════════════════════════════════════ */
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    text-align: center;
+  }
+  .stat-card .stat-value {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--accent-light);
+    margin-bottom: 4px;
+  }
+  .stat-card .stat-label {
+    font-size: 11px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+  }
+
+  /* ══════════════════════════════════════════════
+     BACK TO TOP
+     ══════════════════════════════════════════════ */
+  .back-top {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 18px;
+    font-size: 12px;
+    color: var(--text3);
+    font-weight: 500;
+  }
+
+  /* ══════════════════════════════════════════════
+     FOOTER
+     ══════════════════════════════════════════════ */
+  .guide-footer {
+    text-align: center;
+    padding: 48px 32px;
+    position: relative;
+    color: var(--text3);
+    font-size: 13px;
+  }
+  .guide-footer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 10%;
+    right: 10%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), transparent);
+    border-radius: 2px;
+  }
+  .guide-footer b { color: var(--text2); }
+
+  /* ══════════════════════════════════════════════
+     PRINT / PDF STYLES
+     ══════════════════════════════════════════════ */
+  @media print {
+    /* ── Page setup ── */
+    @page {
+      size: A4 portrait;
+      margin: 2cm 1.8cm 2.4cm 1.8cm;
+    }
+    @page :first {
+      margin-top: 0;
+    }
+
+    /* ── Global resets ── */
+    :root {
+      --bg: #ffffff; --surface: #f8f9fb; --card: #f3f5f8; --card2: #eef1f5;
+      --border: #d5dae3; --border2: #c8cfd9; --accent: #1a6ad4; --accent-light: #1a6ad4;
+      --accent2: #7c3aed; --accent2-light: #7c3aed; --green: #059669; --yellow: #b45309;
+      --orange: #c2410c; --red: #dc2626; --text: #111827; --text2: #4b5563;
+      --text3: #6b7280; --link: #1a6ad4; --tbl-head: #e5e9f0; --tbl-alt: #f8f9fb;
+    }
+    html { font-size: 10pt; }
+    body {
+      background: #fff !important;
+      color: #111827 !important;
+      font-size: 10pt;
+      line-height: 1.55;
+      max-width: 100% !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    * {
+      animation: none !important;
+      transition: none !important;
+      box-shadow: none !important;
+    }
+
+    /* ── Orphan / Widow control ── */
+    p, li, dd, dt, blockquote {
+      orphans: 3;
+      widows: 3;
+    }
+    h2, h3, h4 {
+      page-break-after: avoid;
+      break-after: avoid;
+    }
+
+    /* ── Cover page ── */
+    .cover {
+      min-height: auto;
+      padding: 100px 50px 80px;
+      background: #fff !important;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      page-break-after: always;
+      break-after: page;
+    }
+    .cover::before { display: none; }
+    .cover h1 {
+      background: none !important;
+      -webkit-text-fill-color: #1a6ad4 !important;
+      color: #1a6ad4 !important;
+      font-size: 32pt;
+      letter-spacing: -0.5pt;
+      border-bottom: 3px solid #1a6ad4;
+      padding-bottom: 12px;
+    }
+    .cover-icon svg * { stroke: #1a6ad4 !important; fill: none !important; }
+    .cover-icon svg rect[fill], .cover-icon svg circle[fill] {
+      fill: rgba(26,106,212,.06) !important;
+    }
+    .cover-badge {
+      background: #eef3ff !important;
+      border: 2px solid #1a6ad4 !important;
+      color: #1a6ad4 !important;
+      font-weight: 700;
+    }
+    .cover-sub { color: #4b5563 !important; font-size: 12pt; }
+    .cover-meta { margin-top: 24px; }
+    .cover-meta-item {
+      background: #f3f5f8 !important;
+      border: 1px solid #d5dae3 !important;
+      padding: 8px 14px;
+    }
+    .cover-meta-item b { color: #111827 !important; }
+
+    /* ── Table of Contents ── */
+    .toc {
+      page-break-after: always;
+      break-after: page;
+      padding: 40px 20px;
+    }
+    .toc-title {
+      color: #1a6ad4 !important;
+      border-color: #d5dae3 !important;
+      font-size: 18pt;
+    }
+    .toc-num {
+      background: #eef3ff !important;
+      color: #1a6ad4 !important;
+      font-weight: 700;
+    }
+    .toc-grid a {
+      color: #111827 !important;
+      text-decoration: none !important;
+    }
+    .toc-grid a::after {
+      content: leader('.') target-counter(attr(href), page);
+      color: #6b7280;
+    }
+
+    /* ── Section headings ── */
+    .section-head {
+      page-break-after: avoid;
+      break-after: avoid;
+      margin-top: 0;
+      padding-top: 8px;
+    }
+    .section-head::after {
+      background: linear-gradient(90deg, #1a6ad4, #7c3aed, transparent 80%) !important;
+      height: 2px;
+    }
+    .section-icon {
+      background: #eef3ff !important;
+      border: 2px solid #c8d6e5 !important;
+    }
+    .section-icon svg * { stroke: #1a6ad4 !important; }
+    .section-head h2 {
+      color: #111827 !important;
+      font-size: 16pt;
+    }
+    h3 {
+      color: #7c3aed !important;
+      font-size: 12pt;
+      margin-top: 14px;
+    }
+    h3::before { background: #7c3aed !important; }
+    h4 {
+      color: #111827 !important;
+      font-size: 10.5pt;
+    }
+
+    /* ── Tables ── */
+    table {
+      border: 1px solid #d5dae3 !important;
+      font-size: 9pt;
+      width: 100% !important;
+      page-break-inside: auto !important;
+    }
+    thead {
+      display: table-header-group;
+    }
+    thead th {
+      background: #e5e9f0 !important;
+      color: #374151 !important;
+      border-bottom: 2px solid #1a6ad4 !important;
+      font-size: 9pt;
+      padding: 6px 10px !important;
+    }
+    tbody td {
+      border-bottom: 1px solid #e5e9f0 !important;
+      color: #1f2937 !important;
+      padding: 5px 10px !important;
+    }
+    tbody tr {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    tbody tr:nth-child(even) { background: #f8f9fb !important; }
+    tbody tr:hover { background: transparent !important; }
+    td code, th code { background: #eef3ff !important; color: #1a6ad4 !important; font-size: 8.5pt; }
+    code { background: #eef3ff !important; color: #1a6ad4 !important; font-size: 8.5pt; }
+
+    /* ── Info cards ── */
+    .info-card {
+      background: #f8f9fb !important;
+      border: 1px solid #d5dae3 !important;
+      page-break-inside: avoid;
+      break-inside: avoid;
+      margin: 10px 0;
+    }
+    .info-card.warn { background: #fffbeb !important; border-color: #f59e0b !important; }
+    .info-card.warn::before { background: #f59e0b !important; }
+    .info-card.warn .info-card-label { color: #92400e !important; }
+    .info-card.tip { background: #ecfdf5 !important; border-color: #059669 !important; }
+    .info-card.tip::before { background: #059669 !important; }
+    .info-card.tip .info-card-label { color: #065f46 !important; }
+    .info-card.note { background: #eef3ff !important; border-color: #1a6ad4 !important; }
+    .info-card.note::before { background: #1a6ad4 !important; }
+    .info-card.note .info-card-label { color: #1a6ad4 !important; }
+    .info-card.danger { background: #fef2f2 !important; border-color: #dc2626 !important; }
+    .info-card.danger::before { background: #dc2626 !important; }
+    .info-card.danger .info-card-label { color: #991b1b !important; }
+
+    /* ── Feature items ── */
+    .feat-item {
+      background: #f8f9fb !important;
+      border: 1px solid #d5dae3 !important;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .feat-item h4 { color: #111827 !important; }
+    .feat-item p { color: #4b5563 !important; }
+    .feat-item-icon { background: #eef3ff !important; }
+    .feat-item-icon svg * { stroke: #1a6ad4 !important; }
+
+    /* ── Workflow cards ── */
+    .wf-card {
+      background: #f8f9fb !important;
+      border: 1px solid #d5dae3 !important;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .wf-card::before { background: linear-gradient(180deg, #1a6ad4, #7c3aed) !important; }
+    .wf-card h4 { color: #1a6ad4 !important; }
+
+    /* ── ML highlights ── */
+    .ml-highlight {
+      background: #eef3ff !important;
+      border-color: #1a6ad4 !important;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .ml-highlight h4 { color: #1a6ad4 !important; }
+
+    /* ── Diagrams & SVGs ── */
+    .diagram-container {
+      background: #f8f9fb !important;
+      border: 1px solid #d5dae3 !important;
+      page-break-inside: avoid;
+      break-inside: avoid;
+      margin: 12px 0;
+    }
+    .diagram-container svg {
+      max-width: 100% !important;
+      height: auto !important;
+    }
+    .diagram-container svg text { fill: #111827 !important; }
+    .diagram-container svg rect[fill*="rgba"] { opacity: 1 !important; }
+    .diagram-container svg line, .diagram-container svg path {
+      stroke-opacity: 1 !important;
+    }
+    .diagram-caption { color: #6b7280 !important; font-size: 8.5pt; }
+
+    /* ── Legend ── */
+    .legend-row {
+      background: #f8f9fb !important;
+      border: 1px solid #d5dae3 !important;
+      page-break-inside: avoid;
+    }
+    .legend-chip { color: #1f2937 !important; }
+
+    /* ── Stat cards ── */
+    .stat-card {
+      background: #f8f9fb !important;
+      border: 1px solid #d5dae3 !important;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .stat-card .stat-value { color: #1a6ad4 !important; }
+    .stat-card .stat-label { color: #6b7280 !important; }
+
+    /* ── Steps ── */
+    .steps li {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .steps li::before {
+      background: #eef3ff !important;
+      border-color: #c8d6e5 !important;
+      color: #1a6ad4 !important;
+    }
+
+    /* ── Keyboard ── */
+    kbd {
+      background: #f3f5f8 !important;
+      border: 1px solid #d5dae3 !important;
+      color: #111827 !important;
+      box-shadow: none !important;
+    }
+
+    /* ── Hide non-print elements ── */
+    .back-top { display: none !important; }
+
+    /* ── Footer ── */
+    .guide-footer {
+      background: #fff !important;
+      page-break-before: avoid;
+    }
+    .guide-footer::before { background: linear-gradient(90deg, transparent, #1a6ad4, #7c3aed, transparent) !important; }
+    .guide-footer b { color: #374151 !important; }
+    .guide-footer p { color: #6b7280 !important; }
+
+    /* ── Page-break strategy ── */
+    section {
+      page-break-before: auto;
+      page-break-inside: auto;
+    }
+    /* Keep section heading with its first content block */
+    section > .section-head + p,
+    section > .section-head + .info-card,
+    section > .section-head + table,
+    section > .section-head + .feat-grid,
+    section > .section-head + .diagram-container {
+      page-break-before: avoid;
+      break-before: avoid;
+    }
+    .feat-grid {
+      page-break-inside: auto;
+    }
+    .feat-grid > .feat-item {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    /* ── Links: show URL after text for printouts ── */
+    a[href^="http"]::after {
+      content: " (" attr(href) ")";
+      font-size: 7.5pt;
+      color: #6b7280;
+      word-break: break-all;
+    }
+    /* Don't show URLs for internal TOC links */
+    .toc-grid a::after,
+    .back-top::after,
+    a[href^="#"]::after {
+      content: none !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- COVER PAGE -->
+<div class="cover">
+  <div class="cover-icon">
+    <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="20" y="35" width="80" height="50" rx="4" stroke="#4d9fff" stroke-width="2" fill="rgba(77,159,255,.06)"/>
+      <line x1="20" y1="47.5" x2="100" y2="47.5" stroke="#4d9fff" stroke-width="1" opacity=".5"/>
+      <line x1="20" y1="60" x2="100" y2="60" stroke="#4d9fff" stroke-width="1" opacity=".5"/>
+      <line x1="20" y1="72.5" x2="100" y2="72.5" stroke="#4d9fff" stroke-width="1" opacity=".5"/>
+      <line x1="40" y1="35" x2="40" y2="85" stroke="#4d9fff" stroke-width="1" opacity=".5"/>
+      <line x1="60" y1="35" x2="60" y2="85" stroke="#4d9fff" stroke-width="1" opacity=".5"/>
+      <line x1="80" y1="35" x2="80" y2="85" stroke="#4d9fff" stroke-width="1" opacity=".5"/>
+      <circle cx="60" cy="18" r="8" stroke="#fbbf24" stroke-width="2" fill="rgba(251,191,36,.1)"/>
+      <line x1="60" y1="5" x2="60" y2="8" stroke="#fbbf24" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="48" y1="10" x2="50" y2="12" stroke="#fbbf24" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="72" y1="10" x2="70" y2="12" stroke="#fbbf24" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="44" y1="18" x2="47" y2="18" stroke="#fbbf24" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="73" y1="18" x2="76" y2="18" stroke="#fbbf24" stroke-width="1.5" stroke-linecap="round"/>
+      <rect x="42" y="92" width="36" height="20" rx="3" stroke="#c084fc" stroke-width="2" fill="rgba(192,132,252,.06)"/>
+      <text x="60" y="105" text-anchor="middle" fill="#c084fc" font-size="8" font-weight="700" font-family="Segoe UI, sans-serif">INV</text>
+      <line x1="60" y1="85" x2="60" y2="92" stroke="#34d399" stroke-width="1.5" stroke-dasharray="3 2"/>
+      <path d="M104 55 Q108 50, 112 55 Q116 60, 120 55" stroke="#4d9fff" stroke-width="1.5" fill="none" opacity=".6"/>
+      <path d="M106 62 Q110 57, 114 62" stroke="#4d9fff" stroke-width="1.5" fill="none" opacity=".4"/>
+    </svg>
+  </div>
+  <div class="cover-badge">Official User Guide</div>
+  <h1>ADSI Inverter Dashboard</h1>
+  <p class="cover-sub">Professional plant monitoring, energy analytics, forecast generation, and controlled remote coordination for utility-scale solar inverter fleets.</p>
+  <div class="cover-meta">
+    <div class="cover-meta-item">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1v6l4 2" stroke="#4d9fff" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="8" r="7" stroke="#4d9fff" stroke-width="1.5"/></svg>
+      <span><b>Current release</b></span>
+    </div>
+    <div class="cover-meta-item">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 8a3 3 0 100-6 3 3 0 000 6zM2 14c0-3.3 2.7-5 6-5s6 1.7 6 5" stroke="#c084fc" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <span><b>Engr. Clariden Monta&ntilde;o REE</b></span>
+    </div>
+    <div class="cover-meta-item">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="11" rx="2" stroke="#34d399" stroke-width="1.5"/><path d="M2 7h12M5 1v4M11 1v4" stroke="#34d399" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <span><b>August 2026</b></span>
+    </div>
+  </div>
+</div>
+
+<!-- TABLE OF CONTENTS -->
+<nav class="toc" id="toc">
+  <div class="toc-title">
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="2" width="14" height="14" rx="2" stroke="#4d9fff" stroke-width="1.5"/><path d="M5 6h8M5 9h6M5 12h7" stroke="#4d9fff" stroke-width="1.5" stroke-linecap="round"/></svg>
+    Table of Contents
+  </div>
+  <div class="toc-grid">
+    <a href="#s1"><span class="toc-num">1</span> Overview &amp; Architecture</a>
+    <a href="#s2"><span class="toc-num">2</span> System Requirements</a>
+    <a href="#s3"><span class="toc-num">3</span> Getting Started</a>
+    <a href="#s4"><span class="toc-num">4</span> Interface Layout</a>
+    <a href="#s5"><span class="toc-num">5</span> Inverters Page</a>
+    <a href="#s6"><span class="toc-num">6</span> Plant Output Capping</a>
+    <a href="#s7"><span class="toc-num">7</span> Analytics Page</a>
+    <a href="#s8"><span class="toc-num">8</span> Forecast Page</a>
+    <a href="#s8-nowcast"><span class="toc-num">8a</span> Virtual Nowcast</a>
+    <a href="#s9"><span class="toc-num">9</span> Forecast Performance Monitor</a>
+    <a href="#s10"><span class="toc-num">10</span> Alarms Page</a>
+    <a href="#s11"><span class="toc-num">11</span> Parameters Page</a>
+    <a href="#s12"><span class="toc-num">12</span> Audit Page</a>
+    <a href="#s13"><span class="toc-num">13</span> Report Page</a>
+    <a href="#s14"><span class="toc-num">14</span> Export Page</a>
+    <a href="#sStopSerial"><span class="toc-num">14a</span> Stop Reasons &amp; Serial Number</a>
+    <a href="#sFirmware"><span class="toc-num">14b</span> Firmware Upgrade (Experimental)</a>
+    <a href="#sCam"><span class="toc-num">15</span> Camera Viewer</a>
+    <a href="#s15"><span class="toc-num">16</span> Settings</a>
+    <a href="#s16"><span class="toc-num">17</span> Operating Modes</a>
+    <a href="#s17"><span class="toc-num">18</span> Operator Messaging</a>
+    <a href="#s18"><span class="toc-num">19</span> Cloud Backup &amp; Restore</a>
+    <a href="#s19"><span class="toc-num">20</span> Standard Workflows</a>
+    <a href="#s20"><span class="toc-num">21</span> Global Configuration</a>
+    <a href="#s21"><span class="toc-num">22</span> Keyboard Shortcuts &amp; Tips</a>
+    <a href="#s22"><span class="toc-num">23</span> Troubleshooting</a>
+    <a href="#s23"><span class="toc-num">24</span> Quick Reference</a>
+  </div>
+</nav>
+
+<!-- CONTENT -->
+<div class="content">
+
+<!-- 1. OVERVIEW -->
+<section id="s1">
+  <div class="section-head">
+    <div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="9" stroke="#4d9fff" stroke-width="1.8"/><path d="M11 6v5l3.5 2" stroke="#4d9fff" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+    <h2>Overview &amp; Architecture</h2>
+  </div>
+  <p>ADSI Inverter Dashboard provides centralized operational visibility for a utility-scale solar inverter fleet. The application consolidates live status, interval energy accumulation, alarms, audit activity, day-ahead generation forecasting, and formal reporting into one workstation interface built on Electron.</p>
+  <div class="stat-row">
+    <div class="stat-card"><div class="stat-value">997.64</div><div class="stat-label">kW Per Inverter (Pmax)</div></div>
+    <div class="stat-card"><div class="stat-value">4</div><div class="stat-label">Nodes / Inverter</div></div>
+    <div class="stat-card"><div class="stat-value">249.41</div><div class="stat-label">kW Per Node (Pmax)</div></div>
+    <div class="stat-card"><div class="stat-value">906.92</div><div class="stat-label">kW Dependable (Pnom)</div></div>
+  </div>
+  <div class="feat-grid">
+    <div class="feat-item"><div class="feat-item-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M13 2L3 14h7l-1 6 10-12h-7l1-6z" stroke="#fbbf24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><h4>Live Monitoring</h4><p>Real-time inverter and node-level telemetry with supervised START/STOP control actions.</p></div>
+    <div class="feat-item"><div class="feat-item-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><polyline points="3,17 7,10 11,14 15,6 19,9" stroke="#34d399" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div><h4>Analytics &amp; Forecasting</h4><p>Interval charts with ML-trained day-ahead forecast comparison and Solcast tri-band integration.</p></div>
+    <div class="feat-item"><div class="feat-item-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 3v2M11 17v2M3 11h2M17 11h2M5.6 5.6l1.4 1.4M15 15l1.4 1.4M5.6 16.4l1.4-1.4M15 7l1.4-1.4" stroke="#f87171" stroke-width="1.5" stroke-linecap="round"/><circle cx="11" cy="11" r="3" stroke="#f87171" stroke-width="1.5"/></svg></div><h4>Alarm Management</h4><p>Episode tracking with severity, duration, bitmask change logic, and quick-ACK notifications.</p></div>
+    <div class="feat-item"><div class="feat-item-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="16" rx="2" stroke="#c084fc" stroke-width="1.5"/><path d="M3 8h16M8 8v11" stroke="#c084fc" stroke-width="1.5"/></svg></div><h4>Reporting &amp; Export</h4><p>Daily performance reports with availability calculation and multi-format structured exports.</p></div>
+    <div class="feat-item"><div class="feat-item-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="7" cy="11" r="4" stroke="#4d9fff" stroke-width="1.5"/><circle cx="15" cy="11" r="4" stroke="#4d9fff" stroke-width="1.5"/></svg></div><h4>Remote Operations</h4><p>Gateway-linked remote viewing and write control via Tailscale, VPN, or direct LAN.</p></div>
+    <div class="feat-item"><div class="feat-item-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M5 17V8a6 6 0 0112 0v9" stroke="#34d399" stroke-width="1.5" stroke-linecap="round"/><path d="M3 17h16" stroke="#34d399" stroke-width="1.5" stroke-linecap="round"/><path d="M8 14l3-3 3 3" stroke="#34d399" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><h4>Cloud Backup</h4><p>Scheduled backup with OneDrive, Google Drive, and S3-compatible storage integration.</p></div>
+  </div>
+  <h3>System Architecture</h3>
+  <div class="diagram-container">
+    <svg width="780" height="220" viewBox="0 0 780 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="80" width="120" height="60" rx="8" fill="rgba(251,191,36,.08)" stroke="#fbbf24" stroke-width="1.5"/><text x="70" y="105" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="700" font-family="Segoe UI">Modbus TCP</text><text x="70" y="122" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="Segoe UI">Inverter Fleet</text>
+      <line x1="130" y1="110" x2="170" y2="110" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4 3"/><polygon points="170,106 178,110 170,114" fill="#64748b"/>
+      <rect x="180" y="80" width="130" height="60" rx="8" fill="rgba(52,211,153,.08)" stroke="#34d399" stroke-width="1.5"/><text x="245" y="105" text-anchor="middle" fill="#34d399" font-size="11" font-weight="700" font-family="Segoe UI">Python FastAPI</text><text x="245" y="122" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="Segoe UI">Port 9000</text>
+      <line x1="310" y1="110" x2="350" y2="110" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4 3"/><polygon points="350,106 358,110 350,114" fill="#64748b"/>
+      <rect x="360" y="80" width="130" height="60" rx="8" fill="rgba(77,159,255,.08)" stroke="#4d9fff" stroke-width="1.5"/><text x="425" y="105" text-anchor="middle" fill="#4d9fff" font-size="11" font-weight="700" font-family="Segoe UI">Express Server</text><text x="425" y="122" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="Segoe UI">Port 3500</text>
+      <line x1="425" y1="140" x2="425" y2="170" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4 3"/><polygon points="421,170 425,178 429,170" fill="#64748b"/>
+      <rect x="380" y="180" width="90" height="30" rx="6" fill="rgba(192,132,252,.08)" stroke="#c084fc" stroke-width="1.5"/><text x="425" y="200" text-anchor="middle" fill="#c084fc" font-size="10" font-weight="600" font-family="Segoe UI">SQLite DB</text>
+      <line x1="490" y1="110" x2="530" y2="110" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4 3"/><polygon points="530,106 538,110 530,114" fill="#64748b"/>
+      <rect x="540" y="80" width="100" height="60" rx="8" fill="rgba(52,211,153,.08)" stroke="#34d399" stroke-width="1.5"/><text x="590" y="105" text-anchor="middle" fill="#34d399" font-size="11" font-weight="700" font-family="Segoe UI">WebSocket</text><text x="590" y="122" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="Segoe UI">Live Push</text>
+      <line x1="640" y1="110" x2="680" y2="110" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4 3"/><polygon points="680,106 688,110 680,114" fill="#64748b"/>
+      <rect x="690" y="80" width="80" height="60" rx="8" fill="rgba(77,159,255,.08)" stroke="#4d9fff" stroke-width="1.5"/><text x="730" y="105" text-anchor="middle" fill="#4d9fff" font-size="11" font-weight="700" font-family="Segoe UI">Browser</text><text x="730" y="122" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="Segoe UI">Electron UI</text>
+      <line x1="245" y1="80" x2="245" y2="35" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <rect x="185" y="5" width="120" height="30" rx="6" fill="rgba(251,191,36,.08)" stroke="#fbbf24" stroke-width="1.5"/><text x="245" y="25" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="600" font-family="Segoe UI">ML Forecast Engine</text>
+      <text x="390" y="65" text-anchor="middle" fill="#64748b" font-size="9" font-family="Segoe UI" font-style="italic">Data Flow: Modbus TCP &#8594; FastAPI &#8594; Express &#8594; SQLite &#8594; WebSocket &#8594; Browser</text>
+    </svg>
+    <div class="diagram-caption">Fig 1 &mdash; ADSI Dashboard system architecture and data flow pipeline</div>
+  </div>
+  <h3>Technology Stack</h3>
+  <table>
+    <thead><tr><th>Layer</th><th>Technology</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td>Desktop Shell</td><td>Electron 29</td><td>Native window management, file dialogs, licensing</td></tr>
+      <tr><td>API Server</td><td>Express 4</td><td>REST API, polling orchestration, WebSocket broadcast</td></tr>
+      <tr><td>Database</td><td>SQLite via <code>better-sqlite3</code></td><td>Persistent storage for telemetry, reports, forecasts</td></tr>
+      <tr><td>Frontend</td><td>Vanilla JS + Chart.js 4</td><td>Real-time UI rendering and interactive charts</td></tr>
+      <tr><td>Inverter Service</td><td>Python FastAPI (port 9000)</td><td>Modbus TCP polling and inverter command dispatch</td></tr>
+      <tr><td>Forecast Engine</td><td>Python ML (LightGBM)</td><td>Day-ahead generation model with Solcast tri-band</td></tr>
+    </tbody>
+  </table>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+<!-- 2. SYSTEM REQUIREMENTS -->
+<section id="s2">
+  <div class="section-head"><div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="4" y="2" width="14" height="18" rx="2" stroke="#4d9fff" stroke-width="1.8"/><path d="M8 6h6M8 10h6M8 14h4" stroke="#4d9fff" stroke-width="1.5" stroke-linecap="round"/></svg></div><h2>System Requirements</h2></div>
+  <table>
+    <thead><tr><th>Requirement</th><th>Details</th></tr></thead>
+    <tbody>
+      <tr><td>Operating System</td><td>Windows 10 / 11 (64-bit)</td></tr>
+      <tr><td>Display</td><td>1920 &times; 1080 minimum; enhanced at 2200px+ and 3000px+</td></tr>
+      <tr><td>Administrator Rights</td><td>Required for installation and updates; ordinary dashboard use runs at normal user integrity, and upgrades clear obsolete ADSI Run-as-administrator overrides</td></tr>
+      <tr><td>Network</td><td>LAN access to inverter fleet (Gateway) or secure path to gateway (Remote)</td></tr>
+      <tr><td>Disk Space</td><td>Sufficient for database, archives, exports, and forecast model bundles</td></tr>
+      <tr><td>Ports</td><td>3500 (Express API), 9000 (Python FastAPI / Modbus proxy)</td></tr>
+    </tbody>
+  </table>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+<!-- 3. GETTING STARTED -->
+<section id="s3">
+  <div class="section-head"><div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M9 18l6-7H9l1-8-6 7h6l-1 8z" stroke="#34d399" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><h2>Getting Started</h2></div>
+  <h3>Installation</h3>
+  <ol class="steps">
+    <li>Run the installer (<code>Inverter-Dashboard-Setup-x.x.x.exe</code>).</li>
+    <li>Accept the Windows UAC prompt to allow administrator elevation.</li>
+    <li>Choose the installation directory (default is recommended).</li>
+    <li>Complete the wizard and launch the application.</li>
+  </ol>
+  <h3>First Sign-In</h3>
+  <table><thead><tr><th>Field</th><th>Default Value</th></tr></thead><tbody><tr><td>Username</td><td><code>admin</code></td></tr><tr><td>Password</td><td><code>1234</code></td></tr></tbody></table>
+  <div class="info-card tip"><div class="info-card-label">Tip</div>Change your credentials immediately after first login via the <b>Update Username and Password</b> link on the sign-in screen. The Authorization Key is required.</div>
+  <h3>Credential Management</h3>
+  <table><thead><tr><th>Action</th><th>Description</th></tr></thead><tbody><tr><td>Update Username and Password</td><td>Change credentials using the Authorization Key</td></tr><tr><td>Recover with Authorization Key</td><td>Restore default credentials (<code>admin</code> / <code>1234</code>)</td></tr><tr><td>Remember credentials</td><td>Persists login on the workstation</td></tr></tbody></table>
+  <p>After successful sign-in, the application maximizes to full screen and begins service initialization. Wait for the startup loading screen to complete before evaluating live values.</p>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+<!-- 4. INTERFACE LAYOUT -->
+<section id="s4">
+  <div class="section-head"><div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="2" y="2" width="18" height="18" rx="3" stroke="#4d9fff" stroke-width="1.8"/><path d="M2 7h18M7 7v13" stroke="#4d9fff" stroke-width="1.5"/></svg></div><h2>Interface Layout</h2></div>
+  <h3>Header Bar</h3>
+  <div class="diagram-container">
+    <svg width="760" height="56" viewBox="0 0 760 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width="760" height="56" rx="8" fill="rgba(26,31,46,.8)" stroke="#2a3042" stroke-width="1.5"/>
+      <rect x="12" y="14" width="100" height="28" rx="4" fill="rgba(77,159,255,.08)" stroke="rgba(77,159,255,.2)" stroke-width="1"/><text x="62" y="32" text-anchor="middle" fill="#4d9fff" font-size="10" font-weight="700" font-family="Segoe UI">ADSI Plant</text>
+      <rect x="124" y="14" width="130" height="28" rx="4" fill="rgba(52,211,153,.06)" stroke="rgba(52,211,153,.2)" stroke-width="1"/><text x="189" y="26" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="Segoe UI">TOTAL PAC</text><text x="189" y="38" text-anchor="middle" fill="#34d399" font-size="11" font-weight="700" font-family="Segoe UI">24,567 kW</text>
+      <rect x="266" y="14" width="130" height="28" rx="4" fill="rgba(192,132,252,.06)" stroke="rgba(192,132,252,.2)" stroke-width="1"/><text x="331" y="26" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="Segoe UI">TODAY MWh</text><text x="331" y="38" text-anchor="middle" fill="#c084fc" font-size="11" font-weight="700" font-family="Segoe UI">126.45 MWh</text>
+      <text x="560" y="33" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="Segoe UI">14:32:05</text>
+      <circle cx="620" cy="28" r="10" fill="rgba(251,191,36,.08)" stroke="rgba(251,191,36,.3)" stroke-width="1"/><text x="620" y="32" text-anchor="middle" fill="#fbbf24" font-size="10">&#9788;</text>
+      <circle cx="648" cy="28" r="10" fill="rgba(77,159,255,.08)" stroke="rgba(77,159,255,.3)" stroke-width="1"/><text x="648" y="32" text-anchor="middle" fill="#4d9fff" font-size="10">&#9835;</text>
+      <circle cx="676" cy="28" r="5" fill="#34d399"/>
+      <circle cx="704" cy="28" r="10" fill="rgba(248,113,113,.08)" stroke="rgba(248,113,113,.3)" stroke-width="1"/><text x="704" y="32" text-anchor="middle" fill="#f87171" font-size="10">&#9888;</text>
+      <rect x="724" y="18" width="24" height="20" rx="4" fill="rgba(77,159,255,.08)" stroke="rgba(77,159,255,.3)" stroke-width="1"/><line x1="730" y1="24" x2="742" y2="24" stroke="#4d9fff" stroke-width="1.5" stroke-linecap="round"/><line x1="730" y1="28" x2="742" y2="28" stroke="#4d9fff" stroke-width="1.5" stroke-linecap="round"/><line x1="730" y1="32" x2="742" y2="32" stroke="#4d9fff" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    <div class="diagram-caption">Fig 2 &mdash; Header bar layout with global status indicators</div>
+  </div>
+  <table><thead><tr><th>Element</th><th>Description</th></tr></thead><tbody><tr><td>Plant Logo / Title</td><td>Identifies the plant and dashboard instance</td></tr><tr><td><code>TOTAL PAC</code></td><td>Combined AC power from all online inverters (kW)</td></tr><tr><td><code>TODAY MWh</code></td><td>Today's cumulative plant energy (MWh)</td></tr><tr><td>Clock &amp; Date</td><td>Local workstation time, updates every second</td></tr><tr><td>Theme Toggle</td><td>Cycle between Dark, Light, and Classic themes</td></tr><tr><td>Alarm Sound</td><td>Mute or unmute alarm audio notifications</td></tr><tr><td>Connection Indicator</td><td>Green = live streaming; Red = disconnected</td></tr><tr><td>Alarm Notification Hub</td><td>Bottom-right summary pill (per-severity tally + count of unacknowledged active alarms); click to open the quick-ACK panel. The sidebar <code>ALARMS</code> item carries the matching count badge for navigation.</td></tr><tr><td>Menu Button</td><td>Toggle the side navigation panel</td></tr></tbody></table>
+  <h3>Side Navigation</h3>
+  <table><thead><tr><th>Page</th><th>Purpose</th></tr></thead><tbody><tr><td><b>Inverters</b></td><td>Live status, node-level control, real-time output</td></tr><tr><td><b>Analytics</b></td><td>Daily energy with interval charts and day-ahead comparison</td></tr><tr><td><b>Forecast</b></td><td>Day-ahead generation and Solcast management</td></tr><tr><td><b>Alarms</b></td><td>Episode history with severity, duration, ACK</td></tr><tr><td><b>Energy</b></td><td>5-minute interval energy by inverter</td></tr><tr><td><b>Audit</b></td><td>Operator command history</td></tr><tr><td><b>Report</b></td><td>Daily performance with availability</td></tr><tr><td><b>Export</b></td><td>Export to Excel or CSV</td></tr><tr><td><b>Settings</b></td><td>Config, connectivity, license, updates, backup</td></tr></tbody></table>
+  <h3>Visual Themes</h3>
+  <div class="legend-row"><span class="legend-chip"><span class="legend-dot" style="background:linear-gradient(135deg,#0b0e14,#1a1f2e);border-color:#2a3042"></span> Dark (default)</span><span class="legend-chip"><span class="legend-dot" style="background:linear-gradient(135deg,#f8f9fb,#e5e9f0);border-color:#c8cfd9"></span> Light</span><span class="legend-chip"><span class="legend-dot" style="background:linear-gradient(135deg,#1a1410,#2a2018);border-color:#3a3028"></span> Classic</span></div>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+<!-- 5. INVERTERS PAGE -->
+<section id="s5">
+  <div class="section-head"><div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3" y="8" width="7" height="11" rx="2" stroke="#34d399" stroke-width="1.8"/><rect x="12" y="4" width="7" height="15" rx="2" stroke="#4d9fff" stroke-width="1.8"/></svg></div><h2>Inverters Page</h2></div>
+  <p>The primary live operations workspace for monitoring the full inverter fleet, reviewing node-level status, and sending control commands.</p>
+  <h3>Toolbar Controls</h3>
+  <table><thead><tr><th>Control</th><th>Function</th></tr></thead><tbody><tr><td>Inverter Filter</td><td>All, Online, Offline, or Alarmed</td></tr><tr><td>Layout</td><td>Auto, 2&ndash;7 column grid</td></tr><tr><td>Show/Hide Cap</td><td>Toggle the plant output cap panel</td></tr></tbody></table>
+  <h3>Fleet Status Chips</h3>
+  <table><thead><tr><th>Chip</th><th>Meaning</th></tr></thead><tbody><tr><td><b>Inverters</b></td><td>Active / Total</td></tr><tr><td><b>Nodes</b></td><td>Active / Total</td></tr><tr><td><b>Online</b></td><td>Currently producing</td></tr><tr><td><b>Alarmed</b></td><td>Active unACK'd alarms</td></tr><tr><td><b>Offline</b></td><td>Not responding</td></tr></tbody></table>
+  <h3>PAC Output Band Legend</h3>
+  <div class="legend-row"><span class="legend-chip"><span class="legend-dot" style="background:#00cf00"></span> &ge;90% High</span><span class="legend-chip"><span class="legend-dot" style="background:#e8e800"></span> &gt;70% Moderate</span><span class="legend-chip"><span class="legend-dot" style="background:#ffa500"></span> &gt;40% Mild</span><span class="legend-chip"><span class="legend-dot" style="background:#ff0000"></span> &le;40% Low</span><span class="legend-chip"><span class="legend-dot" style="background:#ff0000;box-shadow:0 0 6px #ff0000"></span> Alarm (blink)</span></div>
+  <h3>Inverter Card</h3>
+  <div class="diagram-container">
+    <svg width="320" height="210" viewBox="0 0 320 210" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="1" y="1" width="318" height="208" rx="10" fill="rgba(26,31,46,.6)" stroke="#2a3042" stroke-width="1.5"/>
+      <rect x="10" y="10" width="300" height="32" rx="6" fill="rgba(77,159,255,.06)"/>
+      <text x="20" y="30" fill="#e8edf5" font-size="12" font-weight="700" font-family="Segoe UI">INVERTER 01</text>
+      <rect x="120" y="15" width="48" height="20" rx="4" fill="rgba(52,211,153,.12)" stroke="rgba(52,211,153,.3)" stroke-width="1"/><text x="144" y="29" text-anchor="middle" fill="#34d399" font-size="8" font-weight="700" font-family="Segoe UI">ONLINE</text>
+      <rect x="200" y="15" width="44" height="20" rx="4" fill="rgba(52,211,153,.12)" stroke="rgba(52,211,153,.3)" stroke-width="1"/><text x="222" y="29" text-anchor="middle" fill="#34d399" font-size="8" font-weight="600" font-family="Segoe UI">START</text>
+      <rect x="250" y="15" width="44" height="20" rx="4" fill="rgba(248,113,113,.12)" stroke="rgba(248,113,113,.3)" stroke-width="1"/><text x="272" y="29" text-anchor="middle" fill="#f87171" font-size="8" font-weight="600" font-family="Segoe UI">STOP</text>
+      <text x="20" y="58" fill="#94a3b8" font-size="9" font-family="Segoe UI">Pdc: <tspan fill="#e8edf5" font-weight="600">248.5 kW</tspan>  |  Pac: <tspan fill="#34d399" font-weight="600">245.2 kW</tspan></text>
+      <rect x="10" y="66" width="300" height="18" rx="0" fill="rgba(30,36,54,.8)"/>
+      <text x="28" y="79" fill="#64748b" font-size="7.5" font-weight="700" font-family="Segoe UI">NODE</text><text x="78" y="79" fill="#64748b" font-size="7.5" font-weight="700" font-family="Segoe UI">ALARM</text><text x="138" y="79" fill="#64748b" font-size="7.5" font-weight="700" font-family="Segoe UI">Pdc (W)</text><text x="208" y="79" fill="#64748b" font-size="7.5" font-weight="700" font-family="Segoe UI">Pac (W)</text><text x="275" y="79" fill="#64748b" font-size="7.5" font-weight="700" font-family="Segoe UI">CTRL</text>
+      <text x="33" y="100" text-anchor="middle" fill="#e8edf5" font-size="9.5" font-weight="600" font-family="Segoe UI">N1</text><text x="88" y="100" fill="#34d399" font-size="9.5" font-family="Segoe UI">0000H</text><text x="150" y="100" fill="#e8edf5" font-size="9.5" font-family="Segoe UI">62,400</text><text x="218" y="100" fill="#00cf00" font-size="9.5" font-weight="600" font-family="Segoe UI">61,800</text><circle cx="282" cy="96" r="5" fill="rgba(52,211,153,.15)" stroke="#34d399" stroke-width="1"/>
+      <text x="33" y="118" text-anchor="middle" fill="#e8edf5" font-size="9.5" font-weight="600" font-family="Segoe UI">N2</text><text x="88" y="118" fill="#34d399" font-size="9.5" font-family="Segoe UI">0000H</text><text x="150" y="118" fill="#e8edf5" font-size="9.5" font-family="Segoe UI">61,200</text><text x="218" y="118" fill="#00cf00" font-size="9.5" font-weight="600" font-family="Segoe UI">60,500</text><circle cx="282" cy="114" r="5" fill="rgba(52,211,153,.15)" stroke="#34d399" stroke-width="1"/>
+      <text x="33" y="136" text-anchor="middle" fill="#e8edf5" font-size="9.5" font-weight="600" font-family="Segoe UI">N3</text><text x="88" y="136" fill="#34d399" font-size="9.5" font-family="Segoe UI">0000H</text><text x="150" y="136" fill="#e8edf5" font-size="9.5" font-family="Segoe UI">63,100</text><text x="218" y="136" fill="#e8e800" font-size="9.5" font-weight="600" font-family="Segoe UI">58,200</text><circle cx="282" cy="132" r="5" fill="rgba(52,211,153,.15)" stroke="#34d399" stroke-width="1"/>
+      <text x="33" y="154" text-anchor="middle" fill="#e8edf5" font-size="9.5" font-weight="600" font-family="Segoe UI">N4</text><text x="88" y="154" fill="#34d399" font-size="9.5" font-family="Segoe UI">0000H</text><text x="150" y="154" fill="#e8edf5" font-size="9.5" font-family="Segoe UI">61,800</text><text x="218" y="154" fill="#00cf00" font-size="9.5" font-weight="600" font-family="Segoe UI">64,700</text><circle cx="282" cy="150" r="5" fill="rgba(52,211,153,.15)" stroke="#34d399" stroke-width="1"/>
+      <text x="20" y="183" fill="#64748b" font-size="8.5" font-family="Segoe UI">Last Seen: <tspan fill="#94a3b8">14:32:05</tspan></text><text x="200" y="183" fill="#64748b" font-size="8.5" font-family="Segoe UI">Today: <tspan fill="#c084fc" font-weight="600">4.82 MWh</tspan></text>
+    </svg>
+    <div class="diagram-caption">Fig 3 &mdash; Inverter card with node-level telemetry and controls</div>
+  </div>
+  <h3>Node Controls</h3>
+  <table><thead><tr><th>Action</th><th>Scope</th><th>Authorization</th></tr></thead><tbody><tr><td>Node button</td><td>Single node</td><td>Confirmation only</td></tr><tr><td>Card Start/Stop</td><td>Entire inverter</td><td>Confirmation only</td></tr><tr><td>Bulk START/STOP</td><td>Selected set</td><td>Authorization key required</td></tr></tbody></table>
+  <h3>Bulk Inverter Commands</h3>
+  <table><thead><tr><th>Field</th><th>Function</th></tr></thead><tbody><tr><td>Inverter Ranges</td><td>Enter <code>1-13, 16, 18, 23-27</code></td></tr><tr><td>All Inverters</td><td>Auto-fill full range</td></tr><tr><td>Clear</td><td>Clear selection</td></tr><tr><td>START / STOP SELECTED</td><td>Execute on selected inverters</td></tr></tbody></table>
+  <div class="info-card warn"><div class="info-card-label">Important</div>Bulk control requires a time-sensitive authorization key. Isolated inverters are skipped automatically.</div>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+<!-- 6. PLANT OUTPUT CAPPING -->
+<section id="s6">
+  <div class="section-head"><div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M3 17h16M3 17l4-6 3 3 4-5 5 8" stroke="#fb923c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><line x1="3" y1="8" x2="19" y2="8" stroke="#f87171" stroke-width="1.5" stroke-dasharray="3 2"/></svg></div><h2>Plant Output Auto Capping</h2></div>
+  <p>Automatically regulates total plant output within a defined MW band by sequentially stopping and starting whole inverters.</p>
+  <h3>Cap Configuration</h3>
+  <table><thead><tr><th>Field</th><th>Function</th></tr></thead><tbody><tr><td>Upper Limit (MW)</td><td>Threshold that triggers automatic stop</td></tr><tr><td>Lower Limit (MW)</td><td>Threshold for restarting stopped inverters</td></tr><tr><td>Sequence</td><td>Ascending, Descending, or Exemption mode</td></tr><tr><td>Exempted Inverters</td><td>Comma-separated exclusion list</td></tr><tr><td>Cooldown (s)</td><td>Settling time between actions (default: 30s)</td></tr></tbody></table>
+  <h3>Cap Actions</h3>
+  <table><thead><tr><th>Action</th><th>Function</th></tr></thead><tbody><tr><td>Preview Plan</td><td>Simulates next decision using live state</td></tr><tr><td>Enable Cap</td><td>Arms the controller (requires authorization)</td></tr><tr><td>Disable Monitoring</td><td>Stops automation without restarting stopped inverters</td></tr><tr><td>Release Controlled</td><td>Restarts stopped inverters sequentially and ends session</td></tr></tbody></table>
+  <h3>Cap Status Panel</h3>
+  <table><thead><tr><th>Field</th><th>Description</th></tr></thead><tbody><tr><td>Status</td><td>Active, Idle, or Cooldown</td></tr><tr><td>Reason</td><td>Human-readable trigger explanation</td></tr><tr><td>Last Action</td><td>Timestamp of most recent event</td></tr><tr><td>Cooldown</td><td>Remaining time before re-engagement</td></tr><tr><td>Curtailed</td><td>Total MW removed</td></tr><tr><td>Controllable</td><td>Inverters available for dispatch</td></tr><tr><td>Pending</td><td>In-flight actions</td></tr><tr><td>Exempted</td><td>Excluded numbers</td></tr></tbody></table>
+  <div class="info-card warn"><div class="info-card-label">Important</div><ul style="margin:0"><li>Whole-inverter sequential control only</li><li>Narrow bands may not settle cleanly</li><li>Non-exempted inverters stay under controller authority while cap is enabled</li><li>Manual control is blocked for non-exempted inverters until cap is disabled</li><li>In Remote mode, cap actions proxy to the gateway</li></ul></div>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+<!-- 7. ANALYTICS PAGE -->
+<section id="s7">
+  <div class="section-head"><div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><polyline points="3,17 7,10 11,14 15,6 19,9" stroke="#34d399" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div><h2>Analytics Page</h2></div>
+  <p>Interval-based production review with day-ahead forecast comparison and weather context.</p>
+  <table><thead><tr><th>Control</th><th>Function</th></tr></thead><tbody><tr><td>Date</td><td>Select the day to analyze</td></tr><tr><td>Interval</td><td>5 min, 15 min, 30 min, 1 hour</td></tr><tr><td>Load View</td><td>Load data for selected date and interval</td></tr></tbody></table>
+  <h3>Summary Metrics</h3>
+  <table><thead><tr><th>Metric</th><th>Meaning</th></tr></thead><tbody><tr><td>Total Energy</td><td>Plant total (MWh)</td></tr><tr><td>Peak Output</td><td>Highest AC power (kW)</td></tr><tr><td>Reporting Inverters</td><td>Count with data</td></tr><tr><td>Latest Interval</td><td>Last recorded timestamp</td></tr></tbody></table>
+  <h3>Selected Date Summary</h3>
+  <table><thead><tr><th>Item</th><th>Meaning</th></tr></thead><tbody><tr><td>Actual MWh</td><td>Authoritative total daily energy</td></tr><tr><td>Day-ahead MWh</td><td>Forecasted total</td></tr><tr><td>Variance MWh</td><td>Difference between actual and forecast</td></tr><tr><td>Peak Interval</td><td>Highest interval energy with timestamp</td></tr></tbody></table>
+  <div class="info-card tip"><div class="info-card-label">Live Updates</div>When today is selected, charts and summary auto-refresh with each server push. Past dates load on demand.</div>
+  <h3>Day-Ahead Generator</h3>
+  <p>Gateway only. Enter <b>Days</b> and click <b>Generate</b>. Blocked in Remote mode.</p>
+  <h4>Automatic Day-Ahead Schedule</h4>
+  <p>The system automatically generates tomorrow&rsquo;s day-ahead forecast on a fixed cron schedule. Each run checks the existing forecast&rsquo;s <b>quality</b> before deciding whether to regenerate.</p>
+  <table><thead><tr><th>Time</th><th>Role</th></tr></thead><tbody><tr><td>04:30</td><td>Early morning &mdash; first pass with overnight Solcast data</td></tr><tr><td>09:30</td><td>Pre-cutoff &mdash; catches weather data refreshes before the 10:00 AM control room submission deadline</td></tr><tr><td>18:30</td><td>Post-solar-day &mdash; refreshes with full day of actual generation data</td></tr><tr><td>20:00</td><td>Evening re-check</td></tr><tr><td>22:00</td><td>Final nightly pass</td></tr></tbody></table>
+  <h4>Quality Gate</h4>
+  <p>Before each cron run, the system classifies the existing forecast into one of these quality states:</p>
+  <table><thead><tr><th>Quality</th><th>Meaning</th><th>Action</th></tr></thead><tbody><tr><td><b>healthy</b></td><td>Complete forecast, correct provider, fresh Solcast input</td><td>Skip &mdash; no regeneration</td></tr><tr><td>missing</td><td>No forecast rows exist</td><td>Generate</td></tr><tr><td>incomplete</td><td>Fewer slots than the solar window requires</td><td>Regenerate</td></tr><tr><td>wrong_provider</td><td>Generated with a different provider than currently configured</td><td>Regenerate</td></tr><tr><td>stale_input</td><td>Solcast data has been refreshed since the forecast was built</td><td>Regenerate</td></tr><tr><td>weak_quality</td><td>Last run failed or variant is unknown</td><td>Regenerate</td></tr></tbody></table>
+  <div class="info-card tip"><div class="info-card-label">Solcast Freshness Detection</div>The quality gate compares the Solcast snapshot timestamp used at generation time against the current snapshot timestamp. If Solcast has published updated weather data since the last generation (e.g., weather changes after the 04:30 run), the 09:30 cron will detect the stale input and regenerate automatically before the 10:00 AM cutoff.</div>
+  <div class="info-card tip"><div class="info-card-label">Actuals Isolation</div>The quality assessment only reads forecast predictions, audit metadata, and Solcast weather snapshots. It never reads today&rsquo;s running energy actuals (energy_5min, inverter readings, or intraday adjustments). Live production data cannot interfere with the quality gate or trigger false regenerations.</div>
+  <h3>7-Day Weather Outlook</h3>
+  <p>Daily cards: sky condition, temperature range, rainfall, cloud %, wind speed, solar irradiance. Serves cached data when the API is unavailable.</p>
+  <h3>Day-Ahead vs Reality — Locked @ Previous 10 AM</h3>
+  <p>Multi-series comparison chart showing the frozen 10 AM day-ahead forecast snapshot (P10/P50/P90 confidence band) against the separate Solcast estimated-actual reference, PAC-integrated plant actual output, and the locally generated intraday product as the day unfolds. The chart identifies whether that intraday line is an ML nowcast or a day-ahead fallback, and its expandable details control identifies the exact plotted algorithm and provenance. Displays spread % metrics, variance vs P50, and % of actual output within the confidence band. Useful for validating forecast accuracy and detecting late-day weather shifts.</p>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+<!-- 8. FORECAST PAGE -->
+<section id="s8">
+  <div class="section-head"><div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="8" r="5" stroke="#fbbf24" stroke-width="1.8"/><line x1="11" y1="1" x2="11" y2="3" stroke="#fbbf24" stroke-width="1.5" stroke-linecap="round"/><line x1="4" y1="5" x2="5.5" y2="6.5" stroke="#fbbf24" stroke-width="1.5" stroke-linecap="round"/><line x1="18" y1="5" x2="16.5" y2="6.5" stroke="#fbbf24" stroke-width="1.5" stroke-linecap="round"/><path d="M5 16h12M7 19h8" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round"/></svg></div><h2>Forecast Page</h2></div>
+  <p>Dedicated workspace for forecast configuration, Solcast validation, and toolkit preview.</p>
+  <h3>Forecast Sources</h3>
+  <table><thead><tr><th>Source</th><th>Use</th></tr></thead><tbody><tr><td>Local ML</td><td>LightGBM-trained forecasting from historical data</td></tr><tr><td>Solcast</td><td>External forecast for validation or standalone use</td></tr></tbody></table>
+  <h3>Solcast Access Modes</h3>
+  <table><thead><tr><th>Mode</th><th>Use</th></tr></thead><tbody><tr><td>Toolkit Login</td><td>Chart feed via account sign-in</td></tr><tr><td>API Key</td><td>Formal API credentials and resource ID</td></tr></tbody></table>
+  <h3>Solcast Settings</h3>
+  <table><thead><tr><th>Field</th><th>Description</th></tr></thead><tbody><tr><td>Plant Resource ID</td><td>Unique Solcast site identifier</td></tr><tr><td>Forecast Days</td><td>1&ndash;7 (default: 2)</td></tr><tr><td>Resolution</td><td>PT5M, PT10M, PT15M, PT30M, PT60M</td></tr><tr><td>Toolkit Email / Password</td><td>Account credentials</td></tr></tbody></table>
+  <h3>Forecast Tuning</h3>
+  <p>Manual overrides for ML engine training parameters. Leave blank to use the engine's own defaults.</p>
+  <table><thead><tr><th>Field</th><th>Purpose</th><th>Range</th><th>Default</th></tr></thead><tbody><tr><td>Est-actual Weight</td><td>Override the satellite est-actual training weight (how much weight the engine gives to Solcast estimated-actual values when training the model). Validate new values with a backtest before relying.</td><td>0.50–1.00</td><td>Auto (engine-tuned)</td></tr><tr><td>Intraday Blend Max</td><td>Cap how strongly intraday observed vs. day-ahead corrections are blended (0 = no intraday blending, 1 = maximum). Validate with a backtest.</td><td>0.00–1.00</td><td>0.72</td></tr><tr><td>Virtual Nowcast Mode</td><td>Select the established current intraday path, evaluate the robust challenger without publishing it, or permit controlled activation with automatic fallback. The robust path remains unpromoted; keep this setting at <b>Off</b> unless an authorized promotion decision says otherwise.</td><td>Off / Shadow / Active</td><td>Off</td></tr></tbody></table>
+  <h3 id="s8-nowcast">Virtual Nowcast (Experimental; Default Off)</h3>
+  <div class="info-card warn"><div class="info-card-label">Promotion status</div>The robust virtual-nowcast algorithm is a challenger, not the production default. <b>Off</b> is the safe default. Do not select <b>Active</b> until replay, live-shadow, reliability, and operator-approval gates have passed.</div>
+  <p>The virtual-nowcast rollout extends the existing intraday-adjusted forecast path. It does not replace the issued day-ahead forecast, the locked comparison snapshot, or the day-ahead audit authority.</p>
+  <h4>Products shown on the Analytics chart</h4>
+  <table>
+    <thead><tr><th>Product</th><th>Meaning</th><th>Operational rule</th></tr></thead>
+    <tbody>
+      <tr><td><b>Day-ahead / locked P10&ndash;P50&ndash;P90</b></td><td>The issued forecast basis retained for operational comparison.</td><td>Intraday nowcasting does not rewrite immutable day-ahead issuance history or its authoritative run audit.</td></tr>
+      <tr><td><b>ML intraday nowcast</b></td><td>The locally calculated PAC-integrated, loss-adjusted intraday series. Its diagnostics identify the algorithm that actually produced the plotted rows.</td><td>Where a cutoff is known, the observation-side segment through the cutoff is solid and the future projection is dashed. If the intraday product is unavailable, the chart identifies a day-ahead fallback instead of pretending it is a nowcast.</td></tr>
+      <tr><td><b>Solcast est. actual</b></td><td>A separate provider-derived reference overlay.</td><td>It is never treated as plant truth for live nowcast correction or promotion scoring.</td></tr>
+    </tbody>
+  </table>
+  <h4>Rollout modes</h4>
+  <p>Open <b>Forecast &rarr; Tuning &rarr; Virtual Nowcast Mode</b>. A saved change applies on the next eligible five-minute forecast cycle.</p>
+  <table>
+    <thead><tr><th>Mode</th><th>Published series</th><th>Audit behavior</th><th>Use</th></tr></thead>
+    <tbody>
+      <tr><td><code>Off</code></td><td>The established current intraday algorithm, when it produces a valid output.</td><td>The run and authoritative write outcome are still recorded in <code>forecast_intraday_run_audit</code>; challenger status is <code>skipped</code>.</td><td>Default operation and immediate rollback.</td></tr>
+      <tr><td><code>Shadow</code></td><td>The established current intraday algorithm remains authoritative.</td><td>The robust challenger is evaluated and its outcome/checkpoints are recorded as evaluation-only diagnostics.</td><td>Required live evaluation stage before any activation.</td></tr>
+      <tr><td><code>Active</code></td><td>The robust challenger only when valid; otherwise the established current algorithm is used if available.</td><td>The exact plotted run, challenger outcome, fallback, and authoritative write status are recorded separately.</td><td>Controlled use only after all promotion gates pass and an operator explicitly enables it.</td></tr>
+    </tbody>
+  </table>
+  <p>Only the Gateway evaluates, writes, and prunes this diagnostic history. Remote/viewer workstations display gateway data through the existing proxy path.</p>
+  <h4>Safety and fallback</h4>
+  <ul>
+    <li>Uses only PAC-integrated, loss-adjusted plant energy at or before the run cutoff; future observations and Solcast estimated actuals are excluded.</li>
+    <li>Excludes low-baseline, low-capacity-coverage, cap-dispatched, inverter-outage, and export-curtailed slots.</li>
+    <li>Requires at least six eligible observations, estimates the correction with a robust weighted median in log-ratio space, and fades the complete correction toward day-ahead with a 45-minute half-life.</li>
+    <li>Applies configured correction-strength, ratio, ramp, physical-cap, finite-value, and confidence-band ordering checks (<code>0 &le; P10 &le; P50 &le; P90</code>).</li>
+    <li>In Active mode, an invalid, insufficient, failed, or timed-out challenger falls back to the established current algorithm. If no valid replacement can be written, the last valid intraday series is preserved when one exists; the audit records that outcome.</li>
+  </ul>
+  <h4>Focusable diagnostics and provenance</h4>
+  <p>The compact nowcast control above the <b>Day-Ahead vs Actual</b> chart is an expandable, keyboard-focusable details control. Click it, or move focus to its summary with <kbd>Tab</kbd> and use <kbd>Enter</kbd> or <kbd>Space</kbd>, to inspect the plotted algorithm and series kind, run ID, provenance match, generation time and freshness, cutoff, eligible-observation count, correction strength, authoritative write status, latest attempt, challenger result, and fallback reason. This control does not require hover. Mouse users can also hover an individual nowcast chart point for a compact tooltip.</p>
+  <p>The plotted-series provenance and the latest attempt are deliberately separate. A newer failed or shadow attempt must not be presented as the producer of older plotted rows. When an exact row-to-audit match cannot be established, the UI reports <b>unknown</b> instead of guessing from the current setting.</p>
+  <h4>Promotion gates</h4>
+  <ol class="steps">
+    <li>Use at least 30 eligible historical days in chronological, rolling-origin replay with no future-observation or artifact leakage.</li>
+    <li>Complete at least 14 solar days in <code>Shadow</code>, including clear, mixed, and overcast/rainy conditions.</li>
+    <li>Demonstrate at least 5% relative improvement in median nowcast WAPE over the established current algorithm across +15 to +120 minute horizons, with no unacceptable shoulder, overall, or weather-regime regression.</li>
+    <li>Confirm no increase in missing/incomplete production series, automatic fallback on every failure path, and P95 runtime below 30 seconds.</li>
+    <li>Keep activity-v2 and weather-derivative candidates unpromoted until their own ablations and support requirements pass.</li>
+  </ol>
+  <h4>Diagnostics and rollback</h4>
+  <p>The Gateway retains <code>forecast_intraday_run_audit</code> diagnostics for 30 days, includes them in normal database backups, and keeps them separate from the authoritative day-ahead audit ledger. For immediate operator rollback, select <code>Off</code> and save; the established current algorithm is used on the next eligible cycle.</p>
+  <p>Gateway-only engineering checks:</p>
+  <pre><code>python services/forecast_engine.py --baseline-snapshot --dry-run
+python services/forecast_engine.py --replay --from-date YYYY-MM-DD --to-date YYYY-MM-DD --dry-run
+python services/forecast_engine.py --rebuild-forecast-artifacts --lookback-days 45 --dry-run</code></pre>
+  <p>Dry-run replay and rebuild checks do not write live forecast or audit tables. Treat activity-v2 profiles, weather derivatives, and the robust nowcast itself as experimental until the evidence gates above are met.</p>
+  <div class="ml-highlight">
+    <div class="info-card-label" style="color:var(--accent)">ML Training Engine &mdash; Day-Ahead Generation</div>
+    <p>The day-ahead forecast uses a <b>trained LightGBM model</b> (default since v2.4.40) that learns your plant's generation profile from historical data. It runs on the gateway and produces next-day forecasts from weather inputs and observed patterns.</p>
+    <h4>How Training Works</h4>
+    <ul><li>Collects historical irradiance, weather, and production data</li><li>Applies an <b>operational constraint mask</b> to exclude abnormal periods</li><li>Rejects outliers, flat-line artifacts, and low-confidence samples</li><li>Produces full-day forecasts at configurable intervals</li></ul>
+    <h4>Plant Cap Awareness</h4>
+    <ul><li>Cap-dispatched stops (scope <code>plant-cap</code>) identified separately from manual stops</li><li>During cap-only periods, engine <b>reconstructs</b> full-capacity output using physics baseline</li><li>Preserves high-irradiance training samples; only manually constrained slots are excluded</li></ul>
+    <h4>Intraday Adjustment &amp; Error Memory</h4>
+    <ul><li>Compares observed vs forecast to compute an adjustment ratio (cap-depressed observations excluded)</li><li>Rolling error correction tracks recent accuracy, excluding all operationally constrained slots</li></ul>
+    <table><thead><tr><th>Scenario</th><th>Effect on Training</th></tr></thead><tbody><tr><td>Normal operation</td><td>All data used</td></tr><tr><td>Manual stop / fault</td><td>Slots excluded</td></tr><tr><td>Plant cap stop</td><td>Reconstructed to full capacity</td></tr><tr><td>Mixed (cap + manual)</td><td>Slots excluded</td></tr></tbody></table>
+  </div>
+  <div class="info-card note"><div class="info-card-label">Note</div>Day-ahead generation is only available on the Gateway workstation.</div>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+<!-- 9. FORECAST PERFORMANCE MONITOR -->
+<section id="s9">
+  <div class="section-head"><div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="16" rx="3" stroke="#c084fc" stroke-width="1.8"/><path d="M7 13V9M11 13V7M15 13V10" stroke="#c084fc" stroke-width="2" stroke-linecap="round"/></svg></div><h2>Forecast Performance Monitor</h2></div>
+  <p>Real-time diagnostics of ML training health, forecast accuracy trends, and data quality flags (v2.4.42+). Defaults to <b>collapsed</b>.</p>
+  <h3>Health Chips</h3>
+  <table><thead><tr><th>Chip</th><th>Meaning</th></tr></thead><tbody><tr><td>ML Training</td><td>Training state and ML backend (LightGBM/sklearn)</td></tr><tr><td>Last Run</td><td>Timestamp of last generation run</td></tr><tr><td>Provider</td><td>Active provider (ML or Solcast)</td></tr><tr><td>Recent Quality</td><td>Quality classification of latest forecast</td></tr></tbody></table>
+  <h3>Accuracy Charts</h3>
+  <table><thead><tr><th>Chart</th><th>Shows</th></tr></thead><tbody><tr><td>Compare Chart</td><td>Forecast vs Actual with confidence band (P10/P90)</td></tr><tr><td>WAPE Chart</td><td>Daily Weighted Absolute Percentage Error trend</td></tr></tbody></table>
+  <h3>Solcast Tri-Band Integration (v2.5.0+)</h3>
+  <div class="diagram-container">
+    <svg width="500" height="130" viewBox="0 0 500 130" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="40" y="10" width="420" height="28" rx="6" fill="rgba(52,211,153,.06)" stroke="#34d399" stroke-width="1"/><text x="250" y="29" text-anchor="middle" fill="#34d399" font-size="11" font-weight="600" font-family="Segoe UI">P90 / Hi Band (Optimistic)</text>
+      <rect x="40" y="48" width="420" height="28" rx="6" fill="rgba(77,159,255,.08)" stroke="#4d9fff" stroke-width="1.5"/><text x="250" y="67" text-anchor="middle" fill="#4d9fff" font-size="11" font-weight="700" font-family="Segoe UI">Forecast (Central Estimate)</text>
+      <rect x="40" y="86" width="420" height="28" rx="6" fill="rgba(251,191,36,.06)" stroke="#fbbf24" stroke-width="1"/><text x="250" y="105" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="600" font-family="Segoe UI">P10 / Lo Band (Conservative)</text>
+    </svg>
+    <div class="diagram-caption">Fig 4 &mdash; Solcast tri-band confidence envelope (P10 / Forecast / P90)</div>
+  </div>
+  <p>Exposes P10/Lo and P90/Hi percentile forecasts, feeding 6 additional LightGBM features:</p>
+  <table><thead><tr><th>Feature</th><th>Description</th></tr></thead><tbody><tr><td><code>solcast_lo_kwh</code></td><td>P10 energy (conservative)</td></tr><tr><td><code>solcast_hi_kwh</code></td><td>P90 energy (optimistic)</td></tr><tr><td><code>solcast_lo_vs_physics</code></td><td>P10 vs physics ratio</td></tr><tr><td><code>solcast_hi_vs_physics</code></td><td>P90 vs physics ratio</td></tr><tr><td><code>solcast_spread_pct</code></td><td>% spread between P10 and P90</td></tr><tr><td><code>solcast_spread_ratio</code></td><td>Spread as ratio of central estimate</td></tr></tbody></table>
+  <div class="info-card note"><div class="info-card-label">Backward Compatibility</div>Legacy models auto-align with zero-spread fallback. Feature count: 62 &rarr; 68. P10/P90 available only from Solcast Toolkit for future dates.</div>
+  <h3>Reliability Dimensions (v2.4.33+)</h3>
+  <table><thead><tr><th>Dimension</th><th>Key</th><th>Effect</th></tr></thead><tbody><tr><td>Weather regime</td><td>clear/mixed/overcast/rainy</td><td>Per-regime bias and reliability</td></tr><tr><td>Season</td><td>dry/wet</td><td>Season-aware blend coefficients</td></tr><tr><td>Time-of-day</td><td>morning/midday/afternoon</td><td>Per-slot blend modulation</td></tr><tr><td>Trend</td><td>improving/stable/degrading</td><td>Blend &plusmn;6&ndash;8%, damping adjustment</td></tr></tbody></table>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+<!-- 10. ALARMS -->
+<section id="s10">
+  <div class="section-head"><div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 3C7 3 4 7 4 11v4l-1 2h16l-1-2v-4c0-4-3-8-7-8z" stroke="#f87171" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 19a2 2 0 004 0" stroke="#f87171" stroke-width="1.8"/></svg></div><h2>Alarms Page</h2></div>
+  <table><thead><tr><th>Column</th><th>Meaning</th></tr></thead><tbody><tr><td>Alarm Time</td><td>When alarm was raised</td></tr><tr><td>Inverter / Node</td><td>Affected equipment</td></tr><tr><td>Alarm Code</td><td>Hex code from register</td></tr><tr><td>Severity</td><td>Critical, Warning, Info</td></tr><tr><td>Description</td><td>Human-readable text</td></tr><tr><td>Cleared / Duration</td><td>Resolution time and total duration</td></tr><tr><td>Status / Ack</td><td>Active or Cleared; Acknowledged state</td></tr></tbody></table>
+  <h3>Alarm Episode Model</h3>
+  <ul><li>New alarm = new episode</li><li>Bitmask change on active node = same episode</li><li>ACK state preserved across changes</li></ul>
+  <h3>Quick-ACK System</h3>
+  <ul><li>Bottom-right notification hub panel with ACK for up to 50 recent alarms</li><li>Single ACK and Acknowledge All are saved on the authoritative gateway</li><li>ACK state synchronizes immediately across connected Gateway and Remote-mode dashboards</li><li>The alarm table, badge, panel, sound, and inverter cards reconcile together</li><li>Sound triggers after <b>5 seconds</b> unacknowledged</li><li>Mute button silences audio only, not visual alerts</li></ul>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+<!-- 11. PARAMETERS -->
+<section id="s11">
+  <div class="section-head"><div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M13 2L3 14h7l-1 6 10-12h-7l1-6z" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><h2>Parameters Page</h2></div>
+  <p>Per-node 5-minute parameter log for a single inverter at a time. Each tab on the page is one node; rows are 5-minute snapshots of every electrical and operational reading the dashboard captures. Renamed from <b>Energy</b> in v2.10.x &mdash; the underlying <code>energy_5min</code> / <code>inverter_5min</code> tables are untouched, while a new <code>inverter_5min_param</code> table feeds this view via <code>dailyAggregator.js</code>.</p>
+  <h3>Controls</h3>
+  <table><thead><tr><th>Control</th><th>Function</th></tr></thead><tbody>
+    <tr><td>Inverter</td><td>Pick which inverter to view. The page is blank until an inverter is selected.</td></tr>
+    <tr><td>Date</td><td>Today streams live 5-minute samples; past dates load from history.</td></tr>
+    <tr><td>Mode badge</td><td><code>LIVE</code> while today's slots are streaming; <code>HISTORY</code> once a past date is loaded.</td></tr>
+    <tr><td>Solar window</td><td>Right-side badge <code>Solar window: HH:MM&ndash;HH:MM</code> showing which slots are clipped.</td></tr>
+    <tr><td>Refresh</td><td>Re-fetch the selected day without changing the date.</td></tr>
+  </tbody></table>
+  <h3>Per-Node Columns (ISM-compatible)</h3>
+  <p><code>Pdc</code> &middot; <code>Vdc</code> &middot; <code>Idc</code> &middot; <code>Vac1..3</code> &middot; <code>Iac1..3</code> &middot; <code>Pac</code> &middot; <code>Cos&Phi;</code> &middot; <code>Freq</code> &middot; <code>parcE</code> (partial-energy hardware counter snapshot at slot end) &middot; <code>Alarm</code> (decoded hex active during the slot) &middot; <code>Temp</code> (when register mapping is published).</p>
+  <div class="info-card tip"><div class="info-card-label">Live behavior</div>For today's date the active node's table appends a new row at every 5-minute boundary; row count ticks up automatically. For past dates the page caches the data until you change the inverter, change the date, or press Refresh.</div>
+  <p>For a workbook-style export of the same data, see the Daily Data Export card on the Export page.</p>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+<!-- 12. AUDIT -->
+<section id="s12">
+  <div class="section-head"><div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M9 3H5a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2h-4" stroke="#4d9fff" stroke-width="1.8"/><rect x="7" y="1" width="8" height="4" rx="1" stroke="#4d9fff" stroke-width="1.8"/></svg></div><h2>Audit Page</h2></div>
+  <p>Operator command accountability log. All columns support sorting with inline filters.</p>
+  <table><thead><tr><th>Column</th><th>Meaning</th></tr></thead><tbody><tr><td>Date/Time</td><td>Command timestamp</td></tr><tr><td>Operator</td><td>Recorded identity</td></tr><tr><td>Inverter / Node</td><td>Affected equipment</td></tr><tr><td>Action</td><td>START, STOP, etc.</td></tr><tr><td>Reason</td><td>User request, Cap dispatch, Cooldown, etc.</td></tr><tr><td>Scope</td><td><code>single</code>, <code>inverter</code>, <code>selected</code>, or <code>plant-cap</code></td></tr><tr><td>Result / IP</td><td>OK or ERROR; source workstation address</td></tr></tbody></table>
+  <p>The <code>plant-cap</code> scope badge distinguishes automated dispatch from manual commands.</p>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+<!-- 13. REPORT -->
+<section id="s13">
+  <div class="section-head"><div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="16" rx="2" stroke="#34d399" stroke-width="1.8"/><path d="M3 8h16M8 8v11" stroke="#34d399" stroke-width="1.5"/></svg></div><h2>Report Page</h2></div>
+  <table><thead><tr><th>Column</th><th>Meaning</th></tr></thead><tbody><tr><td>Energy (MWh)</td><td>Daily total</td></tr><tr><td>Peak Pac (kW)</td><td>Highest AC output</td></tr><tr><td>Avg Pac (kW)</td><td>Average during window</td></tr><tr><td>Uptime (h)</td><td>Operating hours</td></tr><tr><td>Alarms</td><td>Episode count</td></tr><tr><td>Availability (%)</td><td>Dynamic window-based uptime ratio</td></tr><tr><td>Performance (%)</td><td>Actual vs expected output ratio</td></tr></tbody></table>
+  <div class="info-card tip"><div class="info-card-label">Availability Calculation</div><p><b>Per inverter</b> using dynamic window: Start = first non-zero PAC at/after 5 AM; End = last interval at/before 6 PM. <code>Availability = Online Uptime / Dynamic Window &times; 100%</code></p></div>
+  <div class="info-card warn"><div class="info-card-label">Plant Availability</div>TOTAL row averages across <b>all configured inverters</b>, including inactive ones (0% contribution).</div>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+<!-- 14. EXPORT -->
+<section id="s14">
+  <div class="section-head"><div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 3v12M7 11l4 4 4-4" stroke="#c084fc" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="#c084fc" stroke-width="1.8" stroke-linecap="round"/></svg></div><h2>Export Page</h2></div>
+  <div class="feat-grid">
+    <div class="feat-item"><h4>Alarm History</h4><p>Records with code, severity, duration, ACK state.</p></div>
+    <div class="feat-item"><h4>Energy Summary</h4><p>Daily energy by inverter and reporting node, with optional <code>Etotal_kWh</code> / <code>parcE_kWh</code> hardware-counter columns.</p></div>
+    <div class="feat-item"><h4>Daily Data <span style="color:#fbbf24;">(v2.10.x)</span></h4><p>Per-inverter Excel workbook, one sheet per node, ISM-compatible column order. Today is locked until the End-of-Day snapshot hour.</p></div>
+    <div class="feat-item"><h4>Day-Ahead Comparison</h4><p>Forecast vs actual, standard and average table.</p></div>
+    <div class="feat-item"><h4>Operational Data</h4><p>Interval-sampled inverter operating data.</p></div>
+    <div class="feat-item"><h4>Operator Audit</h4><p>Command history with scope and result.</p></div>
+    <div class="feat-item"><h4>Daily Performance</h4><p>Multi-day summary with availability and alarm counts.</p></div>
+  </div>
+  <ul><li>Exports written to configured export folder</li><li>Formats: Excel (.xlsx with styled headers) and CSV</li><li>Cancel button available during active exports</li><li>Result shows filename, size, and timestamp</li></ul>
+  <h3>Energy Summary &mdash; Hardware Counter Columns (v2.10.x)</h3>
+  <p>When the operator enables them, the Energy Summary export adds <code>Etotal_kWh</code> (lifetime hardware kWh counter at slot end) and <code>parcE_kWh</code> (partial-energy counter), plus <code>Counter_Source</code> (<code>eod_clean</code> / <code>poll</code> / <code>pac_seed</code>) and quarantine flags. Hardening rules:</p>
+  <ul>
+    <li><b>Today</b> &mdash; delta = current snapshot &minus; today's baseline regardless of source. Partial-day starts line up with PAC-integrated <code>Total_MWh</code> on the same row.</li>
+    <li><b>Today fallback</b> &mdash; if today's baseline row is missing, yesterday's <code>eod_clean</code> snapshot is used as the anchor.</li>
+    <li><b>Past day</b> &mdash; same-day <code>eod_clean</code> &minus; baseline preferred; if missing, the next day's open is used as the close-out anchor.</li>
+    <li><b>Sanity ceiling</b> &mdash; every accepted delta must be &ge; 0 and bounded by 9 000 kWh per unit per day. Outliers blank out and the day total NaN-propagates so the operator notices.</li>
+  </ul>
+  <div class="info-card tip"><div class="info-card-label">PAC remains authoritative</div>Hardware counters are reconciliation aids only &mdash; they never overwrite the running PAC integration. See <code>server/hwCounterDeltaCore.js</code> + <code>server/tests/hwCounterDeltaCore.test.js</code> for the locked rules.</div>
+  <h3>Daily Data Export (v2.10.x)</h3>
+  <p>Per-inverter workbook with one sheet per configured node, in ISM-compatible column order so historical data can be cross-referenced with the vendor software.</p>
+  <ul>
+    <li><b>Today is locked</b> until the dashboard reaches the End-of-Day snapshot hour (HTTP 423 returned otherwise). Until then only past dates may be exported.</li>
+    <li>Sheets named <code>Node 1</code>, <code>Node 2</code>, &hellip; built from the IP Configuration <code>units[invId]</code> map.</li>
+    <li>Slots are clipped to the configured solar window so dawn/dusk noise is excluded.</li>
+    <li>Streaming output via <code>ExcelJS.WorkbookWriter</code> keeps memory bounded; cancel safely stops the writer mid-stream.</li>
+    <li>Filename format matches every other export: <code>DD-MM-YY Inverter N Daily Data.xlsx</code> (single day) or <code>DD-MM-YY-DD-MM-YY Inverter N Daily Data.xlsx</code> (range).</li>
+    <li>The <code>Temp (&deg;C)</code> column is <b>blank by design in v2.10.x</b> &mdash; INGECON SUN does not expose inverter heatsink temperature on the standard FC04 register block. Schema reserves the column so a future register decode populates it without a migration.</li>
+  </ul>
+  <h3>Gap Detection (v2.10.x)</h3>
+  <p>Operators can confirm a date's export is complete <i>before</i> shipping the workbook by querying:</p>
+  <pre><code>GET /api/params/:inverter/:slave/coverage/:date</code></pre>
+  <p>The response reports expected vs present slots, the missing-slot list as plant-local <code>HH:MM</code> ranges, and a <code>status</code> of <code>complete</code> / <code>partial</code> / <code>empty</code>. Aggregator drop-sample reasons (<code>samplesDroppedOffline</code>, <code>samplesDroppedStaleTs</code>, <code>fieldClampCount</code>, &hellip;) are also surfaced under <code>aggregator.*</code> on <code>GET /api/system/heartbeat</code>, so a partial day can be traced back to inverter downtime, clock skew, or out-of-order frames.</p>
+  <h3>Anchor source &mdash; HW counter trust ladder (v2.10.x)</h3>
+  <p>The <code>Counter_Source</code> column on the Energy Summary export and the <code>Anchor</code> pill on Inverter Clocks &rarr; Per-Unit Counter Health report which data source today's baseline came from.</p>
+  <table>
+    <thead><tr><th>Pill</th><th>DB source</th><th>Meaning</th><th>Trust</th></tr></thead>
+    <tbody>
+      <tr><td><b>CLEAN</b></td><td><code>eod_clean</code> + today's snapshot captured</td><td>Yesterday's clean close anchored today AND today's EOD snapshot has been captured.</td><td>&starf;&starf;&starf;&starf; Best</td></tr>
+      <tr><td><b>EOD</b></td><td><code>eod_clean</code></td><td>Yesterday's clean close anchored today; today's EOD snapshot pending after the configured EOD hour.</td><td>&starf;&starf;&starf; Comparable</td></tr>
+      <tr><td><b>EOD-ONLY</b></td><td><code>eod_clean_only</code></td><td>Late-created row from a dark-window capture &mdash; morning baseline unknown so this day's own &Delta; is unknown. Used as tomorrow's anchor only. Self-heals to EOD/CLEAN tomorrow.</td><td>&starf; Day &Delta; unknown</td></tr>
+      <tr><td><b>POLL</b></td><td><code>poll</code></td><td>Today's baseline came from the first poll of the day, NOT yesterday's clean close. Etotal &Delta; undercounts today's energy by whatever the inverter produced before the first poll. PAC-integrated Total stays authoritative.</td><td>&starf;&starf; &Delta; undercounts</td></tr>
+      <tr><td><b>SEED</b></td><td><code>pac_seed</code></td><td>Reserved slot from the v2.9.0 design; no code path currently writes it.</td><td>n/a (unused)</td></tr>
+    </tbody>
+  </table>
+  <div class="info-card tip"><div class="info-card-label">Self-healing (v2.10.x)</div>The dark-window snapshot capture now uses INSERT-or-UPDATE so a fresh-boot gateway no longer loses yesterday's close. Right after a successful eod_clean write, the system re-evaluates today's row: if today is <code>POLL</code> and yesterday's eod_clean is now available, today's baseline is rewritten in-place to <code>eod_clean</code> and re-anchored to yesterday's true close &mdash; the pill flips from POLL to EOD within seconds. Day-total HW columns NaN-propagate for <code>EOD-ONLY</code> days so partial-coverage exports never silently report 0 kWh.</div>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+<!-- 14a. STOP REASONS + SERIAL NUMBER (v2.10.x Settings cards) -->
+<section id="sStopSerial">
+  <div class="section-head"><div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="16" rx="3" stroke="#c084fc" stroke-width="1.8"/><path d="M8 11h6M11 8v6" stroke="#c084fc" stroke-width="1.8" stroke-linecap="round"/></svg></div><h2>Stop Reasons &amp; Serial Number Setting (v2.10.x)</h2></div>
+  <p>Two new Settings cards expose vendor-FC diagnostics and writes that previously required the ISM laptop. Both surfaces auto-mirror in remote mode but execute their wire actions only on the gateway.</p>
+  <h3>Stop Reasons</h3>
+  <p>Per-node <code>StopReason</code> diagnostic captured via vendor FC <code>0x71</code> SCOPE peek. The card has two tabs:</p>
+  <ul>
+    <li><b>Captured Snapshots</b> &mdash; pick an inverter, hit <b>Refresh now</b> (read-only, no bulk-auth in v2.10.x). The dashboard also <b>auto-captures</b> a snapshot on every alarm transition (500 ms staging delay, 30-second per-node cooldown).</li>
+    <li><b>Lifetime Counters</b> &mdash; cached <code>ARRAYHISTMOTPARO</code> histogram of 30 stop motives plus <code>TOTAL</code>.</li>
+  </ul>
+  <p>Each captured row links back to its <code>alarm_id</code> via the <code>alarms.stop_reason_id</code> foreign key, so the alarm drilldown panel can pull the contextual stop reason without a second read.</p>
+  <h3>Serial Number Setting</h3>
+  <p>Mirrors ISM&apos;s <code>frmSetSerial</code> flow byte-for-byte. Four tabs:</p>
+  <ul>
+    <li><b>Read / Edit / Send</b> &mdash; FC11 <i>Report Slave ID</i> read mints a 5-minute session token. <i>Send</i> performs UNLOCK (<code>0xFFFA = 0x0065, 0x07A7</code>) &rarr; WRITE (<code>0x9C74</code>) &rarr; readback verify. Bulk-auth required, plus the active session token. <i>Verify Serial Number to send</i> (default-on) does a fleet-wide FC11 scan and rejects duplicates before the unlock frame.</li>
+    <li><b>Plant Serial Map</b> &mdash; parallel FC11 sweep across every <code>(inverter, slave)</code> with duplicate-detection badges. Honors a 5-minute cache; <i>Bypass cache</i> available.</li>
+    <li><b>Bulk Fix</b> &mdash; re-writes the whole plant against the <b>locked factory serial map</b>, generated 1:1 from the authoritative <code>docs/Fixed_Inverter_SerialNumbers.xlsx</code> (the permanent field guide). <i>Show target map</i> displays all 27 inverters (<code>T</code> is the nameplate, reference only; slaves 1&ndash;4 are written). <i>Scan &amp; diff</i> reads every node and classifies it <code>match</code> / <code>mismatch</code> / <code>unreachable</code> / <code>no live unit</code>, with an <b>Origin</b> per mismatch (<code>factory / unknown</code> or <code>&#x21C4; Inv X / Node Y</code> for a physically relocated module). Only mismatches are selectable. <i>Apply selected</i> writes each one sequentially with readback verify, logged to <code>serial_change_log</code> (scope <code>bulk</code>) with timestamp, operator, old&rarr;new, and a module-origin note. The per-write uniqueness scan is skipped because the factory map is pre-validated globally unique.</li>
+    <li><b>Firmware Map</b> &mdash; the nodes <b>within one inverter</b> should all run the <b>same firmware</b>; each inverter is judged only against <i>its own</i> nodes (per-inverter, never plant-wide). A <i>projection of the serial scan</i> (firmware rides the same FC11 payload &mdash; no extra bus traffic). The compared value is the <b>inverter firmware code</b> (<code>AAV1003xx</code>, the <b>Firmware</b> column) &mdash; verified 2026-05-19 by decompiling ISM&apos;s own FC11 parser (<code>IngeconModbusSlaveID_Freescale</code>: serial + one firmware code, no display-firmware field for this hardware). The <b>Aux ID 1/2</b> columns (the <code>AAS…</code> strings) are <i>unverified auxiliary identifiers</i> &mdash; diagnostics only, <b>not</b> compared. <i>Scan firmware</i> reads the fleet (bulk-auth, gateway-only); <i>Show last snapshot</i> and <i>Drift log</i> read the replicated <code>inverter_firmware_state</code> / <code>firmware_drift_log</code> and work in remote mode. Per-inverter pill: <b>all same</b> / <b>mixed nodes</b> (a node disagrees with its siblings &mdash; post-board-swap signature, dual of the serial relocation guard) / <b>partial read</b> / <b>no read</b>. Drift is logged only on a real inverter-firmware change of a previously-seen node (Aux-ID-only changes are never drift).</li>
+  </ul>
+  <div class="info-card warn"><div class="info-card-label">Override gate</div>Duplicate serials block the write before unlock; an intentional duplicate (e.g. RMA replacement) can be sent with <code>override_conflicts</code>. Both Motorola (12 ASCII) and Texas TI (32 ASCII) firmware formats are supported.</div>
+  <div class="info-card"><div class="info-card-label">Read-back is the source of truth</div>An identity write makes the inverter re-init its Modbus stack, so the FC16 write <i>response</i> is often lost even though the write landed. The pipeline always does the verify read-back (longer settle + retries when the write wasn&apos;t ACKed) and judges the result by what the unit actually reports: a confirmed read-back is <b>success</b> even with a lost ACK (flagged <code>write_ack_lost</code>); only an unchanged read-back is a real failure; if nothing can be read back the result is <code>write_unconfirmed</code> (never &ldquo;success&rdquo;) &mdash; rescan to confirm. This eliminates the false <code>write_failed</code> where a serial had actually been written.</div>
+  <div class="info-card"><div class="info-card-label">One credential, end to end</div>The whole Serial Number feature &mdash; single Read / Send, Read-all, Plant Serial Map, Bulk Fix plan/apply, and the duplicate override &mdash; uses <b>one</b> key: the authorization key (<code>adsiMM</code>) &mdash; the same rolling key used for every privileged action across the dashboard. Pure read surfaces (audit log, migration history, cached map, target map) need no key.</div>
+  <div class="info-card"><div class="info-card-label">Locked numbering &amp; module relocation</div>The xlsx is the single source of truth &mdash; fix it there and regenerate if a field serial is wrong. Every node&apos;s serial is fixed even when a physical node is absent (the serial stays reserved, never reused), which is what lets the dashboard recognise a <b>physically moved module</b> by its serial. When you transfer a power module (e.g. Inverter&nbsp;4&nbsp;/&nbsp;Node&nbsp;1 &rarr; Inverter&nbsp;27&nbsp;/&nbsp;Node&nbsp;2), Bulk Fix auto-detects it, requires the auto-shown <i>Acknowledge relocated module(s)</i> tick, and records the board&apos;s origin slot in the change log with correct timestamps for historical traceability.</div>
+  <div class="info-card"><div class="info-card-label">Measurement Board (Power Module) Migration History</div>The <i>Load migration history</i> button in the Bulk Fix tab shows the full chronological trail of relocated Measurement Boards &mdash; origin slot &rarr; where the board was found &rarr; the serial written, with timestamp, operator, and result. Structured origin columns (<code>origin_inverter</code>/<code>origin_node</code>) back the query, and even a detected-but-not-yet-acknowledged relocation is recorded so a board&apos;s movement is never lost. It captures relocations re-serialized via either Bulk Fix or the one-by-one Send tab. <i>Export</i> (with an Excel/CSV selector) saves the whole trail through the standard export pipeline &mdash; styled <code>.xlsx</code> or <code>.csv</code> in the usual Logs tree (<code>All Inverters\Audits\</code>) with the same date-aware filename as every other export, opening the folder when done. Read-only and available in remote mode (proxied + fetched locally just like the Alarms/Audit exports).</div>
+  <div class="info-card"><div class="info-card-label">Per-inverter only &amp; field check</div>Comparison is strictly <b>per inverter</b> &mdash; a node is &ldquo;different&rdquo; only when its inverter firmware code disagrees with the other nodes on the <b>same</b> inverter; there is no plant-wide firmware reference. An unreadable node never overwrites its stored snapshot. The Utility / Calibration Tool exposes a single-inverter <i>Firmware Check</i> for the connected unit (slaves 1&ndash;4), so a technician can confirm a freshly swapped board matches its siblings without a full plant scan.</div>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+<!-- 14b. FIRMWARE UPGRADE (EXPERIMENTAL) -->
+<section id="sFirmware">
+  <div class="section-head"><div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="4" y="3" width="14" height="16" rx="2" stroke="#f0883e" stroke-width="1.8"/><path d="M9 8h4M9 11h4M9 14h4" stroke="#f0883e" stroke-width="1.8" stroke-linecap="round"/></svg></div><h2>Firmware Upgrade (Experimental)</h2></div>
+  <div class="info-card warn"><div class="info-card-label">Irreversible &mdash; read first</div>Flashing rewrites the inverter DSP program and <b>cannot be undone</b>. A wrong or interrupted image can brick the unit. This feature is gated, experimental, and available <b>only in the standalone Utility Tool</b> (never the dashboard). Use it only with the manufacturer-supplied image for the exact unit, after operator sign-off.</div>
+  <p>A <b>FW Upgrade</b> button at the top-right of the per-node controls row (standalone calibrator only) opens the <b>Firmware Upgrade</b> dialog, presented as a guided <b>4-step wizard</b> &mdash; <i>File &rarr; Target &rarr; Dry-run &rarr; Flash</i>. A progress rail shows each step&apos;s status (done / current / locked) and a later step stays locked until its prerequisite is met, so the irreversible step cannot be reached by accident:</p>
+  <ol>
+    <li><b>Connect a transport</b> to the target inverter &mdash; <b>Ethernet</b> (Modbus-TCP via the transparent gateway) or <b>RS485-USB</b> (Modbus-RTU, the most-direct link to the node DSP). The flash uses whichever is connected; a serial flash takes exclusive ownership of the COM port for the duration (reconnect afterwards). The <code>0x96</code> baud-bump frame is never sent, so there is no baud-switch race.<br><b>Bus-lock note:</b> for an Ethernet flash the dashboard&apos;s live poller is a second Modbus master on the same gateway. The flash publishes a cross-process claim so the dashboard <b>automatically pauses polling of that one inverter</b> for the duration (shown as <i>maintenance</i>, not offline, and not counted as downtime) and resumes the moment the flash ends. This prevents the two-master collision that otherwise makes the DSP reject the start with <i>&ldquo;firmware load start (0x90) error code 2&rdquo;</i>. The claim self-expires (~2&nbsp;min) if the calibrator crashes, so polling can never be permanently silenced.<br><b>Transport status:</b> the dialog shows a transport-status line near the top &mdash; <b>green</b> when a link is open, <b>amber</b> with an inline <b>Connect&hellip;</b> shortcut when none is &mdash; so you know <i>before</i> clicking whether <b>Read Identity</b> and <b>FLASH (live)</b> can reach the unit; both guide you to connect rather than failing with a cryptic error. (Dry-Run is hardware-free and needs no transport.)</li>
+    <li><b>Browse&hellip; to the firmware file</b> via the native OS picker (or paste an absolute path). It must be a <code>.S</code> Motorola S-record whose filename follows the <code>LLLnnnn&hellip;</code> rule; the server still verifies it is a real <code>.S</code> file, size-capped, and SHA-256-pinned to the dry-run.</li>
+    <li><b>Set the target node</b> (1&ndash;247; broadcast/0 forbidden) and optionally <b>Read Identity</b> &mdash; an FC11 <i>Report Slave ID</i> showing the exact serial / model / running firmware of the unit you would flash. When a file is already chosen, the readout also states whether the flash is an <b>upgrade</b>, <b>downgrade</b>, or <b>no change</b> (unit version &rarr; file version), mirroring ISM&apos;s pre-flash advisory so you confirm the direction before arming.</li>
+    <li><b>Dry-Run (safe).</b> Simulates the entire flash against an in-memory DSP with <b>zero hardware contact</b>, displays the file&apos;s <b>SHA-256</b>, and verifies that the firmware <b>code embedded in the image matches the filename</b> (ISM&apos;s <code>VerificaFicheroFirmware</code> <i>&ldquo;Invalid firmware&rdquo;</i> guard), so a renamed or corrupt file is rejected here. A successful dry-run of the exact selected file/node/parameters is a hard precondition for arming the live flash; changing any of them re-disables it.</li>
+    <li><b>Arm.</b> The live block appears only after a passing dry-run. You must tick the irreversible-acknowledgement box and supply the authorization key (<code>adsiMM</code>).</li>
+    <li><b>FLASH (live).</b> The flash runs as a background job with a live progress bar, an audit-event log, and an <b>Abort</b> button.</li>
+  </ol>
+  <h3>Server-side gates</h3>
+  <p>Every gate is enforced server-side regardless of the UI. The live flash is refused unless <i>all</i> hold: explicit irreversible confirmation; a prior successful dry-run of the same SHA-256; exactly one link (a TCP host OR a serial COM port, never both/neither); a single non-broadcast node; a verified file (real regular file, <code>.S</code>, size-capped, ISM filename rule, SHA-256 match); the <b>embedded firmware-code match</b> (the code stored in the image must match the filename &mdash; ISM <code>VerificaFicheroFirmware</code>); an FC11 model/version compatibility check (apparent downgrades blocked unless <b>Allow downgrade</b> is ticked &mdash; downgrade <i>is</i> possible, see note below); an exclusive RS-485 bus lock; an audit sink; and a watchdog deadline.</p>
+  <div class="info-card tip"><div class="info-card-label">Bootloader preservation &amp; fail-safe abort</div>The loader never transmits the bootloader or reset-vector banks, so an interrupted or aborted application flash leaves the unit <b>re-flashable</b>. <b>Abort</b> is fail-safe and intentionally <i>not</i> behind an auth prompt so it is always immediately available. While a flash runs the dialog <b>cannot be closed</b> (X, backdrop, and Escape are blocked) so an in-progress irreversible operation is never hidden. After a successful flash the tool re-reads FC11 identity (ISM <code>Identifica</code>) and reports the firmware the unit now runs &mdash; read-only and best-effort, it never marks a successful flash as failed. Every attempt and outcome is appended to <code>firmware-audit.jsonl</code> under <code>%PROGRAMDATA%\InverterDashboard\</code> (<code>firmware.pre_flash.direction</code>, <code>firmware.live.start</code>/<code>.ok</code>/<code>.fail</code>, and <code>firmware.live.verify_ok</code>/<code>.verify_warn</code>).</div>
+  <h3>Downgrade</h3>
+  <p><b>Downgrading is possible.</b> The DSP bootloader and the on-wire protocol enforce <i>no</i> version monotonicity &mdash; the loader erases and writes whatever compatible image you send, older or newer. In ISM the upgrade-vs-downgrade decision lives entirely in its application layer (<code>QueHableAhoraOCalleParaSiempre(newCode, forceDowngrade)</code> / <code>CheckCanUpgradeFirmware</code>), bypassable with ISM&apos;s own <i>force</i> flag. This tool mirrors that exactly: the downgrade block compares the unit&apos;s <b>authoritative <code>model_code</code> version</b> (the <code>AAV1003xx</code> firmware FC11 actually reports) against the file&apos;s version trailer, lifted by ticking <b>Allow downgrade</b> under Advanced. Once ticked, an older image of the same product family will flash.</p>
+  <div class="info-card warn"><div class="info-card-label">Downgrade caveat</div>The comparison uses the authoritative <code>model_code</code> version, <i>not</i> the FC11 <code>AAS&hellip;</code> auxiliary IDs (which are not the running firmware). It does not change what the hardware accepts &mdash; the bootloader takes any compatible image. The file&harr;model compatibility prefix check (<code>AAV1003</code>&hellip;), the embedded firmware-code match, and the SHA-pinned dry-run still apply, and bootloader-bank preservation means even a mistaken-direction flash stays recoverable.</div>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+<!-- 15. CAMERA VIEWER -->
+<section id="sCam">
+  <div class="section-head"><div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="2" y="5" width="14" height="12" rx="2" stroke="#4d9fff" stroke-width="1.8"/><path d="M16 9l4-2v8l-4-2V9z" stroke="#4d9fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><h2>Camera Viewer</h2></div>
+  <p>Live IP camera monitoring integrated into the main dashboard as a draggable card. Supports three streaming modes via a bundled <b>go2rtc</b> process manager and a direct FFmpeg transcoding fallback. Available since <b>v2.6.4</b>.</p>
+
+  <h3>Stream Modes</h3>
+  <table><thead><tr><th>Mode</th><th>Backend</th><th>Protocol</th><th>Description</th></tr></thead><tbody>
+    <tr><td><b>HLS</b> (default)</td><td>go2rtc</td><td>HTTP Live Streaming</td><td>Best compatibility. go2rtc converts RTSP to HLS segments. Latency ~2&ndash;5 s. Uses hls.js in browser.</td></tr>
+    <tr><td><b>WebRTC</b></td><td>go2rtc</td><td>WebRTC peer-to-peer</td><td>Ultra-low latency (&lt;1 s). Requires STUN/TURN for NAT traversal. go2rtc acts as SFU.</td></tr>
+    <tr><td><b>FFmpeg</b></td><td>Server</td><td>MPEG1/TS over WebSocket</td><td>Direct RTSP transcode on the Express server. Requires FFmpeg installed on the host. Uses jsmpeg decoder in browser.</td></tr>
+  </tbody></table>
+  <div class="info-card tip"><div class="info-card-label">Choosing a Mode</div><p>Use <b>HLS</b> for reliable, low-effort streaming. Choose <b>WebRTC</b> when sub-second latency matters. Fall back to <b>FFmpeg</b> only when go2rtc is unavailable or the camera does not support standard RTSP.</p></div>
+
+  <h3>Camera Card</h3>
+  <p>The camera card is a draggable element that participates in the inverter grid layout. It renders in all layout modes (2-col through 5-col grids) and matches the sizing rules of inverter cards.</p>
+  <table><thead><tr><th>Element</th><th>Location</th><th>Function</th></tr></thead><tbody>
+    <tr><td>Video viewport</td><td>Card body</td><td>Live stream display (fills card)</td></tr>
+    <tr><td>Camera name label</td><td>Top-left overlay</td><td>Shows camera name (e.g., &ldquo;Tapo C110 &ndash; Live&rdquo;)</td></tr>
+    <tr><td>Live indicator</td><td>Top-right overlay</td><td>Blinking red dot when stream is active</td></tr>
+    <tr><td>Settings gear</td><td>Bottom bar</td><td>Opens the Camera Settings modal</td></tr>
+    <tr><td>Mute/Unmute</td><td>Bottom bar</td><td>Toggle audio (if available)</td></tr>
+    <tr><td>Viewer window</td><td>Bottom bar</td><td>Opens a standard framed Tapo camera window with flexible resizing</td></tr>
+    <tr><td>Loading spinner</td><td>Center overlay</td><td>Shown while stream is buffering</td></tr>
+    <tr><td>Error overlay</td><td>Center overlay</td><td>Displayed with &ldquo;Retry&rdquo; button on stream failure</td></tr>
+  </tbody></table>
+  <div class="info-card note"><div class="info-card-label">Flexible Tapo Viewer Window</div><p>The viewer-window control replaces browser DOM fullscreen. It pauses the dashboard card and opens <b>ADSI &ndash; Tapo Camera Viewer</b> with normal Windows move, resize, minimize, maximize/restore, and close controls. Inside that operating-system frame, only the video surface is rendered&mdash;card labels, settings controls, messages, alarms, footers, and other dashboard HTML are excluded. The window opens at <b>1280&times;820</b>, can be reduced to <b>480&times;300</b>, and keeps video full-bleed with its aspect ratio preserved. Closing it releases the viewer stream and resumes the dashboard card only when its owning page is visible. Double-clicking Tapo video opens the same viewer.</p></div>
+  <div class="info-card note"><div class="info-card-label">Auto-Reconnect</div><p>When a stream drops, the player automatically retries every <b>5 seconds</b> until the connection is restored.</p></div>
+
+  <h3>Camera Settings Modal</h3>
+  <p>A page-level modal opened by clicking the <b>gear icon</b> on the Tapo camera card. It consolidates the Tapo camera and go2rtc configuration in one place. The header includes a <b>Hikvision DVR</b> button that opens the dedicated DVR configuration modal.</p>
+
+  <h4>1. Stream Mode Selector</h4>
+  <p>Three visual mode cards at the top of the modal. Selecting a mode dynamically shows or hides the relevant input sections below.</p>
+  <table><thead><tr><th>Mode Card</th><th>Shows</th><th>Hides</th></tr></thead><tbody>
+    <tr><td>HLS / WebRTC</td><td>go2rtc Connection, go2rtc Service</td><td>RTSP Connection</td></tr>
+    <tr><td>FFmpeg</td><td>RTSP Connection</td><td>go2rtc Connection, go2rtc Service</td></tr>
+  </tbody></table>
+
+  <h4>2. go2rtc Connection (HLS / WebRTC modes)</h4>
+  <table><thead><tr><th>Field</th><th>Default</th><th>Description</th></tr></thead><tbody>
+    <tr><td>Tailscale / Server IP</td><td><code>100.93.11.9</code></td><td>IP address of the machine running go2rtc</td></tr>
+    <tr><td>API Port</td><td><code>1984</code></td><td>go2rtc HTTP API port</td></tr>
+    <tr><td>Stream Key</td><td><code>tapo_cam</code></td><td>Stream name configured in <code>go2rtc.yaml</code></td></tr>
+  </tbody></table>
+
+  <h4>3. RTSP Connection (FFmpeg mode)</h4>
+  <table><thead><tr><th>Field</th><th>Default</th><th>Description</th></tr></thead><tbody>
+    <tr><td>Camera IP</td><td><code>192.168.4.211</code></td><td>IP address of the IP camera</td></tr>
+    <tr><td>RTSP Port</td><td><code>554</code></td><td>Camera RTSP port</td></tr>
+    <tr><td>Stream Path</td><td><code>stream1</code></td><td>Dropdown: <code>stream1</code> (High Quality) or <code>stream2</code> (Low Quality)</td></tr>
+    <tr><td>Username</td><td><code>Adsicamera</code></td><td>RTSP authentication username</td></tr>
+    <tr><td>Password</td><td><i>(empty)</i></td><td>RTSP authentication password (show/hide toggle)</td></tr>
+  </tbody></table>
+  <div class="info-card warn"><div class="info-card-label">FFmpeg Required</div><p>FFmpeg mode requires FFmpeg to be installed on the server host and available on PATH. A warning banner is shown inside the modal when this mode is selected.</p></div>
+
+  <h4>4. go2rtc Service (HLS / WebRTC modes, Gateway only)</h4>
+  <p>Manage the bundled go2rtc background process directly from the modal. This section is <b>hidden in Remote mode</b>.</p>
+  <table><thead><tr><th>Element</th><th>Description</th></tr></thead><tbody>
+    <tr><td>Status grid</td><td>4-column display: <b>Status</b> (stopped/starting/running/error), <b>PID</b>, <b>Crashes</b> (count), <b>Health</b> (last check time)</td></tr>
+    <tr><td>Auto-start checkbox</td><td>When checked, go2rtc starts automatically on server boot. Saved as server setting <code>go2rtcAutoStart</code>.</td></tr>
+    <tr><td>Start button</td><td>Starts go2rtc process. Disabled while already running.</td></tr>
+    <tr><td>Stop button</td><td>Gracefully stops go2rtc (SIGTERM, then SIGKILL after 3 s). Disabled while stopped.</td></tr>
+    <tr><td>Status message</td><td>Feedback area for start/stop results and errors.</td></tr>
+  </tbody></table>
+  <div class="info-card note"><div class="info-card-label">Status Polling</div><p>While the modal is open, the dashboard polls <code>/api/streaming/go2rtc-status</code> every <b>5 seconds</b> and updates the status grid in real time. Polling stops when the modal closes.</p></div>
+
+  <h4>5. Modal Actions</h4>
+  <table><thead><tr><th>Button</th><th>Function</th></tr></thead><tbody>
+    <tr><td><b>Reset Defaults</b></td><td>Restores all fields to factory defaults (see defaults table below)</td></tr>
+    <tr><td><b>Apply &amp; Connect</b></td><td>Saves settings to localStorage, persists auto-start to server, closes modal, and reconnects the stream</td></tr>
+  </tbody></table>
+
+  <h3>Default Configuration</h3>
+  <table><thead><tr><th>Setting</th><th>Default Value</th><th>Storage Key</th></tr></thead><tbody>
+    <tr><td>Stream Mode</td><td><code>hls</code></td><td><code>cam_mode</code></td></tr>
+    <tr><td>go2rtc IP</td><td><code>100.93.11.9</code></td><td><code>cam_go2rtc_ip</code></td></tr>
+    <tr><td>go2rtc API Port</td><td><code>1984</code></td><td><code>cam_go2rtc_port</code></td></tr>
+    <tr><td>Stream Key</td><td><code>tapo_cam</code></td><td><code>cam_stream_key</code></td></tr>
+    <tr><td>Camera IP</td><td><code>192.168.4.211</code></td><td><code>cam_ip</code></td></tr>
+    <tr><td>RTSP Port</td><td><code>554</code></td><td><code>cam_rtsp_port</code></td></tr>
+    <tr><td>Stream Path</td><td><code>stream1</code></td><td><code>cam_stream_path</code></td></tr>
+    <tr><td>Username</td><td><code>Adsicamera</code></td><td><code>cam_user</code></td></tr>
+    <tr><td>Password</td><td><i>(empty)</i></td><td><code>cam_pass</code></td></tr>
+  </tbody></table>
+
+  <h3>go2rtc Service Defaults</h3>
+  <table><thead><tr><th>Setting</th><th>Default</th><th>Notes</th></tr></thead><tbody>
+    <tr><td>Auto-start on boot</td><td>Disabled (<code>0</code>)</td><td>Server setting <code>go2rtcAutoStart</code></td></tr>
+    <tr><td>API bind address</td><td><code>127.0.0.1:1984</code></td><td>Localhost only (security)</td></tr>
+    <tr><td>WebRTC bind address</td><td><code>127.0.0.1:8555</code></td><td>Localhost only (security)</td></tr>
+    <tr><td>Max crash restarts</td><td>3</td><td>After 3 crashes, status becomes &ldquo;error&rdquo;</td></tr>
+    <tr><td>Health check interval</td><td>5 seconds</td><td>HTTP GET to go2rtc API</td></tr>
+    <tr><td>Health check timeout</td><td>2 seconds</td><td>Per health-check request</td></tr>
+  </tbody></table>
+
+  <h3>go2rtc Process Lifecycle</h3>
+  <div class="diagram-container">
+    <svg width="520" height="100" viewBox="0 0 520 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="35" width="90" height="30" rx="6" fill="rgba(148,163,184,.08)" stroke="#94a3b8" stroke-width="1.2"/>
+      <text x="55" y="55" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="600" font-family="Segoe UI">stopped</text>
+      <line x1="100" y1="50" x2="145" y2="50" stroke="#64748b" stroke-width="1.2"/><polygon points="140,46 148,50 140,54" fill="#64748b"/>
+      <text x="123" y="42" text-anchor="middle" fill="#64748b" font-size="8" font-family="Segoe UI">start()</text>
+      <rect x="148" y="35" width="90" height="30" rx="6" fill="rgba(251,191,36,.08)" stroke="#fbbf24" stroke-width="1.2"/>
+      <text x="193" y="55" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="600" font-family="Segoe UI">starting</text>
+      <line x1="238" y1="50" x2="283" y2="50" stroke="#64748b" stroke-width="1.2"/><polygon points="278,46 286,50 278,54" fill="#64748b"/>
+      <text x="261" y="42" text-anchor="middle" fill="#64748b" font-size="8" font-family="Segoe UI">health OK</text>
+      <rect x="286" y="35" width="90" height="30" rx="6" fill="rgba(52,211,153,.08)" stroke="#34d399" stroke-width="1.2"/>
+      <text x="331" y="55" text-anchor="middle" fill="#34d399" font-size="11" font-weight="600" font-family="Segoe UI">running</text>
+      <line x1="376" y1="50" x2="421" y2="50" stroke="#64748b" stroke-width="1.2"/><polygon points="416,46 424,50 416,54" fill="#64748b"/>
+      <text x="399" y="42" text-anchor="middle" fill="#64748b" font-size="8" font-family="Segoe UI">3 crashes</text>
+      <rect x="424" y="35" width="80" height="30" rx="6" fill="rgba(248,113,113,.08)" stroke="#f87171" stroke-width="1.2"/>
+      <text x="464" y="55" text-anchor="middle" fill="#f87171" font-size="11" font-weight="600" font-family="Segoe UI">error</text>
+      <path d="M331 65 C331 85 55 85 55 65" stroke="#64748b" stroke-width="1" stroke-dasharray="4 2" fill="none"/>
+      <text x="193" y="82" text-anchor="middle" fill="#64748b" font-size="8" font-family="Segoe UI">stop() or crash &lt;3</text>
+    </svg>
+    <div class="diagram-caption">Fig 5a &mdash; go2rtc process state machine</div>
+  </div>
+
+  <h3>Security</h3>
+  <ul>
+    <li><b>Localhost-only binding</b> &mdash; go2rtc API (<code>127.0.0.1:1984</code>) and WebRTC (<code>127.0.0.1:8555</code>) are not accessible from external networks.</li>
+    <li><b>Gateway-mode only</b> &mdash; go2rtc start is blocked with HTTP 403 in Remote mode. The service section is hidden in the UI.</li>
+    <li><b>STUN server</b> &mdash; Uses Google&rsquo;s public STUN server (<code>stun:stun.l.google.com:19302</code>) for WebRTC ICE negotiation.</li>
+  </ul>
+
+  <h3>Separate Hikvision DVR Card</h3>
+  <p>The Hikvision DVR has its own draggable card, settings modal, browser stream, native decoder bridge, and API routes. Its DVR-specific connection remains separate from Tapo. The polished modal groups secure stream paths, device identity, DVR connection, channel/playback, stream profile, and playback status. Use the DVR&rsquo;s local username and password; Hik-Connect cloud credentials and camera access codes are not required. SDK/HTTP defaults to port <code>80</code> and RTSP to <code>554</code>.</p>
+  <div class="info-card note"><div class="info-card-label">Hybrid HLS + Native Viewer Window</div><p>Use <b>Hybrid HLS + native viewer window</b> for normal operation. The Inverters-page card uses browser-safe H.264 HLS. Expect roughly 2&ndash;3 seconds of latency and modest transcoding loss. The native-viewer control pauses card HLS and opens a standard Electron window like the Analytics popout. Hikvision LocalService fills its content area at the DVR&rsquo;s original quality and frame rate. The installed dashboard runs at normal user integrity so Windows permits LocalService to embed this surface; do not force <b>Run as administrator</b>. Use the normal Windows title-bar controls to move, resize, minimize, maximize/restore, or close it. The viewer can be reduced to <b>480&times;300</b> for flexible side-by-side and multi-monitor layouts. Closing the window stops native playback and resumes HLS automatically when Inverters is visible. Compatible snapshots and Direct HLS remain explicit diagnostic/fallback modes and use ordinary HTML fullscreen.</p></div>
+  <p>When you leave the Inverters page, the Hikvision card disappears completely and its HLS playback stops. Returning restores the card in its saved grid position and reconnects playback. The card provides <b>Settings</b> and <b>Open native viewer window</b> controls. If LocalService cannot start, the native viewer displays <b>Retry</b>; otherwise video fills the complete content area.</p>
+  <h4>Hikvision Routing in Gateway and Remote Modes</h4>
+  <p>The settings modal shows a prominent <b>Gateway mode</b> or <b>Remote mode</b> context banner. Camera-route selection is independent from inverter-data authority.</p>
+  <table><thead><tr><th>Playback Surface</th><th>Gateway Mode</th><th>Remote Mode</th></tr></thead><tbody>
+    <tr><td>Inverters-page card</td><td>Local H.264 HLS generated beside the DVR</td><td>Prefers the authenticated gateway relay; automatically uses workstation-direct HLS over LAN or Tailscale when the relay is missing, unhealthy, or invalid and the DVR is reachable</td></tr>
+    <tr><td>Native viewer</td><td>LocalService connects directly to the DVR over the plant LAN</td><td>Connects directly over the local LAN when the workstation shares the DVR subnet; otherwise uses the approved Tailscale subnet route</td></tr>
+  </tbody></table>
+  <div class="info-card warn"><div class="info-card-label">Least-Privilege Route</div><p>Advertise only the DVR host from the gateway, for example <code>192.168.1.12/32</code>, rather than the complete plant subnet. Approve that route and grant only approved viewer devices access to the configured SDK/HTTP and RTSP ports (normally TCP <code>80</code> and <code>554</code>).</p></div>
+  <p>In Remote mode the gateway relay remains preferred. A workstation-side camera pipeline starts only when that relay cannot provide valid HLS and the DVR RTSP port is directly reachable. This never changes inverter operation mode: plant telemetry, history, writes, replication, and forecasts remain gateway-authoritative. The viewer keeps its own DVR password locally; the gateway password is never returned through the API.</p>
+  <div class="info-card warn"><div class="info-card-label">Complete Remote Mode</div><p>When the workstation is outside the plant LAN and has no approved DVR subnet route, it cannot create Hikvision HLS locally. A compatible gateway camera relay is required. If neither path is available, the modal reports <b>No reachable HLS path</b>, disables route-dependent actions, and directs the operator to update/restart the gateway relay or approve the least-privilege DVR <code>/32</code> route. No idle viewer-side transcoder is started.</p></div>
+  <p>During a rolling deployment, an older or unhealthy gateway may return 404, HTML with HTTP 200, or another invalid playlist. The viewer validates the manifest, contains the invalid response, marks the relay degraded, and uses its direct route when available.</p>
+  <p>The <b>Secure Stream Paths</b> panel and <b>Check Routes</b> button distinguish gateway relay, local-LAN direct, and Tailscale direct paths. When the workstation shares the DVR subnet, the modal reports Tailscale as optional. The check is read-only and never starts video or changes the DVR.</p>
+  <table><thead><tr><th>Hikvision Control</th><th>Function</th></tr></thead><tbody>
+    <tr><td>Gear / Tapo Camera Settings &gt; Hikvision DVR</td><td>Opens the dedicated Hikvision DVR configuration modal.</td></tr>
+    <tr><td>Native viewer / double-click video</td><td>In recommended hybrid mode, pauses HLS and opens an Analytics-style framed, resizable LocalService window.</td></tr>
+    <tr><td>Windows title-bar controls</td><td>Move, resize, minimize, maximize/restore, or close the viewer; closing stops native playback and resumes HLS.</td></tr>
+    <tr><td>Playback Mode</td><td>Selects hybrid HLS/native playback, compatible snapshots, or diagnostic direct HLS.</td></tr>
+    <tr><td>SDK / HTTP</td><td>Configures the DVR port used by LocalService native playback; default <code>80</code>.</td></tr>
+    <tr><td>Mode banner / Secure Stream Paths / Check Routes</td><td>Separates Gateway-hosted playback from Remote relay/direct fallback and reports the selected LAN or Tailscale route without starting playback.</td></tr>
+    <tr><td>Verify Connection</td><td>Saves the current fields and verifies browser-safe HLS against the DVR.</td></tr>
+    <tr><td>Prepare H.264 Substream</td><td>Changes only the selected channel&rsquo;s xx02 profile to H.264 after confirmation.</td></tr>
+    <tr><td>Save &amp; View</td><td>Persists the dedicated Hikvision configuration and reconnects the card.</td></tr>
+    <tr><td>Start / Stop</td><td>Starts or stops the current Hikvision presentation.</td></tr>
+  </tbody></table>
+
+  <h3>Troubleshooting</h3>
+  <table><thead><tr><th>Issue</th><th>Cause</th><th>Resolution</th></tr></thead><tbody>
+    <tr><td>&ldquo;Stream failed&rdquo; error</td><td>go2rtc not running or wrong IP/port</td><td>Open camera settings, verify go2rtc IP and port, click Start in service section</td></tr>
+    <tr><td>go2rtc won&rsquo;t start</td><td>Port 1984 or 8555 in use</td><td>Stop conflicting process or edit <code>go2rtc.yaml</code> ports</td></tr>
+    <tr><td>WebRTC no video</td><td>NAT/firewall blocking</td><td>Ensure STUN server is reachable; consider configuring TURN</td></tr>
+    <tr><td>FFmpeg mode no video</td><td>FFmpeg not installed on server</td><td>Install FFmpeg and ensure it is on PATH</td></tr>
+    <tr><td>Service section hidden</td><td>Remote mode active</td><td>Switch to Gateway mode in Settings &rarr; Connectivity</td></tr>
+    <tr><td>Auto-restart stopped</td><td>3+ consecutive crashes</td><td>Check go2rtc logs, fix RTSP source, then manually restart</td></tr>
+    <tr><td>Hikvision card stays on &ldquo;Starting&rdquo;</td><td>The media service is unavailable, the DVR is unreachable, or the local DVR login failed</td><td>Verify the DVR/LAN connection, then use Verify Connection</td></tr>
+    <tr><td>Remote gateway relay unavailable</td><td>The gateway is older, unhealthy, or returned a non-HLS response</td><td>Use Check Routes. A reachable RTSP path activates direct HLS automatically; otherwise restore the gateway relay or DVR subnet route</td></tr>
+    <tr><td>HLS works but the native viewer is blank</td><td>Hikvision LocalService is unavailable, or the dashboard was manually forced to run as administrator</td><td>Start LocalService, relaunch the dashboard normally (not Run as administrator), then select Retry</td></tr>
+    <tr><td>Remote card works but native viewer is blocked</td><td>The gateway relay is healthy, but the viewer lacks an approved DVR route or viewer-local password</td><td>Advertise and approve the DVR <code>/32</code>, allow its SDK/RTSP ports, save the DVR password on the viewer, then use Check Routes</td></tr>
+    <tr><td>Secure Stream Paths reports Tailscale offline</td><td>Tailscale is stopped on a workstation outside the DVR subnet</td><td>If the modal says local LAN active, no action is needed; otherwise reconnect Tailscale and rerun Check Routes</td></tr>
+    <tr><td>Hikvision profile unavailable</td><td>DVR IP, local RTSP account, or LAN route is incorrect</td><td>Verify DVR reachability, then use Test Stream</td></tr>
+  </tbody></table>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+<!-- 16. SETTINGS -->
+<section id="s15">
+  <div class="section-head"><div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="3" stroke="#94a3b8" stroke-width="1.8"/><path d="M11 2v3M11 17v3M2 11h3M17 11h3M4.9 4.9l2.1 2.1M15 15l2.1 2.1M4.9 17.1l2.1-2.1M15 7l2.1-2.1" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round"/></svg></div><h2>Settings</h2></div>
+  <p>Administrative center with 8 configuration sections: Plant, Data &amp; Polling, Cap Defaults, Connectivity &amp; Gateway Link, Forecast, License, App Updates, and Cloud Backup.</p>
+  <h3>Plant Configuration</h3>
+  <table><thead><tr><th>Field</th><th>Default</th><th>Use</th></tr></thead><tbody><tr><td>Plant Name</td><td>ADSI Plant</td><td>Display naming</td></tr><tr><td>Operator Name</td><td>OPERATOR</td><td>Audit identity</td></tr><tr><td>Inverter Count</td><td>27</td><td>Total configured</td></tr><tr><td>Nodes/Inverter</td><td>4</td><td>Reporting nodes</td></tr><tr><td>Latitude / Longitude</td><td>&mdash;</td><td>Weather context</td></tr></tbody></table>
+  <h3>Connectivity &amp; Gateway Link</h3>
+  <table><thead><tr><th>Field</th><th>Use</th></tr></thead><tbody><tr><td>Operation Mode</td><td>Gateway or Remote</td></tr><tr><td>Gateway URL</td><td>URL of gateway workstation</td></tr><tr><td>API Token</td><td>Shared token for remote access</td></tr><tr><td>Tailscale Hint</td><td>Optional device identifier</td></tr></tbody></table>
+  <p>The <b>Gateway Link</b> tab groups live status into <b>Connection</b> (mode, gateway URL, gateway reachable, Tailscale, live link, last contact) and <b>Standby Refresh</b> (last refresh, rows received, last DB pull, background job), with a Transfer Monitor that shows live RX/TX rates and standby-refresh progress.</p>
+  <h3>Runtime Health</h3>
+  <p>Real-time metrics: CPU %, Memory RSS, Uptime, Poll Ticks, Duration, Fetch Errors, Persist Rows, WS Clients/Drops.</p>
+  <h3>License</h3>
+  <table><thead><tr><th>Field</th><th>Purpose</th></tr></thead><tbody><tr><td>Status / Expiry</td><td>Current state and expiry date</td></tr><tr><td>Upload Replacement</td><td>Apply a new license file</td></tr><tr><td>Audit Trail</td><td>Timestamp, Event, Details history</td></tr></tbody></table>
+  <h3>App Updates</h3>
+  <table><thead><tr><th>Action</th><th>Function</th></tr></thead><tbody><tr><td>Check for Updates</td><td>Query update channel</td></tr><tr><td>Download Update</td><td>Download package</td></tr><tr><td>Restart &amp; Install</td><td>Orderly shutdown + installer handoff</td></tr></tbody></table>
+  <div class="info-card warn"><div class="info-card-label">Important</div>Do not power off during restart/install handoff. Wait for first poll after restart.</div>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+<!-- 16. OPERATING MODES -->
+<section id="s16">
+  <div class="section-head"><div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="7" cy="11" r="4" stroke="#4d9fff" stroke-width="1.8"/><circle cx="15" cy="11" r="4" stroke="#34d399" stroke-width="1.8"/></svg></div><h2>Operating Modes</h2></div>
+  <div class="diagram-container">
+    <svg width="620" height="160" viewBox="0 0 620 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="20" y="20" width="230" height="120" rx="10" fill="rgba(77,159,255,.06)" stroke="#4d9fff" stroke-width="1.5"/><text x="135" y="45" text-anchor="middle" fill="#4d9fff" font-size="14" font-weight="700" font-family="Segoe UI">Gateway Mode</text><text x="135" y="65" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="Segoe UI">Local Modbus polling</text><text x="135" y="80" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="Segoe UI">Source of truth</text><text x="135" y="95" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="Segoe UI">Forecast generation ON</text><text x="135" y="110" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="Segoe UI">SQLite persistence</text><text x="135" y="130" text-anchor="middle" fill="#34d399" font-size="10" font-weight="600" font-family="Segoe UI">Primary Workstation</text>
+      <line x1="260" y1="80" x2="360" y2="80" stroke="#64748b" stroke-width="1.5"/><polygon points="355,76 363,80 355,84" fill="#64748b"/><text x="310" y="72" text-anchor="middle" fill="#64748b" font-size="9" font-family="Segoe UI">API + WS</text>
+      <rect x="370" y="20" width="230" height="120" rx="10" fill="rgba(192,132,252,.06)" stroke="#c084fc" stroke-width="1.5"/><text x="485" y="45" text-anchor="middle" fill="#c084fc" font-size="14" font-weight="700" font-family="Segoe UI">Remote Mode</text><text x="485" y="65" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="Segoe UI">Streams from gateway</text><text x="485" y="80" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="Segoe UI">No local persistence</text><text x="485" y="95" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="Segoe UI">Proxied history</text><text x="485" y="110" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="Segoe UI">Write control via proxy</text><text x="485" y="130" text-anchor="middle" fill="#c084fc" font-size="10" font-weight="600" font-family="Segoe UI">Viewer Workstation</text>
+    </svg>
+    <div class="diagram-caption">Fig 5 &mdash; Gateway vs Remote operating modes</div>
+  </div>
+  <h3>Gateway Link Health States</h3>
+  <table><thead><tr><th>State</th><th>Meaning</th></tr></thead><tbody><tr><td>Connected</td><td>Live data streaming normally</td></tr><tr><td>Degraded</td><td>Elevated latency</td></tr><tr><td>Stale</td><td>Last snapshot shown</td></tr><tr><td>Disconnected</td><td>No active connection</td></tr><tr><td>Auth Error</td><td>Token mismatch or expired</td></tr><tr><td>Config Error</td><td>Invalid URL or configuration</td></tr></tbody></table>
+  <h3>Connectivity Options</h3>
+  <ul><li><b>Tailscale</b> &mdash; Zero-config mesh VPN (recommended)</li><li><b>Traditional VPN</b> &mdash; OpenVPN, WireGuard, IPsec</li><li><b>Port Forwarding</b> &mdash; Direct exposure (requires HTTPS + strong tokens)</li><li><b>Cloud Relay</b> &mdash; Cloudflare Tunnel, ngrok</li><li><b>LAN</b> &mdash; Direct IP on shared network</li></ul>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+<!-- 17. OPERATOR MESSAGING -->
+<section id="s17">
+  <div class="section-head"><div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 4h14a2 2 0 012 2v8a2 2 0 01-2 2H8l-4 4v-4a2 2 0 01-2-2V6a2 2 0 012-2z" stroke="#4d9fff" stroke-width="1.8"/></svg></div><h2>Operator Messaging</h2></div>
+  <ul><li>Floating message bubble in bottom corner</li><li>Stored on gateway, synced to remote workstations</li><li>Audio notification for inbound messages</li><li>Read state tracking per workstation</li><li>Rate limited: 10 per 60s per machine; 500-row retention</li></ul>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+<!-- 18. CLOUD BACKUP -->
+<section id="s18">
+  <div class="section-head"><div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M5 17a5 5 0 01-.5-10A7 7 0 0118 10a4 4 0 01-1 8H5z" stroke="#34d399" stroke-width="1.8" stroke-linecap="round"/></svg></div><h2>Cloud Backup &amp; Restore</h2></div>
+  <table><thead><tr><th>Provider</th><th>Authorization</th></tr></thead><tbody><tr><td>OneDrive</td><td>Microsoft OAuth via Azure Client ID</td></tr><tr><td>Google Drive</td><td>Google OAuth</td></tr><tr><td>S3-compatible</td><td>Static access key pair</td></tr></tbody></table>
+  <table><thead><tr><th>Setting</th><th>Options</th></tr></thead><tbody><tr><td>Schedule</td><td>Manual, Daily 3 AM, Every 6 hours</td></tr><tr><td>Scope</td><td>App data, Config files, Logs (optional)</td></tr></tbody></table>
+  <p><b>App data</b> = SQLite DB + forecast model bundles + Solcast artifacts + weather cache.</p>
+  <ul><li>Restore creates safety backup first</li><li>Overwrites active database and config</li><li>Restart required to complete restore</li></ul>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+<!-- 19. WORKFLOWS -->
+<section id="s19">
+  <div class="section-head"><div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M3 6h16M3 11h16M3 16h16" stroke="#c084fc" stroke-width="1.8" stroke-linecap="round"/><circle cx="7" cy="6" r="2" fill="rgba(192,132,252,.2)" stroke="#c084fc" stroke-width="1.2"/><circle cx="12" cy="11" r="2" fill="rgba(192,132,252,.2)" stroke="#c084fc" stroke-width="1.2"/><circle cx="9" cy="16" r="2" fill="rgba(192,132,252,.2)" stroke="#c084fc" stroke-width="1.2"/></svg></div><h2>Standard Operating Workflows</h2></div>
+  <div class="wf-card"><h4>Daily Startup Check</h4><ol class="steps"><li>Launch and sign in.</li><li>Wait for startup loading screen to finish.</li><li>If Remote and gateway unreachable, choose Gateway or retry in the Connection Mode picker.</li><li>Confirm license area is clear.</li><li>Check connection dot, clock, TOTAL PAC, and TODAY MWh.</li><li>Open Inverters page and confirm fleet status chips.</li></ol></div>
+  <div class="wf-card"><h4>Live Control</h4><ol class="steps"><li>Open Inverters page.</li><li>Select target inverter or node.</li><li>Review alarm state and data freshness.</li><li>Send START or STOP action.</li><li>Confirm via status updates and audit log.</li></ol></div>
+  <div class="wf-card"><h4>Plant Output Cap</h4><ol class="steps"><li>Show the Cap panel on Inverters page.</li><li>Set Upper/Lower Limit, Sequence, Cooldown, and Exemptions.</li><li>Click Preview Plan to review.</li><li>Click Enable Cap (authorization required).</li><li>Monitor Cap Status and Controlled Inverters Table.</li><li>Release: click Release Controlled. Disarm: click Disable Monitoring.</li></ol></div>
+  <div class="wf-card"><h4>Daily Performance Review</h4><ol class="steps"><li>Open Analytics for interval review and day-ahead comparison.</li><li>Open Energy for interval detail.</li><li>Open Report for formal summary.</li><li>Export from Report or Export page.</li></ol></div>
+  <div class="wf-card"><h4>Remote Standby Refresh</h4><ol class="steps"><li>Confirm Remote mode.</li><li>Open Settings &rarr; Connectivity &amp; Gateway Link.</li><li>Click Refresh Standby DB.</li><li>Allow preflight, then wait for snapshot transfer.</li><li>Restart to apply staged database.</li></ol></div>
+  <div class="wf-card"><h4>Cloud Backup</h4><ol class="steps"><li>Configure and authorize provider.</li><li>Save settings and select scope.</li><li>Run Backup Now or rely on schedule.</li><li>Review backup history.</li></ol></div>
+  <div class="wf-card"><h4>Camera Setup</h4><ol class="steps"><li>On the Dashboard, locate the camera card (or drag it into position).</li><li>Click the gear icon on the camera card to open Camera Settings.</li><li>Select a stream mode: <b>HLS</b> (recommended), <b>WebRTC</b>, or <b>FFmpeg</b>.</li><li>For HLS/WebRTC: enter the go2rtc IP, port, and stream key. In the Service section, click <b>Start</b> to launch go2rtc.</li><li>For FFmpeg: enter camera IP, RTSP port, stream path, username, and password.</li><li>Optionally check <b>Auto-start on server boot</b> to persist go2rtc across restarts.</li><li>Click <b>Apply &amp; Connect</b>. The stream should appear in the camera card.</li><li>If the stream fails, check the troubleshooting table in the Camera Viewer section.</li></ol></div>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+<!-- 20. GLOBAL CONFIGURATION -->
+<section id="s20">
+  <div class="section-head"><div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3" y="6" width="16" height="10" rx="2" stroke="#fb923c" stroke-width="1.8"/><circle cx="7" cy="11" r="1.5" fill="#fb923c"/><path d="M11 9h5M11 13h4" stroke="#fb923c" stroke-width="1.5" stroke-linecap="round"/></svg></div><h2>Global Configuration</h2></div>
+  <p>Open via <b>Settings &rarr; Global Configuration</b> or <kbd>Ctrl</kbd>+<kbd>I</kbd>. The window combines network addressing with core global settings. Auth code required, 1-hour session.</p>
+  <p>Available in <b>both Gateway and Remote mode</b>. On a Remote viewer a banner notes that edits save to the gateway (authoritative) and mirror back locally, so addressing can be updated without remoting into the gateway PC. The local reachability scan and <b>Check Status</b> counter are suppressed in Remote mode (those inverters sit on the gateway LAN); the gateway keeps polling them.</p>
+  <table><thead><tr><th>Tab</th><th>Purpose</th></tr></thead><tbody><tr><td>Network &amp; IP</td><td>Inverter addressing, polling, enabled nodes, loss factors, reconnect, and device pages.</td></tr><tr><td>Plant &amp; Data</td><td>Plant identity, fleet sizing/layout, exports, retention, and forecast provider.</td></tr><tr><td>Hardware &amp; Clocks</td><td>Inverter-service endpoints and daily RTC synchronization schedule.</td></tr><tr><td>Connectivity &amp; Backup</td><td>Gateway/Remote access, live-link state, backup readiness, and gateway-only portable export.</td></tr></tbody></table>
+  <table><thead><tr><th>Column</th><th>Description</th></tr></thead><tbody><tr><td>Inverter</td><td>Label</td></tr><tr><td>IP Address</td><td>Modbus TCP target</td></tr><tr><td>Polling Interval</td><td>Refresh rate (ms)</td></tr><tr><td>Enabled Units</td><td>Active nodes to poll</td></tr><tr><td>Loss %</td><td>Cable/connection loss (used by forecast engine)</td></tr></tbody></table>
+  <p><b>Save All Changes</b> commits pending editable settings across tabs and reports server validation failures in the bottom status bar. Saving one inverter row preserves unsaved edits in other rows. Additional actions: <b>Check Status</b>, <b>Topology</b> (Gateway mode only), <b>Export .adsibak</b> (Gateway mode only), and the light/dark theme toggle. License and application-update controls remain in the main <b>Settings</b> page because they are workstation-local rather than gateway-synchronized global settings.</p>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+<!-- 21. KEYBOARD SHORTCUTS -->
+<section id="s21">
+  <div class="section-head"><div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="2" y="7" width="18" height="10" rx="2" stroke="#94a3b8" stroke-width="1.8"/><path d="M6 11h2M10 11h2M14 11h2M8 14h6" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round"/></svg></div><h2>Keyboard Shortcuts &amp; Tips</h2></div>
+  <table><thead><tr><th>Shortcut</th><th>Function</th></tr></thead><tbody><tr><td><kbd>Ctrl</kbd>+<kbd>T</kbd></td><td>Topology window</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>I</kbd></td><td>Global Configuration</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>=</kbd></td><td>Zoom in</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>-</kbd></td><td>Zoom out</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>0</kbd></td><td>Reset zoom</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>L</kbd></td><td>Theme toggle (aux windows)</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>R</kbd></td><td>Force full data reload</td></tr></tbody></table>
+  <ul><li><b>Alarm notifications</b>: sidebar <code>ALARMS</code> badge shows the count (navigation); the bottom-right hub pill opens the quick-ACK panel</li><li><b>Sidebar</b>: collapses to icons on narrow windows; hover for tooltips</li><li><b>Inverter cards</b>: click to expand detail panel</li><li><b>Message bubble</b>: bottom corner, opens operator messaging</li></ul>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+<!-- 22. TROUBLESHOOTING -->
+<section id="s22">
+  <div class="section-head"><div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="9" stroke="#f87171" stroke-width="1.8"/><path d="M11 7v4M11 14v1" stroke="#f87171" stroke-width="2" stroke-linecap="round"/></svg></div><h2>Troubleshooting</h2></div>
+  <table><thead><tr><th>Symptom</th><th>Likely Cause</th><th>Action</th></tr></thead><tbody>
+    <tr><td>Connection dot disconnected</td><td>Live link unavailable</td><td>Check mode, URL, token, Tailscale</td></tr>
+    <tr><td>Stale status</td><td>Retained snapshot</td><td>Check gateway health</td></tr>
+    <tr><td>Standby DB unchanged</td><td>Staged, not active</td><td>Restart the application</td></tr>
+    <tr><td>Newer-local warning</td><td>Local copy newer</td><td>Cancel or Force Pull</td></tr>
+    <tr><td>TODAY MWh old after startup</td><td>Polling not caught up</td><td>Refresh Standby DB, restart, wait</td></tr>
+    <tr><td>Connection Mode picker</td><td>Remote startup failed</td><td>Choose Gateway or retry Remote</td></tr>
+    <tr><td>Day-ahead unavailable</td><td>Remote mode</td><td>Generate from gateway</td></tr>
+    <tr><td>Cap "Cannot POST"</td><td>Old gateway or wrong URL</td><td>Update gateway, verify URL</td></tr>
+    <tr><td>Cap limits too close</td><td>Step &gt; deadband</td><td>Increase Upper/Lower gap</td></tr>
+    <tr><td>Cloud restore unavailable</td><td>Provider not ready</td><td>Refresh list, verify auth</td></tr>
+    <tr><td>Topology blocked</td><td>Remote mode (IP Config now works remotely; Topology stays Gateway-only)</td><td>Use gateway workstation for Topology</td></tr>
+    <tr><td>IP Config change not applied</td><td>Gateway unreachable or rejected the save</td><td>Verify gateway URL/token online; the save banner shows the gateway error</td></tr>
+    <tr><td>Silent alarms</td><td>Muted or no audio</td><td>Re-enable sound, check audio</td></tr>
+    <tr><td>Export fails</td><td>Path/date/format issue</td><td>Verify folder, filters, mode</td></tr>
+    <tr><td>High WAPE</td><td>Stale Solcast or retraining needed</td><td>Check Performance Monitor</td></tr>
+    <tr><td>Camera &ldquo;Stream failed&rdquo;</td><td>go2rtc not running or wrong IP</td><td>Open Camera Settings, verify IP/port, Start service</td></tr>
+    <tr><td>go2rtc won&rsquo;t start</td><td>Port 1984/8555 in use</td><td>Stop conflicting process or change ports</td></tr>
+    <tr><td>Camera service hidden</td><td>Remote mode active</td><td>Switch to Gateway mode</td></tr>
+    <tr><td>Inverter nodes stop polling but the IP still pings</td><td>The gateway's Modbus session to that inverter has wedged (stale socket / comm-board TCP queue), which a ping cannot detect</td><td>Wait for auto-recovery, or click the <b>Reconnect</b> button on that inverter's row in <b>IP Configuration</b></td></tr>
+    <tr><td>"Open device web page" does nothing from a remote viewer</td><td>The comm board lives on the gateway LAN and is not reachable from the remote PC</td><td>Use the gear icon in <b>IP Configuration</b> &mdash; it now routes the device page through the gateway automatically</td></tr>
+  </tbody></table>
+  <h3>Inverter polling stalls while the IP still pings (v2.11.x)</h3>
+  <p>An inverter can keep answering <code>ping</code> while its Modbus polling fails &mdash; ping only proves the comm board's network chip is alive, not that the Modbus session behind it is healthy. On the Ingeteam <b>AAX0041</b> Ethernet&rarr;RS-485 comm board, the board accepts the TCP connection and queues requests, so a stale or wedged session can leave the dashboard's per-inverter connection stuck even though the IP is reachable. Historically the only field fix was to change the inverter's IP, which forced the gateway to build a brand-new connection.</p>
+  <div class="info-card tip"><div class="info-card-label">Automatic recovery</div>The gateway now watches each inverter's connection. After ~30&nbsp;seconds with no successful read, it automatically discards the wedged Modbus client and builds a fresh one (rate-limited to once per minute per inverter) &mdash; no operator action and no IP change needed. This makes the old &ldquo;change the IP&rdquo; workaround unnecessary in normal operation.</div>
+  <div class="info-card"><div class="info-card-label">Manual Reconnect</div>To force it immediately, open <b>IP Configuration</b> and click the circular <b>Reconnect</b> button on that inverter's row (next to Save). This drops and rebuilds only that inverter's gateway socket &mdash; it changes no inverter setting and no IP. It works from a remote viewer too (the request is routed to the gateway). If the inverter recovers after a manual reconnect but never on its own, the fault is likely upstream of the gateway (a duplicate IP, or a stale ARP / connection-tracking entry on the network switch/router) rather than the comm board itself.</div>
+  <div class="info-card"><div class="info-card-label">Open device web page (gateway &amp; remote)</div>The gear icon on each <b>IP Configuration</b> row opens the comm board's own web page. On the gateway it opens directly on the plant LAN; from a <b>remote viewer</b> it is routed through the gateway automatically (the device is not reachable from the remote PC). The remote route is byte-for-byte, so the device's HTML, styles, scripts and images all render. Tailscale note: the inverter's LAN IP is <i>not</i> reachable directly over Tailscale unless a subnet router is configured &mdash; the gateway proxy is what makes the page work remotely without one.</div>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+<!-- 23. QUICK REFERENCE -->
+<section id="s23">
+  <div class="section-head"><div class="section-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="16" rx="2" stroke="#fbbf24" stroke-width="1.8"/><path d="M7 8h8M7 11h6M7 14h7" stroke="#fbbf24" stroke-width="1.5" stroke-linecap="round"/></svg></div><h2>Quick Reference</h2></div>
+  <h3>Defaults &amp; Constants</h3>
+  <table><thead><tr><th>Item</th><th>Value</th></tr></thead><tbody><tr><td>Default Credentials</td><td><code>admin</code> / <code>1234</code></td></tr><tr><td>Plant Name</td><td>ADSI Plant</td></tr><tr><td>Inverter Rated (Pmax) / Dependable (Pnom)</td><td>997.64 kW / 906.92 kW</td></tr><tr><td>Nodes per Inverter</td><td>4 (249.41 kW Pmax / 226.73 kW Pnom each)</td></tr><tr><td>Solar Window</td><td>5:00 AM &ndash; 6:00 PM</td></tr><tr><td>Alarm Sound Threshold</td><td>5 seconds sustained</td></tr><tr><td>Ports</td><td>3500 (Express), 9000 (FastAPI)</td></tr><tr><td>ML Features</td><td>68 columns (with tri-band)</td></tr></tbody></table>
+  <h3>Page Quick Finder</h3>
+  <table><thead><tr><th>Need</th><th>Best Page</th></tr></thead><tbody><tr><td>Live status</td><td>Inverters</td></tr><tr><td>Interval analysis</td><td>Analytics + Energy</td></tr><tr><td>Day-ahead comparison</td><td>Analytics + Export</td></tr><tr><td>Forecast setup</td><td>Forecast</td></tr><tr><td>Forecast accuracy</td><td>Forecast Performance Monitor</td></tr><tr><td>Alarm review</td><td>Alarms</td></tr><tr><td>Action traceability</td><td>Audit</td></tr><tr><td>Daily summary</td><td>Report</td></tr><tr><td>File generation</td><td>Export</td></tr><tr><td>Mode / sync</td><td>Settings &rarr; Connectivity</td></tr><tr><td>License / updates</td><td>Settings &rarr; License / Updates</td></tr><tr><td>Backup</td><td>Settings &rarr; Cloud Backup</td></tr><tr><td>Network config</td><td>IP Configuration</td></tr><tr><td>Messaging</td><td>Floating bubble</td></tr><tr><td>Live camera feed</td><td>Camera card (Dashboard)</td></tr><tr><td>Camera / go2rtc config</td><td>Camera Settings modal</td></tr></tbody></table>
+  <h3>Data Units</h3>
+  <table><thead><tr><th>Item</th><th>Unit</th></tr></thead><tbody><tr><td>PAC / PDC</td><td>W or kW</td></tr><tr><td>Energy</td><td>MWh</td></tr><tr><td>Duration</td><td>sec / min / hrs</td></tr><tr><td>WAPE</td><td>%</td></tr></tbody></table>
+  <h3>Status Terms</h3>
+  <table><thead><tr><th>Status</th><th>Meaning</th></tr></thead><tbody><tr><td>Online</td><td>Communicating normally</td></tr><tr><td>Offline</td><td>No live data</td></tr><tr><td>Stale</td><td>Last snapshot shown</td></tr><tr><td>Alarm</td><td>Active alarm</td></tr><tr><td>Acknowledged</td><td>Operator-ACK'd</td></tr><tr><td>CAP STOPPED</td><td>Stopped by cap controller</td></tr></tbody></table>
+  <h3>Day-Ahead Generation Paths</h3>
+  <table><thead><tr><th>Path</th><th>Trigger</th><th>Audit</th></tr></thead><tbody><tr><td>Manual UI</td><td>POST /api/forecast/generate</td><td>Node</td></tr><tr><td>Auto scheduler</td><td>Python loop &rarr; delegate</td><td>Node</td></tr><tr><td>Python CLI</td><td>--generate-date</td><td>Node</td></tr><tr><td>CLI fallback</td><td>Node unreachable</td><td>Python</td></tr><tr><td>Node cron</td><td>04:30/09:30/18:30/20:00/22:00</td><td>Node</td></tr></tbody></table>
+  <a href="#toc" class="back-top">&uarr; Back to Contents</a>
+</section>
+
+</div>
+
+<!-- FOOTER -->
+<div class="guide-footer">
+  <p><b>ADSI Inverter Dashboard</b> &mdash; Current release</p>
+  <p>Designed &amp; Developed by Engr. Clariden Monta&ntilde;o REE</p>
+  <p>&copy; 2026 Engr. Clariden Monta&ntilde;o REE. All rights reserved.</p>
+</div>
+
+</body>
+</html>

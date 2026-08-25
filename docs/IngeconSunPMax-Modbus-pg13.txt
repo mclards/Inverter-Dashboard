@@ -1,0 +1,100 @@
+ DOCUMENTO DE ANÁLISIS DE DETALLE 
+INGETEAM REV.:_ FECHA: 09/01/13 PÁG.: 13 DE 17 
+2.2 Inverter alarm list 
+ 
+The alarms on the 30066  register are associated to the stop reasons on 30084 
+register.  The interpretation of these alarms is explained in the table before. 
+Alarm   Stop reason Description 
+0x0000   Ninguno 
+No alarms, the equipment should connect if it has 
+enough power 
+0x0001 ALARMA_FRED MOTIVO_PARO_FRED Grid frequency out of range (49-51Hz) 
+0x0002 ALARMA_VRED MOTIVO_PARO_VRED Grid voltaje out of range (195V-253V) 
+0x0004 ALARMA_PI_ANA 
+MOTIVO_PARO_PI_ANA_S
+AT 
+The current measure is much lower than the current 
+checkpoint in that branch 
+    
+MOTIVO_PARO_PI_ANA_S
+AT 
+The initial PI in the integrator of the capture current 
+does not work properly. 
+0x0008 ALARMA_RESET 
+MOTIVO_PARO_RESET_W
+D 
+Indicates that the invertir has been reset by Watch-
+Dog, failure in inverter’s Firmware. 
+0x0010 ALARMA_IRED_EFICAZ 
+MOTIVO_PARO_IAC_EFICA
+Z 
+The current RMS value is greater than the máximum 
+allowed. 
+0x0020 
+ALARMA_TEMPERATU
+RA 
+MOTIVO_PARO_TEMPERA
+TURA 
+The power electronic temperatura is greater than 80 
+ºC. 
+    MOTIVO_PARO_TEMP_AUX 
+The temperature auxiliary sensor has detected an 
+alarm. 
+0x0040 ALARMA_LEC_ADC 
+MOTIVO_PARO_ERROR_LE
+C_ADC 
+Reading level in the ADC higher than normal in an 
+input not expected. 
+    
+MOTIVO_PARO_LATENCIA
+_ADC Intern error of the analogic digital converter 
+0x0080 ALARMA_IRED_INSTAN 
+MOTIVO_PARO_MAX_IAC_I
+NST Instantaneous current value out of range 
+0x0100 ALARMA_PROT_AC 
+MOTIVO_PARO_VARISTOR
+ES AAS0043 AC varistor error   
+    
+MOTIVO_PARO_CONTACT
+OR 
+The state of the contactor is not correct attending 
+the inverter state.   
+    MOTIVO_PARO_PROT_AC Error in the AC protections, dischargers, fuses… 
+    MOTIVO_PARO_MAGNETO 
+Error in the three phase input thermomagnetic (in 
+big equipments) 
+0x0200 ALARMA_PROT_DC MOTIVO_PARO_FUS_DC DC input fuses melt or DC dischargers. 
+0x0400 ALARMA_AISL_DC MOTIVO_PARO_AISL_DC           
+Isolation failure in the solar field or in the inverter 
+interior 
+    
+MOTIVO_PARO_VARISTOR
+ES DC varistors error 
+0x0800 ALARMA_FRAMA MOTIVO_PARO_FRAMA1 Failure in the branch 1 of the power electronics   
+    MOTIVO_PARO_FRAMA2 Failure in the branch 2 of the power electronics   
+    MOTIVO_PARO_FRAMA3 Failure in the branch 3 of the power electronics 
+0x1000 
+ALARMA_PARO_MANU
+AL 
+MOTIVO_PARO_PARO_MA
+NUAL 
+Manual Stop due to emergency push button, by 
+display or communication 
+0x2000 ALARMA_CONFIG 
+MOTIVO_PARO_CONFIGUR
+ACION Stop due to Firmware modification.  
+    
+MOTIVO_PARO_CARGA_FI
+RMWARE Stop due to Firmware load. 
+0x4000 ALARMA_VIN MOTIVO_PARO_VIN DC input input high voltage 
+0x8000 
+ALARMA_VPV_MED_MI
+N 
+MOTIVO_PARO_BAJA_VPV
+_MED 
+Stop because of low voltage in the input. The 
+inverter controls this voltage, for this reason, this 
+should never happen. 
+ 
+On the 30032 registers suntracker alarms are stored. If the firmware is a AAS 1020 
+or AAS1040  these alarms have to be interpreted as follows: 

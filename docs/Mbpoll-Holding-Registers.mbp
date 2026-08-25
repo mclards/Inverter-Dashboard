@@ -1,0 +1,581 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ModbusPoll>
+   <FileSchema r="0" c="0"/>
+   <Version major="12" minor="0" patch="0" build="2448"/>
+   <dpi>96</dpi>
+   <WP left="0" right="668" top="0" bottom="646" ShowCmd="1" MaxPosX="-1" MaxPosY="-1" MinPosX="-1" MinPosY="-1"/>
+   <ScanRate>1000</ScanRate>
+   <SlaveID>1</SlaveID>
+   <Enable>1</Enable>
+   <StopOnError>0</StopOnError>
+   <OneBased>0</OneBased>
+   <RowsDialog>4</RowsDialog>
+   <HideNames>0</HideNames>
+   <HexMode>0</HexMode>
+   <DisplayAddr>0</DisplayAddr>
+   <ColCount>2</ColCount>
+   <RowCount>125</RowCount>
+   <ColumnWidth>
+      <CW>2080</CW>
+      <CW>900</CW>
+   </ColumnWidth>
+   <RowHight>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+      <RH>200</RH>
+   </RowHight>
+   <ScrollPosV>0</ScrollPosV>
+   <ScrollPosH>0</ScrollPosH>
+   <FocusRow>17</FocusRow>
+   <FocusCol>1</FocusCol>
+   <LogText>
+      <Eachread>0</Eachread>
+      <Rate>1</Rate>
+      <LogChangedOnly>0</LogChangedOnly>
+      <LogErrors>0</LogErrors>
+      <LogErrorsOnly>0</LogErrorsOnly>
+      <LogAddress>1</LogAddress>
+      <LogDate>0</LogDate>
+      <TDelimiter>0</TDelimiter>
+      <LogMs>1</LogMs>
+      <Delimiter>0</Delimiter>
+      <AutoStart>0</AutoStart>
+      <Flush>0</Flush>
+      <Append>0</Append>
+      <NewLogFileAtMidnight>0</NewLogFileAtMidnight>
+      <InsertHeader>0</InsertHeader>
+      <NameCellsInTopRow>0</NameCellsInTopRow>
+      <PollDefinition>0</PollDefinition>
+      <LogName>Type log name here</LogName>
+      <FileName></FileName>
+   </LogText>
+   <LogExcel>
+      <Eachread>1</Eachread>
+      <Rate>1</Rate>
+      <StopAfter>1000</StopAfter>
+      <LogChangedOnly>0</LogChangedOnly>
+      <InsertHeader>1</InsertHeader>
+      <NameCellsInTopRow>1</NameCellsInTopRow>
+      <PollDefinition>1</PollDefinition>
+      <LogName>Type log name here</LogName>
+   </LogExcel>
+   <Data>
+      <Function>3</Function>
+      <Address>0</Address>
+      <Quantity>125</Quantity>
+      <EnronMode>0</EnronMode>
+      <Formats>
+         <F f="0" v="2026"/>
+         <F f="0" v="5"/>
+         <F f="0" v="4"/>
+         <F f="0" v="9"/>
+         <F f="0" v="34"/>
+         <F f="0" v="18"/>
+         <F f="0" v="586"/>
+         <F f="0" v="60"/>
+         <F f="0" v="528"/>
+         <F f="0" v="5"/>
+         <F f="0" v="63"/>
+         <F f="0" v="230"/>
+         <F f="0" v="5760"/>
+         <F f="0" v="6240"/>
+         <F f="0" v="0"/>
+         <F f="0" v="0"/>
+         <F f="0" v="1"/>
+         <F f="0" v="22673"/>
+         <F f="0" v="24941"/>
+         <F f="0" v="5"/>
+         <F f="0" v="29457"/>
+         <F f="0" v="2675"/>
+         <F f="0" v="500"/>
+         <F f="0" v="0"/>
+         <F f="0" v="0"/>
+         <F f="0" v="0"/>
+         <F f="0" v="0"/>
+         <F f="0" v="1"/>
+         <F f="0" v="3"/>
+         <F f="0" v="4"/>
+         <F f="0" v="6"/>
+         <F f="0" v="217"/>
+         <F f="0" v="42"/>
+         <F f="0" v="16711"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="16"/>
+         <F f="0" v="428"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="-1"/>
+         <F f="0" v="7967"/>
+         <F f="0" v="1115"/>
+         <F f="0" v="1104"/>
+         <F f="0" v="1128"/>
+         <F f="0" v="1681"/>
+         <F f="0" v="1674"/>
+         <F f="0" v="1690"/>
+         <F f="0" v="1948"/>
+         <F f="0" v="1023"/>
+         <F f="0" v="1037"/>
+         <F f="0" v="1440"/>
+         <F f="0" v="1927"/>
+         <F f="0" v="437"/>
+         <F f="0" v="7714"/>
+         <F f="0" v="-190"/>
+         <F f="0" v="2"/>
+         <F f="0" v="1"/>
+         <F f="0" v="6100"/>
+         <F f="0" v="5900"/>
+         <F f="0" v="6240"/>
+         <F f="0" v="32767"/>
+         <F f="0" v="7513"/>
+         <F f="0" v="60"/>
+         <F f="0" v="60"/>
+         <F f="0" v="305"/>
+         <F f="0" v="305"/>
+         <F f="0" v="188"/>
+         <F f="0" v="0"/>
+         <F f="0" v="5820"/>
+         <F f="0" v="6180"/>
+         <F f="0" v="3"/>
+         <F f="0" v="3"/>
+         <F f="0" v="3605"/>
+         <F f="0" v="305"/>
+         <F f="0" v="1"/>
+         <F f="0" v="450"/>
+         <F f="0" v="1"/>
+         <F f="0" v="32767"/>
+         <F f="0" v="105"/>
+         <F f="0" v="98"/>
+         <F f="0" v="1000"/>
+         <F f="0" v="0"/>
+         <F f="0" v="1000"/>
+         <F f="0" v="20"/>
+         <F f="0" v="1000"/>
+      </Formats>
+      <Bytes>
+         <B>234</B>
+         <B>7</B>
+         <B>5</B>
+         <B>0</B>
+         <B>4</B>
+         <B>0</B>
+         <B>9</B>
+         <B>0</B>
+         <B>34</B>
+         <B>0</B>
+         <B>18</B>
+         <B>0</B>
+         <B>74</B>
+         <B>2</B>
+         <B>60</B>
+         <B>0</B>
+         <B>16</B>
+         <B>2</B>
+         <B>5</B>
+         <B>0</B>
+         <B>63</B>
+         <B>0</B>
+         <B>230</B>
+         <B>0</B>
+         <B>128</B>
+         <B>22</B>
+         <B>96</B>
+         <B>24</B>
+         <B>0</B>
+         <B>0</B>
+         <B>0</B>
+         <B>0</B>
+         <B>1</B>
+         <B>0</B>
+         <B>145</B>
+         <B>88</B>
+         <B>109</B>
+         <B>97</B>
+         <B>5</B>
+         <B>0</B>
+         <B>17</B>
+         <B>115</B>
+         <B>115</B>
+         <B>10</B>
+         <B>244</B>
+         <B>1</B>
+         <B>0</B>
+         <B>0</B>
+         <B>0</B>
+         <B>0</B>
+         <B>0</B>
+         <B>0</B>
+         <B>0</B>
+         <B>0</B>
+         <B>1</B>
+         <B>0</B>
+         <B>3</B>
+         <B>0</B>
+         <B>4</B>
+         <B>0</B>
+         <B>6</B>
+         <B>0</B>
+         <B>217</B>
+         <B>0</B>
+         <B>42</B>
+         <B>0</B>
+         <B>71</B>
+         <B>65</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>16</B>
+         <B>0</B>
+         <B>172</B>
+         <B>1</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>255</B>
+         <B>31</B>
+         <B>31</B>
+         <B>91</B>
+         <B>4</B>
+         <B>80</B>
+         <B>4</B>
+         <B>104</B>
+         <B>4</B>
+         <B>145</B>
+         <B>6</B>
+         <B>138</B>
+         <B>6</B>
+         <B>154</B>
+         <B>6</B>
+         <B>156</B>
+         <B>7</B>
+         <B>255</B>
+         <B>3</B>
+         <B>13</B>
+         <B>4</B>
+         <B>160</B>
+         <B>5</B>
+         <B>135</B>
+         <B>7</B>
+         <B>181</B>
+         <B>1</B>
+         <B>34</B>
+         <B>30</B>
+         <B>66</B>
+         <B>255</B>
+         <B>2</B>
+         <B>0</B>
+         <B>1</B>
+         <B>0</B>
+         <B>212</B>
+         <B>23</B>
+         <B>12</B>
+         <B>23</B>
+         <B>96</B>
+         <B>24</B>
+         <B>255</B>
+         <B>127</B>
+         <B>89</B>
+         <B>29</B>
+         <B>60</B>
+         <B>0</B>
+         <B>60</B>
+         <B>0</B>
+         <B>49</B>
+         <B>1</B>
+         <B>49</B>
+         <B>1</B>
+         <B>188</B>
+         <B>0</B>
+         <B>0</B>
+         <B>0</B>
+         <B>188</B>
+         <B>22</B>
+         <B>36</B>
+         <B>24</B>
+         <B>3</B>
+         <B>0</B>
+         <B>3</B>
+         <B>0</B>
+         <B>21</B>
+         <B>14</B>
+         <B>49</B>
+         <B>1</B>
+         <B>1</B>
+         <B>0</B>
+         <B>194</B>
+         <B>1</B>
+         <B>1</B>
+         <B>0</B>
+         <B>255</B>
+         <B>127</B>
+         <B>105</B>
+         <B>0</B>
+         <B>98</B>
+         <B>0</B>
+         <B>232</B>
+         <B>3</B>
+         <B>0</B>
+         <B>0</B>
+         <B>232</B>
+         <B>3</B>
+         <B>20</B>
+         <B>0</B>
+         <B>232</B>
+         <B>3</B>
+      </Bytes>
+      <CellData>
+         <Cell idx="16">
+            <Colors/>
+            <Compare compare1="0" compare2="0" conditional1="0" conditional2="0"/>
+            <Name>Inverter Start/Stop</Name>
+            <Font used="false"/>
+         </Cell>
+      </CellData>
+      <Scales/>
+      <ValueNames/>
+      <ChartSeries/>
+      <BinNames/>
+   </Data>
+</ModbusPoll>

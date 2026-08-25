@@ -1,0 +1,51 @@
+ DOCUMENTO DE ANÁLISIS DE DETALLE 
+INGETEAM REV.:_ FECHA: 09/01/13 PÁG.: 6 DE 17 
+temperature probes. 
+ 
+30048 
+to 
+30058 
+Reserved  _ 
+30059 Energy Resetable Counter (Hi).  _O 
+30060 Energy Resetable Counter (low) 
+3003B-3003C registers represent the High and Low parts, respectively, of the 
+32 bit resettable variable that stores, in kWh, the value of  produced energy 
+since last reset. 
+ _O 
+30061 Hours up and running (high)  _O 
+30062 Hours up and running (low) 
+3003D-3003E registers are the High and Low parts, respectively, of the 32 bit 
+resettable variable that stores the number of hours that the inverter has been 
+running since last reset. 
+ _O 
+30063 Number of connections to grid (high)  _O 
+30064 Number of connections to grid (low) 
+3003F-30040 registers are the High and Low parts, respectively, of the 32 bit 
+resettable variable that stores the number of times that the inverter has 
+connected to the grid since last reset. 
+ _O 
+30065 Instantaneous inverter alarms (high)  _O 
+30066 Instantaneous inverter alarms (low) 
+(this variable is reset periodically every second) 
+30041-30042: Inverter alarms code. 
+-. ALARMA_FRED (0x0001): Grid frequency out of range. 
+-. ALARMA_VRED (0x0002): Grid voltage out of range. 
+-. ALARMA_PI_ANA (0x0004): Current PI Saturation. 
+-. ALARMA_RESET_WD (0x0008): Inverter reset by Watch Dog 
+-. ALARMA_IRED_EFICAZ (0x0010): Grid current effective excessive. 
+-. ALARMA_TEMPERATURA (0x0020): Electronic temperature. 
+-. ALARMA_LEC_ADC (0x0040): Alarm in Reading the ADC 
+-. ALARMA_IRED_INSTA (0x0080):Instantaneous overcurrent in AC 
+-. ALARMA_PROT_AC (0x0100): AC protections. 
+-. ALARMA_PROT_DC (0x0200): DC protections. 
+-. ALARMA_PARO_AISL_DC (0x0400): Isolation DC. 
+-. ALARMA_FRAMA (0x0800): Failure in the power electronic 
+-. ALARMA_PARO_MANUAL (0x1000): Manual stop 
+-. ALARMA_CONFIG (0x2000): Change in the configuration 
+-. ALARMA_VIN ( 0x4000):Input voltage 
+-. ALARMA_VPV_MED_MIN ( 0x8000): Minimum voltage in the input 
+ _O 
+30067 Inverter alarms mainteined (high)  _O 
+30068 Inverter alarms mainteined (low) 
+(This variable is reset whenever the inverter 
+ _O 

@@ -1,0 +1,51 @@
+ DOCUMENTO DE ANÁLISIS DE DETALLE 
+INGETEAM REV.:_ FECHA: 09/01/13 PÁG.: 7 DE 17 
+connects to grid) 
+3000E-3000F: CInverter alarm codes  are the same 
+than in the parameter instantaneous inverter alarms. 
+ 
+30069 QAC (Reactive power DIV 10) yes _O 
+30070 Zpos (Solar field impedance, POS-EARTH)  _O 
+30071 Zneg (Solar field impedance, NEG-EARTH)  _O 
+30072 Power electronics temperature Yes _O 
+30073 Control electronics temperature Yes _O 
+30074 Inverter state: 
+30074: Inverter state. This variable reflects the inverter state and the 8 bits with 
+lower weight means the following: 
+8 lower weight bit: 
+- 0: Initial state 
+- 1: Initial magnetization state 
+- 2: State grid connected 
+- 3: State error. 
+8 Bit more weight: 
+- Bit 0: 1:Stop / 0:Run 
+- Bit 1: Blocked 
+- Bit 2: Grid Fault detected. 
+ _O 
+30075 VpvN: Voltage NEGATIVE- EARTH  _O 
+30076 VpvP: Voltage POSITIVE - EARTH  _O 
+30077 Nominal power DIV10  _O 
+30078 Pos. Last Stop reason (0 to 4) 
+This variable indicates which of the last 5 stop reason is the newest. 
+ _O 
+30079 Year stop reason 0  _O 
+30080 Month stop reason 0  _O 
+30081 Day stop reason 0  _O 
+30082 Hour stop reason 0  _O 
+30083 Minute stop reason 0  _O 
+30084 Stop reason 0 
+-1 MOTIVO_PARO_VIN: Input voltage very high 
+-2 MOTIVO_PARO_FRED: Grid frequency out of range 
+-3 MOTIVO_PARO_VRED: Grid voltage out of range 
+-4 MOTIVO_PARO_VARISTORES:Failure in protection varistors 
+-5 MOTIVO_PARO_AISL_DC: Isolation failure in solar field 
+-6 MOTIVO_PARO_IAC_EFICAZ: RMS output curren higher than the limit 
+-7 MOTIVO_PARO_TEMPERATURA: Stop because of high temperature 
+-8 MOTIVO_PARO_LATENCIA_SPI: Communication error in the SPI bus 
+-9 MOTIVO_PARO_CONFIGURACION: Stop because of configuration change 
+-10 MOTIVO_PARO_PARO_MANUAL: Manual stop inverter 
+-11 MOTIVO_PARO_BAJA_VPV_MED: Stop due to low voltage in the solar 
+field 
+-12 MOTIVO_PARO_HW_DESCX2: Hardware error (NOT IN USE) 
+-13 MOTIVO_PARO_FRAMA3: Failure in branch 3 
+ _O 

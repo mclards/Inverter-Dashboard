@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs & temporary files
+*.log
+logs/
+*.tmp
+temp/
+.DS_Store
+Thumbs.db
+
+# Build outputs and bundled large binaries
+dist/
+build/
+release/
+out/
+services/dist/
+server/ffmpeg/
+server/go2rtc/
+docs/hik-cctv-camera/
+*.zip
+*.tar
+*.pcapng
+*.exe
+
+# Database and storage files (active runtime data should never be in git)
+storage/
+*.db
+*.db-wal
+*.db-shm
+
+# Environment files
+.env
+.env.local

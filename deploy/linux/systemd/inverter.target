@@ -1,0 +1,7 @@
+﻿[Unit]
+Description=ADSI Inverter Dashboard 2.0 Production Appliance Target
+After=network-online.target time-sync.target
+Wants=network-online.target time-sync.target
+
+[Install]
+WantedBy=multi-user.target

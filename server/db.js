@@ -16,7 +16,16 @@ const { decideBaselineAnchor, DEFAULT_PAC_WAKE_THRESHOLD_W } = require("./baseli
 const { decideCounterHealthAudits } = require("./counterHealthAuditCore");
 
 function resolveDataDir() {
+  const portableRoot = getPortableDataRoot();
+  if (portableRoot) {
+    const dir = path.join(portableRoot, "db");
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    return dir;
+  }
+  const explicit = getExplicitDataDir();
+  if (explicit) return explicit;
   if (process.env.INVERTER_DATA_DIR) return process.env.INVERTER_DATA_DIR;
+  if (process.env.ADSI_DATA_DIR) return process.env.ADSI_DATA_DIR;
   const isPackaged = __dirname.includes("app.asar") || (typeof process.resourcesPath === "string");
   const programDataRoot = process.env.PROGRAMDATA || process.env.ALLUSERSPROFILE || "C:\\ProgramData";
   const packagedStorage = path.join(programDataRoot, "Inverter-Dashboard", "db");
@@ -4346,11 +4355,21 @@ function getSnapshotHistoryDayTrajectory(day) {
 }
 
 function getSetting(key, def = null) {
-  const row = stmts.getSetting.get(key);
-  return row ? row.value : def;
+  try {
+    if (!db || !db.open) return def;
+    const row = stmts?.getSetting ? stmts.getSetting.get(key) : null;
+    return row ? row.value : def;
+  } catch (_) {
+    return def;
+  }
 }
 function setSetting(key, value) {
-  stmts.setSetting.run(key, String(value), Date.now());
+  try {
+    if (!db || !db.open) return;
+    if (stmts?.setSetting) {
+      stmts.setSetting.run(key, String(value), Date.now());
+    }
+  } catch (_) {}
 }
 
 function normalizeChatMachine(machine, def = "gateway") {

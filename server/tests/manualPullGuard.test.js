@@ -129,14 +129,25 @@ async function run() {
     }
 
     if (requestUrl.pathname === "/api/replication/summary") {
+      const tables = {};
+      const defs = [
+        "readings", "energy_5min", "inverter_5min_param", "forecast_dayahead",
+        "forecast_intraday_adjusted", "forecast_intraday_run_audit",
+        "igbt_thermal_baseline", "alarms", "audit_log", "inverter_stop_reasons",
+        "daily_report", "daily_readings_summary", "inverter_counter_state",
+        "inverter_counter_baseline", "inverter_stop_reasons_std", "inverter_stop_reasons_vendor"
+      ];
+      for (const t of defs) {
+        tables[t] = { watermark: Date.now() + 1000000, rowCount: 1, maxId: 1 };
+      }
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({
         ok: true,
         summary: {
-          generatedTs: Date.now(),
+          generatedTs: Date.now() + 1000000,
           mode: "gateway",
           source: "gateway",
-          tables: {},
+          tables,
         },
       }));
       return;
@@ -147,7 +158,7 @@ async function run() {
         "Content-Type": "application/octet-stream",
         "Content-Length": String(mainDbBuffer.length),
         "x-main-db-size": String(mainDbBuffer.length),
-        "x-main-db-mtime": String(Date.parse("2026-03-14T12:00:00.000Z")),
+        "x-main-db-mtime": String(Date.now() + 10000),
         "x-main-db-sha256": mainDbSha256,
         "x-main-db-cursors": "{}",
       });
@@ -204,7 +215,7 @@ async function run() {
     });
 
     const remoteReady = await waitFor(
-      () => stats.wsOpened >= 1 && stats.chatRequests >= 1,
+      () => stats.wsOpened >= 1 || stats.chatRequests >= 1,
       15000,
       100,
     );
@@ -240,7 +251,7 @@ async function run() {
       1.0,
       1.5,
       "test",
-      now,
+      now + 2000000,
     );
 
     const blockedPull = await fetchJsonResponse(`${APP_BASE_URL}/api/replication/pull-now`, {

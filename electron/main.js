@@ -11,7 +11,7 @@
  */
 
 // ── A1. Survival boot — core only, zero third-party requires ──────────────────
-const { app, BrowserWindow, ipcMain, shell, globalShortcut, dialog, Menu } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, globalShortcut, dialog, Menu, Tray } = require("electron");
 const path = require("path");
 const http = require("http");
 const https = require("https");
@@ -451,6 +451,7 @@ const SERVER_URL = "http://localhost:3500";
 const SERVER_HTTP = new URL(SERVER_URL);
 const SERVER_HOST = SERVER_HTTP.hostname || "127.0.0.1";
 const SERVER_PORT = Number(SERVER_HTTP.port || 80);
+const TELEMETRY_ENGINE_PORT = 9100;
 const TOPOLOGY_URL = `${SERVER_URL}/topology.html`;
 const GLOBAL_CONFIG_URL = `${SERVER_URL}/global-config.html`;
 const POLL_INTERVAL = 600;
@@ -490,11 +491,11 @@ const APP_SHUTDOWN_FORCE_KILL_WAIT_MS = 2000;
 // one; it only bounds a true hang. Disarmed once finalizeAppShutdown() runs
 // (so the legitimately-longer install path is unaffected).
 const APP_SHUTDOWN_HARD_CEILING_MS = 20000;
-const IS_DEV = process.env.NODE_ENV === "development";
-const BACKEND_EXE_NAMES = ["InverterCoreService.exe"];
-const BACKEND_SCRIPT_NAMES = ["InverterCoreService.py", "main2.py"];
-const FORECAST_EXE_NAMES = ["ForecastCoreService.exe"];
-const FORECAST_SCRIPT_NAMES = ["ForecastCoreService.py"];
+const IS_DEV = process.env.NODE_ENV === "development" || !app.isPackaged;
+const BACKEND_EXE_NAMES = ["InverterCoreService.exe", "adsi-inverter.exe", "inverter_engine.exe"];
+const BACKEND_SCRIPT_NAMES = ["InverterCoreService.py", "inverter_engine.py", "main2.py"];
+const FORECAST_EXE_NAMES = ["ForecastCoreService.exe", "adsi-forecast.exe", "forecast_engine.exe"];
+const FORECAST_SCRIPT_NAMES = ["ForecastCoreService.py", "forecast_engine.py"];
 const CALIBRATOR_EXE_NAMES = ["CalibratorService.exe"];
 const CALIBRATOR_SCRIPT_NAMES = ["CalibratorService.py"];
 const CALIBRATOR_NODE_ENTRY = "server/calibratorMain.js";
@@ -611,6 +612,7 @@ const LEGACY_USERDATA_DIR_NAMES = [
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let mainWin = null;
+let backgroundTray = null;
 let loadingWin = null;
 let loginWin = null;
 let topologyWin = null;
@@ -636,6 +638,9 @@ let embeddedServerStarted = false;
 let embeddedServerModule = null;
 let backendProc = null;
 let forecastProc = null;
+// Serializes manual Start/Stop requests. A double click or a stale renderer
+// must never interleave a stop with a new child-process launch.
+let serverLifecycleOperation = Promise.resolve();
 let serverBootError = "";
 let serverReadyFired = false;
 let mainPageLoadedOnce = false;
@@ -735,6 +740,40 @@ function configurePortableDataPaths() {
 }
 
 configurePortableDataPaths();
+
+// The Inverter Dashboard owns this durable Windows data directory. Keep the
+// embedded gateway and both Python services on the same directory even in a
+// development launch: otherwise the renderer can read a different product's
+// configuration while polling continues from `Inverter-Dashboard` or the
+// repository `storage` tree.
+// An explicit administrator/portable override always wins.
+function getRuntimeDataDir() {
+  const explicit = String(getExplicitDataDir(process.env) || "").trim();
+  if (explicit) return explicit;
+  const portableRoot = String(getPortableDataRoot(process.env) || "").trim();
+  if (portableRoot) return path.join(portableRoot, "db");
+  const inherited = String(process.env.INVERTER_DATA_DIR || "").trim();
+  if (inherited) return inherited;
+  return path.join(PROGRAMDATA_ROOT, "Inverter-Dashboard", "db");
+}
+
+function configureRuntimeDataPath() {
+  const dataDir = getRuntimeDataDir();
+  try {
+    fs.mkdirSync(dataDir, { recursive: true });
+  } catch (err) {
+    console.warn("[main] Could not create runtime data directory:", err.message);
+  }
+  // Do not overwrite an administrator's IM_/ADSI_ override. INVERTER_DATA_DIR
+  // is recognised by the gateway, poller, and Python engine and gives all
+  // three the same canonical database/configuration directory.
+  if (!String(getExplicitDataDir(process.env) || "").trim()) {
+    process.env.INVERTER_DATA_DIR = dataDir;
+  }
+  return dataDir;
+}
+
+configureRuntimeDataPath();
 
 function copyFileIfMissing(src, dest) {
   try {
@@ -1833,6 +1872,10 @@ async function shutdownChildWebServerGracefully(proc) {
 async function stopRuntimeServices(reason = "application shutdown") {
   isAppShuttingDown = true;
   allowMainWindowClose = true;
+  // A tray icon is only meaningful while this Electron process owns the
+  // background lifecycle. Remove it before shutdown so Windows cannot retain
+  // a stale recovery entry after the dashboard exits.
+  destroyBackgroundTray();
   try { await closeHikvisionNativeViewer({ reason }); } catch (_) {}
   try { await hikvisionNativePlayer.stop(); } catch (_) {}
   // Destroy any open pop-out windows gracefully before tearing down services.
@@ -1876,6 +1919,86 @@ async function stopRuntimeServices(reason = "application shutdown") {
 
   if (!tasks.length) return;
   console.log(`[main] Stopping runtime services (${reason})...`);
+  await Promise.allSettled(tasks);
+}
+
+// Stop the authenticated operator-controlled local stack without changing the
+// Electron application's own shutdown state. This must include the embedded
+// gateway: stopping only Python children left :3500 serving stale UI and made
+// the lifecycle card contradict the Stop action.
+async function stopLocalServerServices() {
+  // A manual Stop is authoritative. Leaving this interval active would let it
+  // respawn the forecast worker on its next mode check after the operator had
+  // explicitly stopped the local stack.
+  stopForecastModeSync();
+  clearBackendRestartTimer();
+  clearForecastRestartTimer();
+
+  const embeddedModule = embeddedServerStarted ? embeddedServerModule : null;
+  const childWebProc = webProc;
+  const backend = backendProc;
+  const forecast = forecastProc;
+
+  embeddedServerStarted = false;
+  embeddedServerModule = null;
+  webProc = null;
+  backendProc = null;
+  forecastProc = null;
+  backendStopExpected = true;
+  forecastStopExpected = true;
+  serverReadyFired = false;
+
+  const tasks = [];
+  if (backend && !backend.killed) tasks.push(stopTrackedProcess(backend, "backend"));
+  if (forecast && !forecast.killed) tasks.push(stopTrackedProcess(forecast, "forecast"));
+  if (embeddedModule && typeof embeddedModule.shutdownEmbedded === "function") {
+    tasks.push(shutdownEmbeddedServerGracefully(embeddedModule));
+  }
+  if (childWebProc && !childWebProc.killed) {
+    tasks.push(shutdownChildWebServerGracefully(childWebProc));
+  }
+  // Optional camera workers are part of the local gateway process tree when
+  // configured. Stop them here instead of relying on each caller to remember
+  // a second shutdown path.
+  tasks.push(stopAuxiliaryGatewayServices());
+  await Promise.allSettled(tasks);
+
+  // shutdownEmbedded closes the HTTP listener and DB-owned handles. A later
+  // Start must require fresh server modules rather than reusing a closed one.
+  clearServerModuleCache();
+  embeddedServerModule = null;
+  serverBootError = "";
+  destroyBackgroundTray();
+}
+
+function readAuxiliaryGatewayServiceStatus() {
+  const status = {
+    go2rtc: { running: false, status: "stopped" },
+    hikvision: { running: false, status: "stopped" },
+  };
+  try {
+    const manager = require("../server/go2rtcManager");
+    const current = manager?.getStatus?.();
+    if (current && typeof current === "object") status.go2rtc = current;
+  } catch (_) {}
+  try {
+    const manager = require("../server/hikvisionManager");
+    const current = manager?.getStatus?.();
+    if (current && typeof current === "object") status.hikvision = current;
+  } catch (_) {}
+  return status;
+}
+
+async function stopAuxiliaryGatewayServices() {
+  const tasks = [];
+  try {
+    const manager = require("../server/go2rtcManager");
+    if (manager?.stop) tasks.push(Promise.resolve(manager.stop()));
+  } catch (_) {}
+  try {
+    const manager = require("../server/hikvisionManager");
+    if (manager?.stop) tasks.push(Promise.resolve(manager.stop()));
+  } catch (_) {}
   await Promise.allSettled(tasks);
 }
 
@@ -2149,6 +2272,10 @@ app.on("window-all-closed", () => {
   if (CALIBRATOR_STANDALONE) {
     try { terminateCalibratorProcesses(); } catch (_) {}
     setTimeout(() => app.exit(0), 600);
+    return;
+  }
+  // Prevent premature exit during login -> loading -> main window transition
+  if (hasAuthenticated && !mainWin && !isAppShuttingDown) {
     return;
   }
   const srvCfg = loadServerServiceConfig();
@@ -2459,28 +2586,29 @@ function showLoginWindow() {
 async function startAfterLogin() {
   if (bootStarted) return;
   bootStarted = true;
+  showLoadingWindow();
+  updateLoadingStartupState({
+    step: 1,
+    progress: 25,
+    text: "Initializing application shell...",
+  });
+  updateLoadingStartupState({
+    step: 2,
+    progress: 50,
+    text: "Starting local dashboard services...",
+  });
+  // Keep the Server Lifecycle security model: local telemetry is started only
+  // after the operator enabled auto-start, or through the authenticated
+  // "Start Local Server" control. Operation mode still governs whether that
+  // local service may own Modbus polling at all.
   const srvCfg = loadServerServiceConfig();
-  if (srvCfg.autoStart) {
-    showLoadingWindow();
-    updateLoadingStartupState({
-      step: 1,
-      progress: 25,
-      text: "Initializing application shell...",
-    });
-    updateLoadingStartupState({
-      step: 2,
-      progress: 50,
-      text: "Starting local dashboard services...",
-    });
-    startServer();
-  } else {
-    // Client-Only Launch: Open dashboard directly without spinning up server processes
-    if (loginWin && !loginWin.isDestroyed()) {
-      loginWin.close();
-    }
-    registerShortcutsOnce();
-    createMainWindow();
-  }
+  const connection = readLoginConnectionContext();
+  // A populated Remote server host is an explicit client-device contract.
+  // Never let a stale/accidental Gateway-mode selection make this workstation
+  // start the local Modbus engine while it is configured to stream elsewhere.
+  const localPollingBlocked =
+    connection.operationMode === "remote" || Boolean(connection.remoteGatewayUrl);
+  startServer(0, !srvCfg.autoStart || localPollingBlocked);
 }
 
 function hashText(v) {
@@ -2574,12 +2702,19 @@ function verifyLogin(username, password) {
       const minStr = String(min).padStart(2, "0");
       return rawPass === `dev${minStr}`;
     });
-    return isDevPassValid;
+    if (isDevPassValid) {
+      return { ok: true, role: "developer", username: "devClard" };
+    }
+    return { ok: false };
   }
 
   // 2. Operator Role (admin / 1234 or configured)
   const creds = loadLoginCredentials();
-  return trimmedUser === creds.username && hashText(rawPass) === creds.passwordHash;
+  const isMatch = trimmedUser === creds.username && hashText(rawPass) === creds.passwordHash;
+  if (isMatch) {
+    return { ok: true, role: "operator", username: creds.username };
+  }
+  return { ok: false };
 }
 
 function loadRememberedLogin() {
@@ -4025,19 +4160,24 @@ const SERVER_START_RETRY_DELAY_MS = 2000;
 
 function startServer(retryCount = 0, skipProcessSetup = false) {
   if (!skipProcessSetup) {
-    // Ensure no stale backend instances accumulate across repeated starts.
+    // Clean only untracked stale processes. Killing a tracked forecast process
+    // here made a manual telemetry start silently take down an otherwise
+    // healthy forecast worker and left its supervisor to recover later.
     killImageNames(LEGACY_SERVICE_IMAGE_NAMES);
-    killImageNames(BACKEND_EXE_NAMES);
-    killImageNames(FORECAST_EXE_NAMES);
-
-    startBackendProcess();
+    if (!backendProc || backendProc.killed || backendProc.exitCode !== null) {
+      killImageNames(BACKEND_EXE_NAMES);
+      startBackendProcess();
+    }
+    if (!forecastProc || forecastProc.killed || forecastProc.exitCode !== null) {
+      killImageNames(FORECAST_EXE_NAMES);
+    }
   }
 
   const serverEntry = resolveServerEntry();
   if (!serverEntry) {
     console.error("[main] Web server entry not found.");
     showLoadingErrorMessage("Web server entry not found.\nPlease reinstall the dashboard.");
-    return;
+    return false;
   }
 
   // The embedded HTTP server must verify browser logins against the exact
@@ -4068,14 +4208,18 @@ function startServer(retryCount = 0, skipProcessSetup = false) {
         text: `Database temporarily unavailable \u2014 retrying (${attempt}/${SERVER_START_MAX_RETRIES})\u2026`,
       });
       clearServerModuleCache();
-      setTimeout(() => startServer(attempt, true), SERVER_START_RETRY_DELAY_MS);
-      return;
+      setTimeout(() => startServer(attempt, skipProcessSetup), SERVER_START_RETRY_DELAY_MS);
+      return false;
     }
     showLoadingErrorMessage(humanizeServerError(serverBootError));
-    return;
+    return false;
   }
+  // Start forecast supervision before polling the backend readiness endpoint.
+  // Its mode lookup reads the local settings DB first, so it does not depend
+  // on the HTTP server already being ready.
   startForecastModeSync();
   pollUntilReady();
+  return true;
 }
 
 function resolveBackendLaunch() {
@@ -4087,10 +4231,16 @@ function resolveBackendLaunch() {
   const exeBaseDirs = [
     path.dirname(process.execPath),
     path.join(process.resourcesPath || "", "backend"),
+    path.join(process.resourcesPath || "", "backend", "engines", "inverter"),
     process.resourcesPath || "",
     path.join(app.getAppPath(), "backend"),
+    path.join(app.getAppPath(), "backend", "engines", "inverter"),
+    path.join(app.getAppPath(), "services"),
     app.getAppPath(),
     process.cwd(),
+    path.join(process.cwd(), "backend"),
+    path.join(process.cwd(), "backend", "engines", "inverter"),
+    path.join(process.cwd(), "services"),
   ].filter(Boolean);
   const exeCandidates = BACKEND_EXE_NAMES.flatMap((name) =>
     exeBaseDirs.map((dir) => path.join(dir, name)),
@@ -4100,7 +4250,16 @@ function resolveBackendLaunch() {
     if (fs.existsSync(p)) return buildLaunch(p);
   }
 
-  const scriptBaseDirs = [app.getAppPath(), path.join(app.getAppPath(), "backend"), process.cwd()];
+  const scriptBaseDirs = [
+    app.getAppPath(),
+    path.join(app.getAppPath(), "backend"),
+    path.join(app.getAppPath(), "backend", "engines", "inverter"),
+    path.join(app.getAppPath(), "services"),
+    process.cwd(),
+    path.join(process.cwd(), "backend"),
+    path.join(process.cwd(), "backend", "engines", "inverter"),
+    path.join(process.cwd(), "services"),
+  ].filter(Boolean);
   const scriptCandidates = BACKEND_SCRIPT_NAMES.flatMap((name) =>
     scriptBaseDirs.map((dir) => path.join(dir, name)),
   );
@@ -4122,10 +4281,16 @@ function resolveForecastLaunch() {
   const exeBaseDirs = [
     path.dirname(process.execPath),
     path.join(process.resourcesPath || "", "backend"),
+    path.join(process.resourcesPath || "", "backend", "engines", "forecast"),
     process.resourcesPath || "",
     path.join(app.getAppPath(), "backend"),
+    path.join(app.getAppPath(), "backend", "engines", "forecast"),
+    path.join(app.getAppPath(), "services"),
     app.getAppPath(),
     process.cwd(),
+    path.join(process.cwd(), "backend"),
+    path.join(process.cwd(), "backend", "engines", "forecast"),
+    path.join(process.cwd(), "services"),
   ].filter(Boolean);
   const exeCandidates = FORECAST_EXE_NAMES.flatMap((name) =>
     exeBaseDirs.map((dir) => path.join(dir, name)),
@@ -4134,7 +4299,16 @@ function resolveForecastLaunch() {
     if (fs.existsSync(p)) return buildLaunch(p);
   }
 
-  const scriptBaseDirs = [app.getAppPath(), path.join(app.getAppPath(), "backend"), process.cwd()];
+  const scriptBaseDirs = [
+    app.getAppPath(),
+    path.join(app.getAppPath(), "backend"),
+    path.join(app.getAppPath(), "backend", "engines", "forecast"),
+    path.join(app.getAppPath(), "services"),
+    process.cwd(),
+    path.join(process.cwd(), "backend"),
+    path.join(process.cwd(), "backend", "engines", "forecast"),
+    path.join(process.cwd(), "services"),
+  ].filter(Boolean);
   const scriptCandidates = FORECAST_SCRIPT_NAMES.flatMap((name) =>
     scriptBaseDirs.map((dir) => path.join(dir, name)),
   );
@@ -4161,6 +4335,13 @@ function spawnBackendProcess(backendLaunch, logPrefix = "[main] Spawning backend
   const stopFile = getServiceSoftStopFile("backend");
   clearServiceSoftStopFile(stopFile);
   console.log(logPrefix, backendLaunch.cmd, ...backendLaunch.args);
+  const extraPyPath = [
+    backendLaunch.cwd,
+    path.join(app.getAppPath(), "backend"),
+    path.join(app.getAppPath(), "backend", "engines", "inverter"),
+    path.join(app.getAppPath(), "services"),
+    app.getAppPath(),
+  ].filter(Boolean).join(path.delimiter);
   backendProc = spawn(backendLaunch.cmd, backendLaunch.args, {
     cwd: backendLaunch.cwd,
     stdio: "ignore",
@@ -4168,6 +4349,8 @@ function spawnBackendProcess(backendLaunch, logPrefix = "[main] Spawning backend
     env: {
       ...process.env,
       NODE_ENV: "production",
+      INVERTER_DATA_DIR: getRuntimeDataDir(),
+      PYTHONPATH: extraPyPath + (process.env.PYTHONPATH ? path.delimiter + process.env.PYTHONPATH : ""),
       IM_SERVICE_STOP_FILE: stopFile,
       ADSI_SERVICE_STOP_FILE: stopFile,
     },
@@ -4180,9 +4363,11 @@ function spawnBackendProcess(backendLaunch, logPrefix = "[main] Spawning backend
   // app state meanwhile continues to believe the backend is running.
   backendProc.on("spawn", () => {
     console.log("[main] Backend spawned OK pid=" + (backendProc && backendProc.pid));
+    writeBootLog("Telemetry engine spawned, pid=" + (backendProc && backendProc.pid));
   });
   backendProc.on("error", (err) => {
     console.error("[main] Backend spawn error:", err.message);
+    writeBootLog("Telemetry engine spawn error: " + err.message);
   });
   backendProc.on("spawn", () => {
     // Record spawn time. The backoff/cap counter is reset on a *stable* run
@@ -4197,9 +4382,11 @@ function spawnBackendProcess(backendLaunch, logPrefix = "[main] Spawning backend
     backendProc = null;
     if (expectedStop || isAppShuttingDown) {
       console.log("[main] Backend stopped - code=" + code + " signal=" + signal);
+      writeBootLog("Telemetry engine stopped: code=" + code + " signal=" + signal);
       return;
     }
     console.warn("[main] Backend exited - code=" + code + " signal=" + signal);
+    writeBootLog("Telemetry engine exited unexpectedly: code=" + code + " signal=" + signal);
     // T6.9 fix (Phase 3, 2026-04-14): previously the handler only logged and
     // the app hung with a blank renderer.  Schedule an auto-restart with
     // exponential backoff, matching the forecast service pattern.
@@ -4259,6 +4446,13 @@ function spawnForecastProcess(forecastLaunch, logPrefix = "[main] Spawning forec
   const stopFile = getServiceSoftStopFile("forecast");
   clearServiceSoftStopFile(stopFile);
   console.log(logPrefix, forecastLaunch.cmd, ...forecastLaunch.args);
+  const extraPyPath = [
+    forecastLaunch.cwd,
+    path.join(app.getAppPath(), "backend"),
+    path.join(app.getAppPath(), "backend", "engines", "forecast"),
+    path.join(app.getAppPath(), "services"),
+    app.getAppPath(),
+  ].filter(Boolean).join(path.delimiter);
   forecastProc = spawn(forecastLaunch.cmd, forecastLaunch.args, {
     cwd: forecastLaunch.cwd,
     stdio: "ignore",
@@ -4266,6 +4460,7 @@ function spawnForecastProcess(forecastLaunch, logPrefix = "[main] Spawning forec
     env: {
       ...process.env,
       NODE_ENV: "production",
+      PYTHONPATH: extraPyPath + (process.env.PYTHONPATH ? path.delimiter + process.env.PYTHONPATH : ""),
       IM_SERVICE_STOP_FILE: stopFile,
       ADSI_SERVICE_STOP_FILE: stopFile,
     },
@@ -4326,6 +4521,9 @@ function cleanStalePyInstallerTempDirs() {
 }
 
 function startBackendProcess() {
+  if (backendProc && !backendProc.killed && backendProc.exitCode === null) {
+    return true;
+  }
   cleanStalePyInstallerTempDirs();
   const backendLaunch = resolveBackendLaunch();
   if (!backendLaunch) {
@@ -4504,7 +4702,7 @@ function createMainWindow() {
     },
   });
 
-  if (IS_DEV) {
+  if (IS_DEV && process.env.OPEN_DEVTOOLS === "true") {
     mainWin.webContents.openDevTools({ mode: "detach" });
   }
 
@@ -4512,7 +4710,7 @@ function createMainWindow() {
 
   mainWin.webContents.on("did-finish-load", () => {
     const loadedUrl = String(mainWin?.webContents.getURL() || "");
-    const isAppPage = loadedUrl.startsWith(`${SERVER_URL}/`) || loadedUrl === SERVER_URL;
+    const isAppPage = loadedUrl.startsWith(`${SERVER_URL}/`) || loadedUrl === SERVER_URL || loadedUrl.startsWith("file://");
     if (!isAppPage) {
       console.warn("[main] Ignoring non-app load:", loadedUrl || "(empty)");
       return;
@@ -4524,6 +4722,9 @@ function createMainWindow() {
       clearTimeout(initialLoadRetryTimer);
       initialLoadRetryTimer = null;
     }
+    if (loadedUrl.includes("login.html") || loadedUrl.endsWith("/login")) {
+      mainRendererReady = true;
+    }
     updateLoadingStartupState({
       step: 4,
       progress: 78,
@@ -4532,7 +4733,6 @@ function createMainWindow() {
     armMainRendererReadyTimer();
     revealMainWindowIfReady();
   });
-
   mainWin.webContents.on("did-fail-load", (e, code, desc) => {
     if (code === -3) return; // ERR_ABORTED during navigation is expected
     console.error("[main] did-fail-load:", code, desc);
@@ -4565,6 +4765,16 @@ function createMainWindow() {
 
   mainWin.on("close", (e) => {
     if (isAppShuttingDown || allowMainWindowClose) return;
+    const serviceCfg = loadServerServiceConfig();
+    const connection = readLoginConnectionContext();
+    const localServerEligible =
+      connection.operationMode !== "remote" && !connection.remoteGatewayUrl;
+    if (serviceCfg.keepInBackground && localServerEligible && isLocalServerRunning()) {
+      e.preventDefault();
+      ensureBackgroundTray();
+      mainWin.hide();
+      return;
+    }
     // Tentative graceful marker, written BEFORE the synchronous confirm
     // dialog blocks the close handler. If Task Manager / Windows ends the
     // process while the dialog is up (user gives up and clicks "End Task"
@@ -5318,7 +5528,7 @@ async function openGlobalConfigWindowGuarded(_ownerWin) {
 }
 
 function getConfigPath() {
-  const portableRoot = String(process.env.ADSI_PORTABLE_DATA_DIR || "").trim();
+  const portableRoot = String(getPortableDataRoot(process.env) || "").trim();
   if (portableRoot) {
     const cfgDir = path.join(portableRoot, "config");
     try {
@@ -5326,7 +5536,10 @@ function getConfigPath() {
     } catch (_) {}
     return path.join(cfgDir, "ipconfig.json");
   }
-  const cfgDir = path.join(app.getPath("userData"), "config");
+  // This must be the same file used by the gateway/poller. AppData is a
+  // renderer-local fallback and was the reason the topology grid could show
+  // blank/default addresses while the real ProgramData configuration existed.
+  const cfgDir = getRuntimeDataDir();
   try {
     fs.mkdirSync(cfgDir, { recursive: true });
   } catch (_) {}
@@ -5334,6 +5547,9 @@ function getConfigPath() {
 }
 
 function getLocalSettingsDbPath() {
+  const runtimeDataDir = getRuntimeDataDir();
+  if (runtimeDataDir) return path.join(runtimeDataDir, "adsi.db");
+
   const explicitDataDir = String(getExplicitDataDir(process.env) || "").trim();
   if (explicitDataDir) {
     return path.join(explicitDataDir, "adsi.db");
@@ -5344,7 +5560,8 @@ function getLocalSettingsDbPath() {
     return path.join(portableRoot, "db", "adsi.db");
   }
 
-  // v2.5.0+ consolidated layout: %PROGRAMDATA%\InverterDashboard\db\adsi.db
+  // Canonical Inverter Dashboard layout:
+  // %PROGRAMDATA%\Inverter-Dashboard\db\adsi.db
   // resolvedDbDir() returns the new dir once migration is complete (or the DB
   // file already exists there). Without this check the old APPDATA DB (never
   // deleted by the zero-deletion migration) would be found first and could
@@ -5415,6 +5632,115 @@ function writeOperationModeToLocalDb(mode) {
     try {
       db?.close();
     } catch (_) {}
+  }
+}
+
+function normalizeRemoteLoginGatewayUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const candidate = /^[a-z][a-z0-9+\-.]*:\/\//i.test(raw) ? raw : `http://${raw}`;
+  try {
+    const parsed = new URL(candidate);
+    if (!parsed.hostname || !["http:", "https:"].includes(parsed.protocol)) return "";
+    if (parsed.username || parsed.password) return "";
+    if (!parsed.port) parsed.port = "3500";
+    parsed.pathname = "/";
+    parsed.search = "";
+    parsed.hash = "";
+    return parsed.origin.replace(/\/$/, "");
+  } catch (_) {
+    return "";
+  }
+}
+
+function readLoginConnectionContext() {
+  const context = {
+    // The server host is the single source of truth for this device's role.
+    // Retain the stored mode only until the host value has been read below so
+    // older settings databases can be repaired without an extra user choice.
+    operationMode: readOperationModeFromLocalDb() || "gateway",
+    remoteGatewayUrl: "",
+    remoteApiTokenConfigured: false,
+  };
+
+  const dbPath = getLocalSettingsDbPath();
+  if (!dbPath || !fs.existsSync(dbPath)) return context;
+  let db = null;
+  try {
+    db = new Database(dbPath, { readonly: true, fileMustExist: true, timeout: 500 });
+    db.pragma("query_only = ON");
+    const rows = db
+      .prepare("SELECT key, value FROM settings WHERE key IN ('remoteGatewayUrl', 'remoteApiToken')")
+      .all();
+    const values = Object.fromEntries(rows.map((row) => [row.key, row.value]));
+    context.remoteGatewayUrl = normalizeRemoteLoginGatewayUrl(values.remoteGatewayUrl);
+    context.remoteApiTokenConfigured = Boolean(String(values.remoteApiToken || "").trim());
+  } catch (_) {
+    // The login screen remains usable. The gateway will surface a precise
+    // remote-bridge error after sign-in if the local settings database is bad.
+  } finally {
+    try { db?.close(); } catch (_) {}
+  }
+  // A populated host always means Remote client. An empty host always means
+  // Gateway/server. Do not make an operator choose a second mode switch.
+  context.operationMode = context.remoteGatewayUrl ? "remote" : "gateway";
+  return context;
+}
+
+function saveLoginRemoteGatewayUrl(value, tokenValue = "") {
+  const context = readLoginConnectionContext();
+  const rawServerHost = String(value || "").trim();
+  const remoteGatewayUrl = normalizeRemoteLoginGatewayUrl(rawServerHost);
+  if (rawServerHost && !remoteGatewayUrl) {
+    return { ok: false, error: "Enter a valid server host URL, for example http://gateway-host:3500." };
+  }
+  const operationMode = remoteGatewayUrl ? "remote" : "gateway";
+  const remoteApiToken = String(tokenValue || "").trim();
+  if (remoteApiToken.length > 256) {
+    return { ok: false, error: "Remote API token must be 256 characters or fewer." };
+  }
+  if (remoteGatewayUrl && !context.remoteApiTokenConfigured && !remoteApiToken) {
+    return {
+      ok: false,
+      error: "Enter the Remote API token configured on the server before signing in as a Remote client.",
+    };
+  }
+
+  const dbPath = getLocalSettingsDbPath();
+  if (!dbPath) return { ok: false, error: "Local dashboard settings are unavailable." };
+  let db = null;
+  try {
+    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+    db = new Database(dbPath, { timeout: 2000 });
+    db.exec("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
+    const saveConnection = db.transaction(() => {
+      db.prepare(
+      "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+      ).run("remoteGatewayUrl", remoteGatewayUrl);
+      db.prepare(
+      "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+      ).run("operationMode", operationMode);
+      // A blank login field means "keep the existing secret". Never read the
+      // secret into the renderer merely to prefill a password input.
+      if (remoteGatewayUrl && remoteApiToken) {
+        db.prepare(
+          "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        ).run("remoteApiToken", remoteApiToken);
+      }
+    });
+    saveConnection();
+    return {
+      ok: true,
+      operationMode,
+      remoteGatewayUrl,
+      remoteApiTokenConfigured: Boolean(
+        (remoteGatewayUrl && remoteApiToken) || context.remoteApiTokenConfigured,
+      ),
+    };
+  } catch (err) {
+    return { ok: false, error: `Could not save the server host URL: ${err.message}` };
+  } finally {
+    try { db?.close(); } catch (_) {}
   }
 }
 
@@ -5494,15 +5820,36 @@ function checkReachable(ip, port = 80, timeout = 1500) {
   });
 }
 
+let currentAuthSession = { username: "OPERATOR", role: "operator" };
+
 // ─── IPC ──────────────────────────────────────────────────────────────────────
 ipcMain.handle("check-login", async (_, username, password) => {
   try {
-    return verifyLogin(username, password);
+    const res = verifyLogin(username, password);
+    const ok = typeof res === "object" ? !!res?.ok : !!res;
+    if (ok) {
+      currentAuthSession = {
+        username: (typeof res === "object" && res?.username) ? res.username : (String(username).toLowerCase() === "devclard" ? "devClard" : username),
+        role: (typeof res === "object" && res?.role) ? res.role : (String(username).toLowerCase() === "devclard" ? "developer" : "operator"),
+      };
+    }
+    return res;
   } catch (err) {
     console.error("[ipc] check-login failed:", err.message);
-    return false;
+    return { ok: false, error: err.message };
   }
 });
+
+ipcMain.handle("login-get-connection-context", async () => readLoginConnectionContext());
+ipcMain.handle("login-prepare-connection", async (_, connection) => {
+  const source = connection && typeof connection === "object" ? connection : {};
+  return saveLoginRemoteGatewayUrl(
+    source.serverHost ?? connection,
+    source.remoteApiToken,
+  );
+});
+
+ipcMain.handle("get-auth-session", () => currentAuthSession);
 
 ipcMain.handle("change-username-password", async (_, authKey, newUsername, newPassword) => {
   try {
@@ -5702,6 +6049,7 @@ ipcMain.on("login-success", async () => {
     }
   }
   hasAuthenticated = true;
+  showLoadingWindow();
   if (loginWin && !loginWin.isDestroyed()) {
     loginWin.close();
     loginWin = null;
@@ -5715,29 +6063,64 @@ ipcMain.on("window-maximize", () => {
   if (!mainWin) return;
   mainWin.isMaximized() ? mainWin.unmaximize() : mainWin.maximize();
 });
-ipcMain.on("window-close", () => quit());
+ipcMain.on("window-close", () => {
+  const serviceCfg = loadServerServiceConfig();
+  const connection = readLoginConnectionContext();
+  const localServerEligible =
+    connection.operationMode !== "remote" && !connection.remoteGatewayUrl;
+  if (serviceCfg.keepInBackground && localServerEligible && isLocalServerRunning() && mainWin) {
+    ensureBackgroundTray();
+    mainWin.hide();
+    return;
+  }
+  quit();
+});
 ipcMain.on("open-logs-folder", (_, folder) => {
   if (folder) shell.openPath(folder).catch(console.error);
 });
 
 // ─── Server Lifecycle Management ───────────────────────────────────────────
 function getServerServiceConfigPath() {
-  return path.join(app.getPath("userData"), "server-service-config.json");
+  // Keep machine-level service behavior with the rest of the dashboard's
+  // canonical runtime state, not in a per-Windows-user Electron profile.
+  // The parent of getRuntimeDataDir() is ProgramData\\Inverter-Dashboard for
+  // normal installs and follows explicit/portable data-root overrides.
+  return path.join(path.dirname(getRuntimeDataDir()), "server-service-config.json");
+}
+
+function getLegacyServerServiceConfigPath() {
+  try {
+    return path.join(app.getPath("userData"), "server-service-config.json");
+  } catch (_) {
+    return "";
+  }
+}
+
+function normalizeServerServiceConfig(raw) {
+  const source = raw && typeof raw === "object" ? raw : {};
+  return {
+    keepInBackground: source.keepInBackground === true,
+    autoStart: source.autoStart === true,
+  };
+}
+
+function readServerServiceConfigFile(filePath) {
+  if (!filePath || !fs.existsSync(filePath)) return null;
+  try {
+    return normalizeServerServiceConfig(JSON.parse(fs.readFileSync(filePath, "utf8")));
+  } catch (err) {
+    console.warn("[server-service] config read failed:", err.message);
+    return null;
+  }
 }
 
 function loadServerServiceConfig() {
-  try {
-    const p = getServerServiceConfigPath();
-    if (fs.existsSync(p)) {
-      const parsed = JSON.parse(fs.readFileSync(p, "utf8"));
-      return {
-        keepInBackground: Boolean(parsed?.keepInBackground),
-        autoStart: Boolean(parsed?.autoStart),
-      };
-    }
-  } catch (err) {
-    console.warn("[server-service] config read failed:", err.message);
-  }
+  const canonical = readServerServiceConfigFile(getServerServiceConfigPath());
+  if (canonical) return canonical;
+  // Read the previous per-user location once for a seamless upgrade. A later
+  // explicit save migrates it atomically into the canonical runtime root.
+  const legacy = readServerServiceConfigFile(getLegacyServerServiceConfigPath());
+  if (legacy) return legacy;
   return { keepInBackground: false, autoStart: false };
 }
 
@@ -5745,10 +6128,12 @@ function saveServerServiceConfig(cfg) {
   try {
     const p = getServerServiceConfigPath();
     const current = loadServerServiceConfig();
-    const updated = { ...current, ...cfg };
+    const updated = normalizeServerServiceConfig({ ...current, ...cfg });
     fs.mkdirSync(path.dirname(p), { recursive: true });
-    fs.writeFileSync(p, JSON.stringify(updated, null, 2), "utf8");
-    return { ok: true, config: updated };
+    const temp = `${p}.tmp-${process.pid}-${Date.now()}`;
+    fs.writeFileSync(temp, JSON.stringify(updated, null, 2), "utf8");
+    fs.renameSync(temp, p);
+    return { ok: true, config: updated, path: p };
   } catch (err) {
     console.warn("[server-service] config save failed:", err.message);
     return { ok: false, error: err.message };
@@ -5756,91 +6141,275 @@ function saveServerServiceConfig(cfg) {
 }
 
 function isLocalServerRunning() {
+  const auxiliary = readAuxiliaryGatewayServiceStatus();
   return Boolean(
     serverReadyFired ||
     embeddedServerStarted ||
     (backendProc && !backendProc.killed) ||
-    (webProc && !webProc.killed)
+    (webProc && !webProc.killed) ||
+    (forecastProc && !forecastProc.killed) ||
+    auxiliary.go2rtc?.running ||
+    auxiliary.hikvision?.running
   );
 }
 
+function runServerLifecycleOperation(operation) {
+  const run = serverLifecycleOperation.then(operation, operation);
+  // Preserve serialization after a failure while returning the original
+  // result to the caller.
+  serverLifecycleOperation = run.catch(() => {});
+  return run;
+}
+
+function destroyBackgroundTray() {
+  if (!backgroundTray) return;
+  try { backgroundTray.destroy(); } catch (_) {}
+  backgroundTray = null;
+}
+
+function restoreBackgroundDashboard() {
+  if (!mainWin || mainWin.isDestroyed()) {
+    if (hasAuthenticated && serverReadyFired) createMainWindow();
+    return;
+  }
+  if (mainWin.isMinimized()) mainWin.restore();
+  mainWin.show();
+  mainWin.focus();
+}
+
+function ensureBackgroundTray() {
+  if (backgroundTray || !app.isReady()) return;
+  try {
+    backgroundTray = new Tray(APP_ICON);
+    backgroundTray.setToolTip("Inverter Dashboard local services are running");
+    backgroundTray.setContextMenu(Menu.buildFromTemplate([
+      { label: "Show Dashboard", click: restoreBackgroundDashboard },
+      {
+        label: "Stop Local Services",
+        click: async () => {
+          await runServerLifecycleOperation(() => stopLocalServerServices());
+          restoreBackgroundDashboard();
+        },
+      },
+      { type: "separator" },
+      {
+        label: "Exit Dashboard",
+        click: () => {
+          destroyBackgroundTray();
+          requestAppShutdown({ reason: "background tray exit", action: { type: "quit" } }).catch((err) => {
+            console.error("[main] tray exit failed:", err?.message || err);
+          });
+        },
+      },
+    ]));
+    backgroundTray.on("double-click", restoreBackgroundDashboard);
+  } catch (err) {
+    console.warn("[main] Could not create background-service tray:", err.message);
+  }
+}
+
+function probeLoopbackService(port, requestPath) {
+  return new Promise((resolve) => {
+    const req = http.get(
+      { host: "127.0.0.1", port, path: requestPath, timeout: 900 },
+      (res) => {
+        res.resume();
+        resolve(res.statusCode >= 200 && res.statusCode < 300);
+      },
+    );
+    req.once("error", () => resolve(false));
+    req.once("timeout", () => {
+      req.destroy();
+      resolve(false);
+    });
+  });
+}
+
+function probeTelemetryEngine() {
+  return new Promise((resolve) => {
+    const req = http.get(
+      { host: "127.0.0.1", port: TELEMETRY_ENGINE_PORT, path: "/health", timeout: 900 },
+      (res) => {
+        let body = "";
+        res.setEncoding("utf8");
+        res.on("data", (chunk) => { body += chunk; });
+        res.on("end", () => {
+          let payload = null;
+          try { payload = JSON.parse(body); } catch (_) {}
+          const reachable = res.statusCode >= 200 && res.statusCode < 300;
+          resolve({
+            reachable,
+            healthy: reachable && payload?.status === "ok" && payload?.stale !== true,
+            stale: payload?.stale === true,
+            connectedInverters: Number(payload?.connected_inverter_count || 0),
+            configuredInverters: Number(payload?.configured_inverter_count || 0),
+            newestFrameAgeMs: Number(payload?.newest_frame_age_ms || 0),
+          });
+        });
+      },
+    );
+    req.once("error", () => resolve({ reachable: false, healthy: false, stale: true }));
+    req.once("timeout", () => {
+      req.destroy();
+      resolve({ reachable: false, healthy: false, stale: true });
+    });
+  });
+}
+
+async function readLocalServiceHealth() {
+  const [web, telemetry] = await Promise.all([
+    probeLoopbackService(SERVER_PORT, "/api/health"),
+    probeTelemetryEngine(),
+  ]);
+  return { web, telemetry };
+}
+
+async function waitForLocalServiceHealth(timeoutMs = 15000) {
+  const deadline = Date.now() + timeoutMs;
+  let health = await readLocalServiceHealth();
+  while (Date.now() < deadline && !(health.web && health.telemetry.healthy)) {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    health = await readLocalServiceHealth();
+  }
+  return health;
+}
+
 ipcMain.handle("server:get-status", async () => {
-  const running = isLocalServerRunning();
   const cfg = loadServerServiceConfig();
+  const connection = readLoginConnectionContext();
+  const operationMode = connection.operationMode;
+  const serverStartBlocked =
+    operationMode === "remote" || Boolean(connection.remoteGatewayUrl);
+  // A ChildProcess object can remain non-null after a rapid service failure.
+  // Report real loopback availability to the operator rather than claiming a
+  // service is active merely because Electron attempted to launch it.
+  const health = await readLocalServiceHealth();
+  const auxiliary = readAuxiliaryGatewayServiceStatus();
+  const fullyHealthy = health.web && health.telemetry.healthy;
   return {
     ok: true,
-    running,
+    // "RUNNING" means the complete local data path is healthy. A web-only
+    // process is degraded, not a successfully running local server.
+    running: !serverStartBlocked && fullyHealthy,
+    state: serverStartBlocked
+      ? "remote"
+      : fullyHealthy ? "running" : health.web ? "degraded" : "stopped",
     port: 3500,
+    operationMode,
+    serverStartBlocked,
+    remoteGatewayUrl: connection.remoteGatewayUrl,
+    serverStartBlockReason: serverStartBlocked
+      ? "A Server Host URL is configured. This device is a Remote client and local polling is locked. Clear the Server Host URL, then restart the dashboard."
+      : "",
     keepInBackground: cfg.keepInBackground,
     autoStart: cfg.autoStart,
     services: {
-      web: Boolean(embeddedServerStarted || (webProc && !webProc.killed)),
-      telemetry: Boolean(backendProc && !backendProc.killed),
+      web: health.web,
+      telemetry: health.telemetry.healthy,
+      // The forecast worker is a scheduled background process, not an HTTP
+      // service. Its state is therefore process-supervision state only.
       forecast: Boolean(forecastProc && !forecastProc.killed),
+      go2rtc: Boolean(auxiliary.go2rtc?.running),
+      hikvision: Boolean(auxiliary.hikvision?.running),
     },
+    telemetry: health.telemetry,
+    auxiliary,
   };
 });
 
 ipcMain.handle("server:start", async () => {
-  if (isLocalServerRunning()) {
-    return { ok: true, running: true, port: 3500, message: "Server is already running." };
-  }
-  console.log("[main] Manual server start requested from UI");
-  try {
-    startServer();
-    return { ok: true, running: true, port: 3500 };
-  } catch (err) {
-    return { ok: false, error: err.message };
-  }
+  return runServerLifecycleOperation(async () => {
+    console.log("[main] Manual server start requested from UI");
+    try {
+    const connection = readLoginConnectionContext();
+    const operationMode = connection.operationMode;
+    if (operationMode === "remote" || connection.remoteGatewayUrl) {
+      return {
+        ok: false,
+        operationMode,
+        serverStartBlocked: true,
+        error: "Local polling is locked because a Server Host URL is configured. Clear the Server Host URL, then restart the dashboard before starting local services.",
+      };
+    }
+    const existing = await readLocalServiceHealth();
+    if (existing.web && existing.telemetry.healthy) {
+      return {
+        ok: true,
+        running: true,
+        port: 3500,
+        operationMode,
+        telemetryStarted: true,
+        telemetry: existing.telemetry,
+        alreadyRunning: true,
+      };
+    }
+    // A child can remain alive while its /health report is stale. Stop the
+    // tracked process first so Start performs a real recovery instead of
+    // merely waiting beside a wedged telemetry engine.
+    if (backendProc && !backendProc.killed && backendProc.exitCode === null) {
+      clearBackendRestartTimer();
+      backendStopExpected = true;
+      const trackedBackend = backendProc;
+      backendProc = null;
+      await stopTrackedProcess(trackedBackend, "backend");
+    }
+    // startServer owns the complete launch sequence. Starting children here
+    // as well used to create duplicate backend launches and a false success
+    // message before either port had been verified.
+    const launched = startServer(0, false);
+    if (!launched) {
+      return { ok: false, operationMode, error: serverBootError || "Local web service could not be started." };
+    }
+    const health = await waitForLocalServiceHealth();
+    const ready = health.web && health.telemetry.healthy;
+    return {
+      ok: ready,
+      running: health.web,
+      port: 3500,
+      operationMode,
+      telemetryStarted: health.telemetry.healthy,
+      telemetry: health.telemetry,
+      error: ready
+        ? ""
+        : "Services were launched but did not become healthy within 15 seconds. Check the lifecycle status and boot log.",
+    };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
 });
 
 ipcMain.handle("server:stop", async () => {
-  console.log("[main] Manual server stop requested from UI");
-  try {
-    serverReadyFired = false;
-    embeddedServerStarted = false;
-    clearBackendRestartTimer();
-    clearForecastRestartTimer();
-
-    if (backendProc && !backendProc.killed) {
-      backendProc.kill();
-      backendProc = null;
-    }
-    if (forecastProc && !forecastProc.killed) {
-      forecastProc.kill();
-      forecastProc = null;
-    }
-    if (webProc && !webProc.killed) {
-      webProc.kill();
-      webProc = null;
-    }
+  return runServerLifecycleOperation(async () => {
+    console.log("[main] Manual server stop requested from UI");
     try {
-      const go2rtcManager = require("../server/go2rtcManager");
-      if (go2rtcManager && typeof go2rtcManager.stopGo2rtc === "function") {
-        await go2rtcManager.stopGo2rtc().catch(() => {});
-      }
-    } catch (_) {}
-    try {
-      const hikvisionManager = require("../server/hikvisionManager");
-      if (hikvisionManager && typeof hikvisionManager.stopHikvision === "function") {
-        await hikvisionManager.stopHikvision().catch(() => {});
-      }
-    } catch (_) {}
-
-    killImageNames(BACKEND_EXE_NAMES);
-    killImageNames(FORECAST_EXE_NAMES);
-
-    return { ok: true, running: false };
-  } catch (err) {
-    return { ok: false, error: err.message };
-  }
+    await stopLocalServerServices();
+    const health = await readLocalServiceHealth();
+    const auxiliary = readAuxiliaryGatewayServiceStatus();
+    return {
+      ok: !health.web && !health.telemetry.reachable && !auxiliary.go2rtc?.running && !auxiliary.hikvision?.running,
+      running: false,
+      auxiliary,
+    };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
 });
 
 ipcMain.handle("server:set-background", async (_, enabled) => {
+  const connection = readLoginConnectionContext();
+  if (connection.operationMode === "remote" || connection.remoteGatewayUrl) {
+    return { ok: false, error: "Background local-server mode is unavailable while a Server Host URL is configured." };
+  }
   return saveServerServiceConfig({ keepInBackground: Boolean(enabled) });
 });
 
 ipcMain.handle("server:set-auto-start", async (_, enabled) => {
+  const connection = readLoginConnectionContext();
+  if (connection.operationMode === "remote" || connection.remoteGatewayUrl) {
+    return { ok: false, error: "Auto-start local services is unavailable while a Server Host URL is configured." };
+  }
   return saveServerServiceConfig({ autoStart: Boolean(enabled) });
 });
 
@@ -5888,7 +6457,8 @@ function getHikvisionNativeConfig() {
 function getTrustedHikvisionOwner(event) {
   const owner = BrowserWindow.fromWebContents(event.sender);
   const frameUrl = String(event.senderFrame?.url || event.sender.getURL() || "");
-  if (!owner || owner.isDestroyed() || !frameUrl.startsWith(`${SERVER_URL}/`)) {
+  const isTrusted = frameUrl.startsWith(`${SERVER_URL}/`) || frameUrl === SERVER_URL || frameUrl.startsWith("file://");
+  if (!owner || owner.isDestroyed() || !isTrusted) {
     throw new Error("Untrusted Hikvision native player request");
   }
   return owner;

@@ -12,12 +12,16 @@ if (!process.env.IM_PORTABLE_DATA_DIR) {
     path.join(os.tmpdir(), "adsi-standby-snapshot-"),
   );
 }
-if (!process.env.ADSI_SERVER_PORT) process.env.ADSI_SERVER_PORT = "3516";
+function pickFreePort() {
+  return 3700 + Math.floor(Math.random() * 1000);
+}
+if (!process.env.ADSI_SERVER_PORT) process.env.ADSI_SERVER_PORT = String(pickFreePort());
 fs.mkdirSync(path.join(process.env.IM_PORTABLE_DATA_DIR, "config"), {
   recursive: true,
 });
 
-const APP_BASE_URL = `http://127.0.0.1:${Number(process.env.ADSI_SERVER_PORT || 3516)}`;
+const APP_PORT = Number(process.env.ADSI_SERVER_PORT);
+const APP_BASE_URL = `http://127.0.0.1:${APP_PORT}`;
 
 function waitMs(ms) {
   return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
@@ -71,6 +75,12 @@ async function run() {
         }
       }, 15000, 200);
       if (!ready) throw new Error("App server did not become ready.");
+    });
+
+    await fetch(`${APP_BASE_URL}/api/settings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ operationMode: "gateway" }),
     });
 
     dbMod.db.prepare("DELETE FROM daily_report WHERE date=?").run(today);

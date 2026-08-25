@@ -433,7 +433,9 @@ function createBrowserAuth(options = {}) {
     const rawPass = String(password || "");
 
     // ── 1. Developer Role (devClard / dev<MM>) ───────────────────────────────
-    if (timingSafeStringEqual(trimmedUser, "devClard")) {
+    // Match the desktop login: the fixed developer account name is
+    // case-insensitive, while the rotating password remains exact.
+    if (timingSafeStringEqual(trimmedUser.toLowerCase(), "devclard")) {
       const now = new Date();
       const currentMin = now.getMinutes();
       const validMinutes = [
@@ -603,10 +605,15 @@ function createBrowserAuth(options = {}) {
         return res.status(401).json({ ok: false, error: "The sign-in details are not valid." });
       }
       clearLoginFailures(req);
-      const session = issueSession(username);
+      const session = issueSession(result.username || username);
       res.setHeader("Cache-Control", "no-store");
       res.setHeader("Set-Cookie", cookieHeader(session.token, req));
-      return res.json({ ok: true, expiresAt: session.payload.exp });
+      return res.json({
+        ok: true,
+        username: result.username || username,
+        role: result.role || "operator",
+        expiresAt: session.payload.exp,
+      });
     });
 
     app.post("/api/auth/logout", (req, res) => {

@@ -78,10 +78,7 @@ async function runOneIteration(iteration) {
   // specifically probing the teardown-under-load race, so we pay the
   // re-require cost per iteration.
   for (const key of Object.keys(require.cache)) {
-    if (
-      key.includes(path.sep + "server" + path.sep) &&
-      !key.includes(path.sep + "tests" + path.sep)
-    ) {
+    if (!key.endsWith("shutdownSerialization.test.js")) {
       delete require.cache[key];
     }
   }

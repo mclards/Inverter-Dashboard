@@ -16,8 +16,33 @@ function getOrCreateDeviceId() {
   return id;
 }
 
+function getDeviceProfileKey(name) {
+  return `inverter_2_device_profile:${getOrCreateDeviceId()}:${name}`;
+}
+
+function getDeviceOperatorName() {
+  const profileKey = getDeviceProfileKey("operator_name");
+  let name = String(localStorage.getItem(profileKey) || "").trim();
+  // Migrate the legacy per-browser preference once, then bind it to this
+  // dashboard's immutable local device ID.
+  if (!name) {
+    name = String(localStorage.getItem("inverter_2_operator_name") || "").trim();
+    if (name) localStorage.setItem(profileKey, name.slice(0, 80));
+  }
+  return name.slice(0, 80);
+}
+
+function setDeviceOperatorName(value) {
+  const name = String(value || "").trim().slice(0, 80);
+  if (!name) return "";
+  localStorage.setItem(getDeviceProfileKey("operator_name"), name);
+  // Downgrade compatibility only; application reads use the device key first.
+  localStorage.setItem("inverter_2_operator_name", name);
+  return name;
+}
+
 function getOperatorName() {
-  return localStorage.getItem("inverter_2_operator_name") || State.settings?.operatorName || "OPERATOR";
+  return getDeviceOperatorName() || localStorage.getItem("adsi_operator_name") || State.settings?.operatorName || "OPERATOR";
 }
 
 function getDeviceName() {
@@ -375,7 +400,10 @@ const CHAT_THREAD_LIMIT = 20;
 const CHAT_DISMISS_MS = 30000;
 const SETTINGS_SECTION_IDS = [
   "plantConfigSection",
+  "serverControlSection",
+  "inverterTopologySection",
   "opsCompactSection",
+  "forecastSection",
   "connectivitySection",
   "licenseSection",
   "appUpdateSection",
@@ -392,9 +420,21 @@ const SETTINGS_SECTION_META = {
     title: "Plant Configuration",
     copy: "Review site identity, fleet sizing, and the core values used across the dashboard.",
   },
+  serverControlSection: {
+    title: "Server Lifecycle & Services",
+    copy: "Control local server processes, check daemon status, and configure background execution mode.",
+  },
+  inverterTopologySection: {
+    title: "Inverter Topology & IP Configuration",
+    copy: "Review the fixed INGECON SUN PMax profile, configure Modbus TCP addresses and active nodes, and test network reachability.",
+  },
   opsCompactSection: {
     title: "Data & Polling",
     copy: "Review operational endpoints, export storage, and polling timing from one controlled section.",
+  },
+  forecastSection: {
+    title: "Forecast Configuration",
+    copy: "Configure the authoritative forecast provider, Solcast access, credentials, and model tuning. Preview remains on the Forecast page.",
   },
   connectivitySection: {
     title: "Connectivity & Gateway Link",
@@ -4426,15 +4466,16 @@ function applyRemoteGatewayInputNormalization() {
 }
 
 function getSelectedOperationModeClient() {
-  return "gateway";
+  const host = String($("setRemoteGatewayUrl")?.value ?? State.settings?.remoteGatewayUrl ?? "").trim();
+  return host ? "remote" : "gateway";
 }
 
 function getActiveOperationModeClient() {
-  return "gateway";
+  return String(State.settings?.remoteGatewayUrl || "").trim() ? "remote" : "gateway";
 }
 
 function isClientModeActive() {
-  return false; // In 2.0, all clients connect directly to the server API with zero feature lockouts
+  return getActiveOperationModeClient() === "remote";
 }
 
 function normalizeRemoteHealthClient(raw = null) {
@@ -4534,10 +4575,24 @@ function syncDayAheadGeneratorAvailability() {
   }
 }
 
+async function syncAuthSession() {
+  if (typeof window !== "undefined" && window.electronAPI?.getAuthSession) {
+    try {
+      const sess = await window.electronAPI.getAuthSession();
+      if (sess && sess.role) {
+        localStorage.setItem("adsi_operator_role", sess.role);
+        localStorage.setItem("adsi_operator_name", sess.username);
+        if (!getDeviceOperatorName()) setDeviceOperatorName(sess.username);
+      }
+    } catch (_) {}
+  }
+  applyRolePermissions();
+}
+
 function isDevClardUser() {
   const role = String(localStorage.getItem("adsi_operator_role") || "").trim().toLowerCase();
   const name = String(localStorage.getItem("adsi_operator_name") || "").trim().toLowerCase();
-  return role === "admin" || role === "devclard" || name === "devclard";
+  return role === "developer" || role === "devclard" || name === "devclard";
 }
 
 function applyRolePermissions() {
@@ -4552,6 +4607,22 @@ function applyRolePermissions() {
   if (!isDev && secEl && secEl.getAttribute("data-role-min") === "devClard") {
     setActiveSettingsSection("plantConfigSection", false);
   }
+
+  // A previously saved developer-only tab must never leave an operator on an
+  // empty Connectivity card after a later sign-in. Reset to the first shared
+  // tab whenever the persisted selection is no longer permitted.
+  if (!isDev) {
+    const connectivity = $("connectivitySection");
+    const activeRestrictedTab = connectivity?.querySelector(
+      '.card-tab.active[data-role-min="devClard"]',
+    );
+    if (activeRestrictedTab) {
+      setActiveCardTab("connectivitySection", "access", {
+        defaultKey: "access",
+        storageKey: "adsi_connectivity_active_tab",
+      });
+    }
+  }
 }
 
 // ── Server Lifecycle Controller ───────────────────────────────────────────────
@@ -4562,6 +4633,8 @@ async function refreshServerLifecycleStatus() {
   const fcastVal = $("srvStatusForecast");
   const keepChk = $("chkKeepServerBackground");
   const autoChk = $("chkAutoStartServer");
+  const startBtn = $("btnStartLocalServer");
+  const stopBtn = $("btnStopLocalServer");
 
   if (!badge) return;
 
@@ -4569,16 +4642,47 @@ async function refreshServerLifecycleStatus() {
     try {
       const res = await window.electronAPI.getServerStatus();
       if (res?.ok) {
+        const remoteMode = res.operationMode === "remote";
+        const localPollingLocked = Boolean(res.serverStartBlocked);
+        const telemetry = res.telemetry || {};
         if (res.running) {
           badge.textContent = "● RUNNING (Port 3500)";
           badge.style.color = "var(--green, #10b981)";
+          if (startBtn) startBtn.disabled = true;
+          if (stopBtn) stopBtn.disabled = false;
         } else {
           badge.textContent = "○ STOPPED (Client Mode)";
           badge.style.color = "var(--text2, #64748b)";
+          if (startBtn) startBtn.disabled = false;
+          if (stopBtn) stopBtn.disabled = true;
+        }
+        if (!res.running) {
+          badge.textContent = remoteMode
+            ? "REMOTE MODE (local services disabled)"
+            : res.state === "degraded"
+              ? "DEGRADED (gateway online; telemetry offline)"
+              : "STOPPED (Gateway services offline)";
+          if (remoteMode && startBtn) startBtn.disabled = true;
+          if (res.state === "degraded" && stopBtn) stopBtn.disabled = false;
+        }
+        if (localPollingLocked) {
+          badge.textContent = "REMOTE CLIENT (local polling locked)";
+          badge.style.color = "var(--warn, #f59e0b)";
+          if (startBtn) startBtn.disabled = true;
+          if (stopBtn) stopBtn.disabled = true;
+          if (keepChk) keepChk.disabled = true;
+          if (autoChk) autoChk.disabled = true;
+          const msg = $("srvActionMsg");
+          if (msg) msg.textContent = res.serverStartBlockReason || "Clear the Server Host URL, then restart to enable local polling.";
+        } else {
+          if (keepChk) keepChk.disabled = false;
+          if (autoChk) autoChk.disabled = false;
         }
         if (webVal) webVal.textContent = res.services?.web ? "Active (Port 3500)" : "Offline";
-        if (telemVal) telemVal.textContent = res.services?.telemetry ? "Active (Port 9100)" : "Offline";
-        if (fcastVal) fcastVal.textContent = res.services?.forecast ? "Active (Port 9200)" : "Offline";
+        if (telemVal) telemVal.textContent = res.services?.telemetry
+          ? `Healthy (${telemetry.connectedInverters || 0}/${telemetry.configuredInverters || 0} inverters; ${Math.max(0, Math.round(Number(telemetry.newestFrameAgeMs || 0)))} ms)`
+          : telemetry.reachable ? "Degraded (telemetry stale)" : "Offline";
+        if (fcastVal) fcastVal.textContent = res.services?.forecast ? "Active (background worker)" : "Offline";
         if (keepChk) keepChk.checked = Boolean(res.keepInBackground);
         if (autoChk) autoChk.checked = Boolean(res.autoStart);
         return;
@@ -4591,15 +4695,21 @@ async function refreshServerLifecycleStatus() {
     if (res && res.ok) {
       badge.textContent = "● RUNNING (Web Server)";
       badge.style.color = "var(--green, #10b981)";
-      if (webVal) webVal.textContent = "Active";
+      if (webVal) webVal.textContent = "Active (Port 3500)";
+      if (startBtn) startBtn.disabled = true;
+      if (stopBtn) stopBtn.disabled = false;
     } else {
-      badge.textContent = "○ STOPPED";
+      badge.textContent = "○ STOPPED (Gateway services offline)";
       badge.style.color = "var(--text2, #64748b)";
       if (webVal) webVal.textContent = "Offline";
+      if (startBtn) startBtn.disabled = false;
+      if (stopBtn) stopBtn.disabled = true;
     }
   } catch (_) {
-    badge.textContent = "○ STOPPED";
+    badge.textContent = "○ STOPPED (Gateway services offline)";
     badge.style.color = "var(--text2, #64748b)";
+    if (startBtn) startBtn.disabled = false;
+    if (stopBtn) stopBtn.disabled = true;
   }
 }
 
@@ -4610,8 +4720,9 @@ async function startLocalServerFromUi() {
     try {
       const res = await window.electronAPI.startServer();
       if (res?.ok) {
-        if (msg) msg.textContent = "Local server started successfully.";
-        setTimeout(refreshServerLifecycleStatus, 1500);
+        const telemetry = res.telemetry || {};
+        if (msg) msg.textContent = `Local services healthy: ${telemetry.connectedInverters || 0}/${telemetry.configuredInverters || 0} inverter(s) connected.`;
+        refreshServerLifecycleStatus();
         return;
       }
       if (msg) msg.textContent = res?.error || "Failed to start server.";
@@ -4649,18 +4760,58 @@ function initServerLifecycleController() {
   $("btnRefreshServerStatus")?.addEventListener("click", refreshServerLifecycleStatus);
   $("chkKeepServerBackground")?.addEventListener("change", async (e) => {
     if (window.electronAPI?.setServerBackground) {
-      await window.electronAPI.setServerBackground(e.target.checked);
+      const result = await window.electronAPI.setServerBackground(e.target.checked);
+      if (!result?.ok) {
+        await refreshServerLifecycleStatus();
+        const msg = $("srvActionMsg");
+        if (msg) msg.textContent = result?.error || "Could not save the background-service setting.";
+      }
     }
   });
   $("chkAutoStartServer")?.addEventListener("change", async (e) => {
     if (window.electronAPI?.setServerAutoStart) {
-      await window.electronAPI.setServerAutoStart(e.target.checked);
+      const result = await window.electronAPI.setServerAutoStart(e.target.checked);
+      if (!result?.ok) {
+        await refreshServerLifecycleStatus();
+        const msg = $("srvActionMsg");
+        if (msg) msg.textContent = result?.error || "Could not save the auto-start setting.";
+      }
     }
   });
 }
 
 // ── Inverter Topology & IP Configuration Controller ───────────────────────────
 let _inverterTopologyData = null;
+
+// Persisted ipconfig uses scalar maps (`inverters["1"] = "192.168…"` and
+// `units["1"] = [1,2,…]`). An earlier topology screen expected a different
+// `{ ip, slaves }` object per inverter, so it rendered every real address as
+// blank and then overwrote the file with an incompatible shape on save.
+function normalizeInverterTopologyConfig(rawCfg, inverterCount) {
+  const raw = rawCfg && typeof rawCfg === "object" ? rawCfg : {};
+  const count = Math.max(1, Number(inverterCount || State.settings?.inverterCount || 27));
+  const cfg = { inverters: {}, poll_interval: {}, units: {}, losses: {} };
+
+  for (let i = 1; i <= count; i += 1) {
+    const key = String(i);
+    const rawInv = raw?.inverters?.[key] ?? raw?.inverters?.[i];
+    const ip = typeof rawInv === "object" && rawInv !== null
+      ? rawInv.ip
+      : rawInv;
+    const rawUnits = raw?.units?.[key] ?? raw?.units?.[i] ?? rawInv?.slaves;
+    const units = Array.isArray(rawUnits)
+      ? rawUnits.map((node) => Number(node)).filter((node) => node >= 1 && node <= 4)
+      : [1, 2, 3, 4];
+    const poll = Number(raw?.poll_interval?.[key] ?? raw?.poll_interval?.[i]);
+    const loss = Number(raw?.losses?.[key] ?? raw?.losses?.[i]);
+
+    cfg.inverters[key] = String(ip || "").trim();
+    cfg.units[key] = [...new Set(units)];
+    cfg.poll_interval[key] = Number.isFinite(poll) && poll >= 0.01 ? poll : 0.05;
+    cfg.losses[key] = Number.isFinite(loss) && loss >= 0 && loss <= 100 ? loss : 2.5;
+  }
+  return cfg;
+}
 
 async function loadInverterTopology() {
   const tbody = $("inverterIpTableBody");
@@ -4675,7 +4826,8 @@ async function loadInverterTopology() {
       if (res.ok) cfg = await res.json();
     }
 
-    _inverterTopologyData = cfg || { inverters: {} };
+    _inverterTopologyData = normalizeInverterTopologyConfig(cfg);
+    State.ipConfig = _inverterTopologyData;
     renderInverterTopologyTable(_inverterTopologyData);
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="5" class="empty-state" style="color:var(--warn);">Failed to load IP configuration: ${escapeHtml(err.message)}</td></tr>`;
@@ -4691,10 +4843,13 @@ function renderInverterTopologyTable(cfg) {
 
   for (let i = 1; i <= count; i++) {
     const invKey = String(i);
-    const invData = cfg?.inverters?.[invKey] || {};
-    const ip = invData.ip || "";
-    const activeNodes = Array.isArray(invData.slaves) ? invData.slaves : [1, 2, 3, 4];
-    const isOnline = Boolean(invData.online);
+    const ip = String(cfg?.inverters?.[invKey] ?? cfg?.inverters?.[i] ?? "").trim();
+    const activeNodesRaw = cfg?.units?.[invKey] ?? cfg?.units?.[i];
+    const activeNodes = Array.isArray(activeNodesRaw) ? activeNodesRaw : [1, 2, 3, 4];
+    const isOnline = Boolean(
+      State.liveData?.[`${i}_1`] || State.liveData?.[`${i}_2`] ||
+      State.liveData?.[`${i}_3`] || State.liveData?.[`${i}_4`],
+    );
 
     html += `
       <tr data-inverter-index="${i}" style="border-bottom: 1px solid var(--border);">
@@ -4703,10 +4858,10 @@ function renderInverterTopologyTable(cfg) {
           <input type="text" class="inp topol-ip-input" data-inv="${i}" value="${escapeHtml(ip)}" placeholder="e.g. 192.168.1.${100 + i}" style="font-family: var(--font-mono); height: 28px; font-size: 11.5px;" />
         </td>
         <td style="padding: 6px 10px; text-align: center;">
-          <label style="margin-right: 6px; font-size: 11px;"><input type="checkbox" class="topol-slave-cb" data-inv="${i}" data-slave="1" ${activeNodes.includes(1) ? "checked" : ""} /> U1</label>
-          <label style="margin-right: 6px; font-size: 11px;"><input type="checkbox" class="topol-slave-cb" data-inv="${i}" data-slave="2" ${activeNodes.includes(2) ? "checked" : ""} /> U2</label>
-          <label style="margin-right: 6px; font-size: 11px;"><input type="checkbox" class="topol-slave-cb" data-inv="${i}" data-slave="3" ${activeNodes.includes(3) ? "checked" : ""} /> U3</label>
-          <label style="font-size: 11px;"><input type="checkbox" class="topol-slave-cb" data-inv="${i}" data-slave="4" ${activeNodes.includes(4) ? "checked" : ""} /> U4</label>
+          <label style="margin-right: 6px; font-size: 11px;"><input type="checkbox" class="topol-slave-cb" data-inv="${i}" data-slave="1" ${activeNodes.includes(1) ? "checked" : ""} /> N1</label>
+          <label style="margin-right: 6px; font-size: 11px;"><input type="checkbox" class="topol-slave-cb" data-inv="${i}" data-slave="2" ${activeNodes.includes(2) ? "checked" : ""} /> N2</label>
+          <label style="margin-right: 6px; font-size: 11px;"><input type="checkbox" class="topol-slave-cb" data-inv="${i}" data-slave="3" ${activeNodes.includes(3) ? "checked" : ""} /> N3</label>
+          <label style="font-size: 11px;"><input type="checkbox" class="topol-slave-cb" data-inv="${i}" data-slave="4" ${activeNodes.includes(4) ? "checked" : ""} /> N4</label>
         </td>
         <td style="padding: 6px 10px; text-align: center;">
           <span class="inv-reach-pill ${isOnline ? "ok" : "muted"}" id="topolReachInv_${i}" style="font-size: 10px; padding: 2px 6px; border-radius: 4px; font-family: var(--font-mono); background: ${isOnline ? "rgba(16,185,129,0.15)" : "rgba(100,116,139,0.1)"}; color: ${isOnline ? "var(--green)" : "var(--text2)"};">${isOnline ? "ONLINE" : (ip ? "OFFLINE" : "UNSET")}</span>
@@ -4745,7 +4900,7 @@ async function saveInverterTopology() {
   if (!tbody) return;
 
   const count = Number(State.settings?.inverterCount || 27);
-  const inverters = {};
+  const payload = normalizeInverterTopologyConfig(_inverterTopologyData, count);
 
   for (let i = 1; i <= count; i++) {
     const ipInp = tbody.querySelector(`.topol-ip-input[data-inv="${i}"]`);
@@ -4755,26 +4910,19 @@ async function saveInverterTopology() {
       slaves.push(Number(cb.dataset.slave));
     });
 
-    inverters[String(i)] = {
-      ip,
-      slaves: slaves.length ? slaves : [1, 2, 3, 4],
-    };
+    payload.inverters[String(i)] = ip;
+    // An empty selection is meaningful: do not silently turn a deliberately
+    // disabled inverter back into four actively-polled nodes.
+    payload.units[String(i)] = slaves;
   }
-
-  const model = $("topolInverterModel")?.value || "INGECON_SUN_3PLAY";
-  const port = Number($("topolModbusPort")?.value || 502);
-
-  const payload = {
-    model,
-    port,
-    inverters,
-  };
 
   if (msg) msg.textContent = "Saving Inverter Topology...";
 
   try {
     if (window.electronAPI?.saveConfig) {
-      await window.electronAPI.saveConfig(payload);
+      const result = await window.electronAPI.saveConfig(payload);
+      if (result?.success === false) throw new Error(result.error || "Configuration was not saved.");
+      _inverterTopologyData = normalizeInverterTopologyConfig(result?.config || payload, count);
     } else {
       const res = await fetch("/api/ip-config", {
         method: "POST",
@@ -4782,7 +4930,10 @@ async function saveInverterTopology() {
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error("Server returned HTTP " + res.status);
+      _inverterTopologyData = normalizeInverterTopologyConfig(await res.json(), count);
     }
+    State.ipConfig = _inverterTopologyData;
+    renderInverterTopologyTable(_inverterTopologyData);
     if (msg) {
       msg.textContent = "Inverter Topology saved successfully.";
       msg.style.color = "var(--green, #10b981)";
@@ -5587,6 +5738,19 @@ function setActiveSettingsSection(sectionId, persist = true) {
     }
   }
 
+  if (activeId === "forecastSection") {
+    try {
+      syncForecastProviderUi();
+      updateForecastSidebarSummary();
+      const mode = String(
+        $("setSolcastAccessMode")?.value || State.settings.solcastAccessMode || "toolkit",
+      ).trim().toLowerCase();
+      if (mode === "toolkit") loadSolcastPreview({ silent: true }).catch(() => {});
+    } catch (err) {
+      console.warn("[forecast-settings] refresh failed:", err?.message || err);
+    }
+  }
+
   // v2.11.x — Field Calibration moved to its own top-nav page (page === "field-calibration");
   // init now triggered from switchPage(), not from this settings sidebar handler.
 }
@@ -5646,9 +5810,10 @@ function initSettingsSectionNav() {
     defaultKey: "access",
   });
   bindConnectivityTabImmediateRefresh();
+  normalizeForecastSettingsLayout();
   initCardTabs("forecastSection", {
     storageKey: "adsi_forecast_active_tab",
-    defaultKey: "provider",
+    defaultKey: "source",
   });
   initCardTabs("cloudBackupSection", {
     storageKey: "adsi_cloud_backup_active_tab",
@@ -5657,6 +5822,14 @@ function initSettingsSectionNav() {
   initCardTabs("localBackupSection", {
     storageKey: "adsi_local_backup_active_tab",
     defaultKey: "health",
+  });
+  initCardTabs("serialNumberSection", {
+    storageKey: "adsi_snb_active_tab",
+    defaultKey: "single",
+  });
+  initCardTabs("stopReasonsSection", {
+    storageKey: "adsi_srn_active_tab",
+    defaultKey: "histogram",
   });
 
   initServerLifecycleController();
@@ -5671,10 +5844,27 @@ function initSettingsSectionNav() {
 }
 
 function mountForecastSection() {
-  const host = $("forecastPageSections");
   const section = $("forecastSection");
-  if (!host || !section || section.parentElement === host) return;
-  host.appendChild(section);
+  const settingsHost = document.querySelector("#page-settings .settings-sections");
+  if (!section || !settingsHost) return;
+
+  // Only configuration fields belong in Settings. Forecast preview and refresh
+  // remain on the Forecast page; connection verification stays with Settings.
+  const forecastOperations = $("forecastOperationsSection");
+  const operationsInfo = forecastOperations?.querySelector(".sinfo");
+  const previewHost = $("forecastPreviewHost");
+  const previewPanel = $("solcastPreviewPanel");
+  if (operationsInfo) {
+    operationsInfo.textContent = "Configure forecast source, tuning, and Solcast connection in Settings > Forecast Configuration. Preview and refresh forecast data here.";
+  }
+  if (previewHost && previewPanel && previewPanel.parentElement !== previewHost) {
+    previewHost.appendChild(previewPanel);
+  }
+
+  const before = $("connectivitySection");
+  if (section.parentElement !== settingsHost) {
+    settingsHost.insertBefore(section, before && before.parentElement === settingsHost ? before : null);
+  }
 }
 
 // ── Forecast Performance Monitor ─────────────────────────────────────────────
@@ -6782,23 +6972,16 @@ function updateForecastSidebarSummary() {
 }
 
 function initForecastPage() {
+  // Forecast configuration lives in Settings. This page keeps a single,
+  // explicit route back to the authorized configuration panel.
   mountForecastSection();
-  unlockSettingsInputs();
-  syncForecastProviderUi();
-  updateForecastSidebarSummary();
-  updateSolcastPreviewUnitUi();
-  // Initialize preview day-count from the saved solcastToolkitDays setting
-  const savedDays = $("setSolcastToolkitDays")?.value || State.settings.solcastToolkitDays || "2";
-  const previewDayCountSel = $("solcastPreviewDayCount");
-  if (previewDayCountSel && !State.solcastPreview.dayCount) {
-    previewDayCountSel.value = String(Math.min(15, Math.max(1, parseInt(savedDays, 10) || 2)));
-  }
-  const useToolkitPreview =
-    String($("setSolcastAccessMode")?.value || State.settings.solcastAccessMode || "toolkit")
-      .trim()
-      .toLowerCase() === "toolkit";
-  if (useToolkitPreview) {
-    loadSolcastPreview({ silent: true }).catch(() => {});
+  const btn = $("btnOpenForecastSettings");
+  if (btn && btn.dataset.bound !== "1") {
+    btn.dataset.bound = "1";
+    btn.addEventListener("click", () => {
+      switchPage("settings");
+      setActiveSettingsSection("forecastSection", true);
+    });
   }
 }
 
@@ -6832,6 +7015,7 @@ function startClock() {
 // ─── Settings ─────────────────────────────────────────────────────────────────
 async function loadSettings() {
   try {
+    await syncAuthSession();
     const s = await api("/api/settings");
     State.settings = { ...State.settings, ...s };
     // Mark that the server snapshot has been fetched at least once so code
@@ -6846,39 +7030,43 @@ async function loadSettings() {
     applyRolePermissions();
     if ($("plantNameDisplay"))
       $("plantNameDisplay").textContent = s.plantName || "ADSI Plant";
-    $("setPlantName").value = s.plantName || "";
-    $("setOperatorName").value = s.operatorName || "OPERATOR";
-    $("setOperationMode").value = s.operationMode || "gateway";
+    if ($("setPlantName")) $("setPlantName").value = s.plantName || "";
+    if ($("setOperatorName")) {
+      $("setOperatorName").value = isClientModeActive()
+        ? getOperatorName()
+        : (s.operatorName || "OPERATOR");
+    }
+    if ($("setOperationMode")) $("setOperationMode").value = s.operationMode || "gateway";
     if ($("setRemoteAutoSync")) {
       $("setRemoteAutoSync").checked = Boolean(s.remoteAutoSync);
     }
-    $("setRemoteGatewayUrl").value = s.remoteGatewayUrl || "";
-    $("setRemoteApiToken").value = s.remoteApiToken || "";
+    if ($("setRemoteGatewayUrl")) $("setRemoteGatewayUrl").value = s.remoteGatewayUrl || "";
+    if ($("setRemoteApiToken")) $("setRemoteApiToken").value = s.remoteApiToken || "";
     const tsHint = s.tailscaleDeviceHint || s.wireguardInterface || "";
     if ($("setTailscaleDeviceHint")) {
       $("setTailscaleDeviceHint").value = tsHint;
     }
-    $("setInverterCount").value = s.inverterCount || 27;
-    $("setNodeCount").value = s.nodeCount || 4;
-    $("setApiUrl").value = s.apiUrl || "";
-    $("setWriteUrl").value = s.writeUrl || "";
-    $("setCsvPath").value = s.csvSavePath || "";
-    $("setRetainDays").value = s.retainDays || 90;
-    $("setForecastProvider").value = s.forecastProvider || "ml_local";
+    if ($("setInverterCount")) $("setInverterCount").value = s.inverterCount || 27;
+    if ($("setNodeCount")) $("setNodeCount").value = s.nodeCount || 4;
+    if ($("setApiUrl")) $("setApiUrl").value = s.apiUrl || "";
+    if ($("setWriteUrl")) $("setWriteUrl").value = s.writeUrl || "";
+    if ($("setCsvPath")) $("setCsvPath").value = s.csvSavePath || "";
+    if ($("setRetainDays")) $("setRetainDays").value = s.retainDays || 90;
+    if ($("setForecastProvider")) $("setForecastProvider").value = s.forecastProvider || "ml_local";
     if ($("setForecastEstActualWeight")) $("setForecastEstActualWeight").value = s.forecastEstActualWeight ?? "";
     if ($("setForecastIntradayBlendMax")) $("setForecastIntradayBlendMax").value = s.forecastIntradayBlendMax ?? "";
     if ($("setForecastVirtualNowcastMode")) $("setForecastVirtualNowcastMode").value = ["off", "shadow", "active"].includes(String(s.forecastVirtualNowcastMode || "off").toLowerCase()) ? String(s.forecastVirtualNowcastMode || "off").toLowerCase() : "off";
-    $("setSolcastBaseUrl").value = s.solcastBaseUrl || "https://api.solcast.com.au";
-    $("setSolcastAccessMode").value = s.solcastAccessMode || "toolkit";
-    $("setSolcastApiKey").value = s.solcastApiKey || "";
-    $("setSolcastResourceId").value = s.solcastResourceId || "";
-    $("setSolcastToolkitEmail").value = s.solcastToolkitEmail || "";
-    $("setSolcastToolkitPassword").value = s.solcastToolkitPassword || "";
+    if ($("setSolcastBaseUrl")) $("setSolcastBaseUrl").value = s.solcastBaseUrl || "https://api.solcast.com.au";
+    if ($("setSolcastAccessMode")) $("setSolcastAccessMode").value = s.solcastAccessMode || "toolkit";
+    if ($("setSolcastApiKey")) $("setSolcastApiKey").value = s.solcastApiKey || "";
+    if ($("setSolcastResourceId")) $("setSolcastResourceId").value = s.solcastResourceId || "";
+    if ($("setSolcastToolkitEmail")) $("setSolcastToolkitEmail").value = s.solcastToolkitEmail || "";
+    if ($("setSolcastToolkitPassword")) $("setSolcastToolkitPassword").value = s.solcastToolkitPassword || "";
     if ($("setSolcastToolkitTotpSecret")) $("setSolcastToolkitTotpSecret").value = s.solcastToolkitTotpSecret || "";
-    $("setSolcastToolkitSiteRef").value = s.solcastToolkitSiteRef || "";
+    if ($("setSolcastToolkitSiteRef")) $("setSolcastToolkitSiteRef").value = s.solcastToolkitSiteRef || "";
     if ($("setSolcastToolkitDays")) $("setSolcastToolkitDays").value = s.solcastToolkitDays || "2";
     if ($("setSolcastToolkitPeriod")) $("setSolcastToolkitPeriod").value = s.solcastToolkitPeriod || "PT5M";
-    $("setSolcastTimezone").value = s.solcastTimezone || "Asia/Manila";
+    if ($("setSolcastTimezone")) $("setSolcastTimezone").value = s.solcastTimezone || "Asia/Manila";
     if ($("setPlantLatitude"))  $("setPlantLatitude").value  = s.plantLatitude  ?? "";
     if ($("setPlantLongitude")) $("setPlantLongitude").value = s.plantLongitude ?? "";
     if ($("setPlantCapUpperMw")) {
@@ -6901,13 +7089,7 @@ async function loadSettings() {
     if ($("setPlantCapCooldownSec")) {
       $("setPlantCapCooldownSec").value = String(s.plantCapCooldownSec ?? 30);
     }
-    // v2.11.x — plantCapSetpointEnabled toggle moved out of Plant
-    // Configuration; default "1" (tab visible). Set the value directly in
-    // settings if a future toggle UI is added.
-    // v2.11.x Phase 2 — apcRampRateEnabled / apcRampRatePctPerMin live in
-    // State.settings so the Plant Controller APC pane can hydrate its inline
-    // controls. No Settings-page UI controls — see Plant Controller → %P Setpoint.
-    $("setDataDir").textContent = s.dataDir || "—";
+    if ($("setDataDir")) $("setDataDir").textContent = s.dataDir || "—";
     const pc = s.inverterPollConfig || {};
     if ($("setPollModbusTimeout"))  $("setPollModbusTimeout").value  = pc.modbusTimeout  ?? 1.0;
     if ($("setPollReconnectDelay")) $("setPollReconnectDelay").value = pc.reconnectDelay ?? 0.5;
@@ -7003,6 +7185,71 @@ function syncForecastProviderUi() {
   if (previewBtn) previewBtn.disabled = apiMode;
   if (apiMode) clearSolcastPreview(false);
   updateForecastSidebarSummary();
+}
+
+// Forecast Configuration originally split a few short form groups across five
+// tabs. Keep its settings compact: Source & Tuning plus Solcast Connection.
+// Forecast preview stays on the Forecast page; Settings only verifies the
+// selected connection and reports a text-only result.
+function normalizeForecastSettingsLayout() {
+  const root = $("forecastSection");
+  if (!root || root.dataset.forecastLayoutNormalized === "1") return;
+
+  const sourceTab = $("fcTabProvider");
+  const tuningTab = $("fcTabTuning");
+  const connectionTab = $("fcTabAccess");
+  const apiTab = $("fcTabApi");
+  const previewTab = $("fcTabToolkit");
+  const sourcePanel = $("fcPanelProvider");
+  const tuningPanel = $("fcPanelTuning");
+  const connectionPanel = $("fcPanelAccess");
+  const apiPanel = $("fcPanelApi");
+  const previewPanel = $("fcPanelToolkit");
+  const tuningContent = tuningPanel?.querySelector(".forecast-tuning-panel");
+  const apiContent = apiPanel?.querySelector(".forecast-api-panel");
+  const toolkitContent = previewPanel?.querySelector(".forecast-toolkit-panel");
+  const verifyActions = Array.from(root.children).find((child) =>
+    child.classList?.contains("sgroup-actions"),
+  );
+  if (
+    !sourceTab || !tuningTab || !connectionTab || !apiTab || !previewTab ||
+    !sourcePanel || !tuningPanel || !connectionPanel || !apiPanel || !previewPanel ||
+    !tuningContent || !apiContent || !toolkitContent
+  ) return;
+
+  const setTabLabel = (tab, label) => {
+    const text = tab.querySelector(".card-tab-label");
+    if (text) text.textContent = label;
+  };
+  setTabLabel(sourceTab, "Source & Tuning");
+  setTabLabel(connectionTab, "Solcast Connection");
+
+  sourceTab.dataset.cardTab = "source";
+  sourceTab.setAttribute("aria-controls", "fcPanelSource");
+  sourceTab.title = "Select the forecast source and review controlled tuning overrides.";
+  sourcePanel.id = "fcPanelSource";
+  sourcePanel.dataset.cardTabPanel = "source";
+  sourcePanel.setAttribute("aria-labelledby", "fcTabProvider");
+  sourcePanel.appendChild(tuningContent);
+  tuningTab.remove();
+  tuningPanel.remove();
+
+  connectionTab.dataset.cardTab = "connection";
+  connectionTab.setAttribute("aria-controls", "fcPanelConnection");
+  connectionTab.title = "Choose Solcast access mode and enter only the matching gateway credentials.";
+  connectionPanel.id = "fcPanelConnection";
+  connectionPanel.dataset.cardTabPanel = "connection";
+  connectionPanel.setAttribute("aria-labelledby", "fcTabAccess");
+  connectionPanel.appendChild(apiContent);
+  connectionPanel.appendChild(toolkitContent);
+  if (verifyActions) connectionPanel.appendChild(verifyActions);
+  apiTab.remove();
+  apiPanel.remove();
+
+  previewTab.remove();
+  previewPanel.remove();
+
+  root.dataset.forecastLayoutNormalized = "1";
 }
 
 function getSettingsMessageTargetId() {
@@ -7457,11 +7704,11 @@ function syncOperationModeUi() {
     "networkMsg",
     selectedMode !== activeMode
       ? selectedMode === "gateway" && activeMode === "remote"
-        ? `Selected mode is Gateway, but the active runtime mode is still Remote. Save Settings to apply the mode change.${restartCapable ? " The app will restart for a clean Gateway startup." : " Restart the app after saving for a clean Gateway startup."}`
-        : `Selected mode is ${selectedMode === "remote" ? "Remote" : "Gateway"}, but the active runtime mode is still ${activeMode === "remote" ? "Remote" : "Gateway"}. Save Settings to apply the mode change.`
+        ? `The Server Host URL was cleared. Save Settings to return this device to Gateway/server mode.${restartCapable ? " The app will restart for a clean local startup." : " Restart the app after saving for a clean local startup."}`
+        : "A Server Host URL is configured. Save Settings to make this device a Remote client and lock local polling."
       : remote
         ? "Remote mode active. Live data is streamed from the gateway. Use Refresh Standby DB when you need a fresh local database copy before switching to Gateway mode."
-        : "Gateway mode active. Local polling is active; remote/Tailscale fields are optional.",
+        : "No Server Host URL is configured. This device is the Gateway/server and may run local polling.",
     "",
   );
   syncDayAheadGeneratorAvailability();
@@ -8138,37 +8385,44 @@ async function saveSettings() {
     return false;
   }
   const remoteAutoSyncCtrl = $("setRemoteAutoSync");
+  const requestedRemoteGatewayUrl =
+    normalizedGateway || String($("setRemoteGatewayUrl")?.value ?? State.settings.remoteGatewayUrl ?? "").trim();
+  const remoteClientSave = getActiveOperationModeClient() === "remote";
+  const deviceOperatorName = String($("setOperatorName")?.value || getOperatorName()).trim() || "OPERATOR";
   const body = {
-    plantName: $("setPlantName").value,
-    operatorName: $("setOperatorName").value,
-    operationMode: $("setOperationMode").value,
-    remoteGatewayUrl:
-      normalizedGateway || String($("setRemoteGatewayUrl").value || "").trim(),
-    remoteApiToken: $("setRemoteApiToken").value,
-    tailscaleDeviceHint: $("setTailscaleDeviceHint")?.value || "",
-    inverterCount: Number($("setInverterCount").value),
-    nodeCount: Number($("setNodeCount").value),
-    apiUrl: $("setApiUrl").value,
-    writeUrl: $("setWriteUrl").value,
-    csvSavePath: $("setCsvPath").value,
-    retainDays: Number($("setRetainDays").value),
-    forecastProvider: $("setForecastProvider").value,
+    plantName: $("setPlantName")?.value ?? State.settings.plantName ?? "",
+    // In Remote mode this is a device-bound audit identity, not a shared
+    // plant setting. Gateway mode retains the plant-wide setting behavior.
+    ...(remoteClientSave ? {} : { operatorName: deviceOperatorName }),
+    // Server Host URL is the role selector: populated is Remote client;
+    // blank is this device's local Gateway/server role.
+    operationMode: requestedRemoteGatewayUrl ? "remote" : "gateway",
+    remoteGatewayUrl: requestedRemoteGatewayUrl,
+    remoteApiToken: $("setRemoteApiToken")?.value ?? State.settings.remoteApiToken ?? "",
+    tailscaleDeviceHint: $("setTailscaleDeviceHint")?.value ?? State.settings.tailscaleDeviceHint ?? "",
+    inverterCount: Number($("setInverterCount")?.value ?? State.settings.inverterCount ?? 27),
+    nodeCount: Number($("setNodeCount")?.value ?? State.settings.nodeCount ?? 4),
+    apiUrl: $("setApiUrl")?.value ?? State.settings.apiUrl ?? "",
+    writeUrl: $("setWriteUrl")?.value ?? State.settings.writeUrl ?? "",
+    csvSavePath: $("setCsvPath")?.value ?? State.settings.csvSavePath ?? "",
+    retainDays: Number($("setRetainDays")?.value ?? State.settings.retainDays ?? 90),
+    forecastProvider: $("setForecastProvider")?.value ?? State.settings.forecastProvider ?? "ml_local",
     forecastEstActualWeight: (() => {
-      const raw = String($("setForecastEstActualWeight")?.value || "").trim();
+      const raw = String($("setForecastEstActualWeight")?.value ?? State.settings.forecastEstActualWeight ?? "").trim();
       if (!raw) return "";
       const val = Number(raw);
       return Number.isFinite(val) && val >= 0.5 && val <= 1.0 ? String(val) : "";
     })(),
     forecastIntradayBlendMax: (() => {
-      const raw = String($("setForecastIntradayBlendMax")?.value || "").trim();
+      const raw = String($("setForecastIntradayBlendMax")?.value ?? State.settings.forecastIntradayBlendMax ?? "").trim();
       if (!raw) return "";
       const val = Number(raw);
       return Number.isFinite(val) && val >= 0.0 && val <= 1.0 ? String(val) : "";
     })(),
-    forecastVirtualNowcastMode: $("setForecastVirtualNowcastMode")?.value || "off",
+    forecastVirtualNowcastMode: $("setForecastVirtualNowcastMode")?.value ?? State.settings.forecastVirtualNowcastMode ?? "off",
     ...solcastConfig,
-    plantLatitude:  Number($("setPlantLatitude")?.value  ?? ""),
-    plantLongitude: Number($("setPlantLongitude")?.value ?? ""),
+    plantLatitude:  Number($("setPlantLatitude")?.value  ?? State.settings.plantLatitude ?? ""),
+    plantLongitude: Number($("setPlantLongitude")?.value ?? State.settings.plantLongitude ?? ""),
     plantCapUpperMw: String(plantCapRaw.upper || "").trim(),
     plantCapLowerMw: String(plantCapRaw.lower || "").trim(),
     plantCapSequenceMode: normalizePlantCapSequenceModeClient(
@@ -8191,7 +8445,7 @@ async function saveSettings() {
   if (remoteAutoSyncCtrl) {
     body.remoteAutoSync = Boolean(remoteAutoSyncCtrl.checked);
   }
-  const nextMode = normalizeOperationModeValue(body.operationMode);
+  const nextMode = body.remoteGatewayUrl ? "remote" : "gateway";
   const gatewayRestartPreferred =
     normalizeOperationModeValue(prevMode) === "remote" &&
     nextMode === "gateway";
@@ -8221,6 +8475,10 @@ async function saveSettings() {
       ...(savedSettings || {}),
       csvSavePath: nextCsvPath,
     };
+    if (remoteClientSave) {
+      setDeviceOperatorName(deviceOperatorName);
+      State.settings.operatorName = getOperatorName();
+    }
     syncPlantCapFormsFromSettingsState();
     if ($("plantNameDisplay"))
       $("plantNameDisplay").textContent = State.settings.plantName || body.plantName;
@@ -9129,9 +9387,6 @@ async function testSolcastConnection() {
       showToast(`Solcast warning: ${r.warning}`, "warning", 4200);
     }
     showSnapshotWarningToast("Solcast snapshot", r?.snapshotWarning || "");
-    if (String(r?.accessMode || payload.solcastAccessMode || "").trim().toLowerCase() === "toolkit") {
-      loadSolcastPreview({ silent: true }).catch(() => {});
-    }
   } catch (e) {
     showMsg("solcastTestMsg", `✗ Solcast test failed: ${e.message}`, "error");
   } finally {
@@ -9977,7 +10232,7 @@ async function _onT2Start() {
   const body = {
     test_kind: "t2_freq_withstand",
     targets: [target],
-    operator: "operator",
+    operator: currentOperator(),
     authKey,
     params: {
       // Clamp client-side too so the operator sees what's actually used
@@ -10280,7 +10535,7 @@ async function _onT3Start() {
   }
   const body = {
     test_kind: "t3_qv_sweep",
-    targets: [target], operator: "operator", authKey,
+    targets: [target], operator: currentOperator(), authKey,
     params: {
       pf_steps: sweep,
       hold_sec:      Number($("t3Hold")?.value)   || 60,
@@ -10487,7 +10742,7 @@ async function _onT5Start() {
   }
   const body = {
     test_kind: "t5_apc_sweep",
-    targets: [target], operator: "operator", authKey,
+    targets: [target], operator: currentOperator(), authKey,
     params: {
       ramp_pct: ramp,
       hold_sec:      Number($("t5Hold")?.value)   || 120,
@@ -10665,7 +10920,7 @@ async function _onComplianceReportClick(runId, format) {
   }
   const resp = await fetch(`/api/compliance/run/${encodeURIComponent(runId)}/report`, {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ format, authKey, operator: "operator" }),
+    body: JSON.stringify({ format, authKey, operator: currentOperator() }),
   }).catch(e => ({ ok: false, status: 0, _err: e.message }));
   if (resp.status === 403) clearBulkAuthCache();
   const r = resp.json ? await resp.json().catch(() => ({ ok: false, error: resp._err || "parse error" })) : resp;
@@ -10721,7 +10976,7 @@ async function _abortComplianceRun(runId) {
   if (!authKey) return;
   await fetch(`/api/compliance/run/${encodeURIComponent(runId)}/abort`, {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ authKey, operator: "operator" }),
+    body: JSON.stringify({ authKey, operator: currentOperator() }),
   }).catch(() => {});
 }
 
@@ -12703,10 +12958,7 @@ function initInverterGridDrag() {
 }
 
 function currentOperator() {
-  const inState = String(State.settings.operatorName || "").trim();
-  if (inState) return inState;
-  const fromInput = String($("setOperatorName")?.value || "").trim();
-  return fromInput || "OPERATOR";
+  return getOperatorName();
 }
 
 function currentChatMachine() {
@@ -14421,7 +14673,7 @@ async function confirmCriticalBlock(inverter) {
     const data = await api(`/api/critical-blocks/${inv}/confirm`, "POST", {
       authKey: String(authKey || "").trim(),
       note:    String(note || "").trim(),
-      operator: State.settings.operatorName || "OPERATOR",
+      operator: currentOperator(),
     });
     if (data?.ok) {
       delete State.criticalBlocks[inv];
@@ -15919,7 +16171,8 @@ function isHikvisionFullscreen(card = $("hikvisionCard")) {
 }
 
 function openHikvisionViewer(card = $("hikvisionCard")) {
-  if (window.electronAPI?.openHikvisionNativeViewer) {
+  const requestedMode = State.settings?.hikvisionConfig?.playbackMode || "localservice";
+  if (requestedMode === "localservice" && window.electronAPI?.openHikvisionNativeViewer) {
     const theme = document.documentElement.getAttribute("data-theme") || "dark";
     return window.electronAPI.openHikvisionNativeViewer(theme);
   }
@@ -16628,9 +16881,11 @@ class HikVisionPlayer {
         || (typeof isClientModeActive === "function" && isClientModeActive())
         || State.settings?.operationMode === "remote"
         || State.runtimeMode === "remote";
-      this.effectiveMode = this.requestedMode === "localservice"
-        ? (isRemote ? "compatible" : "browser")
-        : this.requestedMode;
+      this.effectiveMode = isRemote
+        ? "compatible"
+        : (this.requestedMode === "localservice"
+        ? "browser"
+        : this.requestedMode);
       if (this.effectiveMode === "localservice" && !isRemote) {
         await this._openNative(generation);
       } else {
@@ -21392,7 +21647,7 @@ function buildNowcastDisplayModel(meta = {}, formatTimestamp = (value) => String
     generatedLabel: generatedTs ? formatTimestamp(generatedTs) : "unknown",
     latestAttempt,
     challenger,
-    summary: `ML: ${mode.toUpperCase()} · ${sPlotted}${challengerLabel}`,
+    summary: `${mode} · plotted ${plottedLabel}${challenger ? ` · challenger ${challenger.algorithm_version}` : ""}`,
   };
 }
 
@@ -23448,8 +23703,8 @@ async function loadForecastSolcastData() {
   }
   setExportButtonState("btnLoadForecastData", "loading");
   try {
-    // /api/forecast/solcast/* never proxies — this runs locally and populates
-    // the local snapshot store in any operation mode (gateway or remote).
+    // The gateway owns Solcast data in Remote mode; the server route proxies
+    // this request there instead of creating a client-side snapshot cache.
     const r = await api("/api/forecast/solcast/load-data", "POST", {});
     const days = r?.forecastDays ?? "?";
     const got = Array.isArray(r?.dates) ? r.dates.length : 0;
@@ -26824,7 +27079,7 @@ async function _snbHandleRowSend(ev) {
         new_serial: newSerial,
         fmt,
         check_uniqueness: true,
-        acted_by: (State?.session?.username || "OPERATOR"),
+        acted_by: currentOperator(),
       }),
     });
     const respBody = await r.json().catch(() => ({}));
@@ -26956,7 +27211,7 @@ async function _snbHandleSend() {
       new_serial: newSerial,
       fmt,
       check_uniqueness: Boolean(checkBox?.checked),
-      acted_by: (State?.session?.username || "OPERATOR"),
+      acted_by: currentOperator(),
     };
     const r = await fetch(`/api/serial/${inv}/${slave}`, {
       method: "POST",
@@ -27865,7 +28120,7 @@ async function _snbHandleBulkApply() {
       body: JSON.stringify({
         authToken: auth.authToken,
         ack_relocations: ack,
-        acted_by: (State?.session?.username || "OPERATOR"),
+        acted_by: currentOperator(),
         targets: selected.map((t) => ({ inverter: t.inverter, slave: t.slave })),
       }),
     });
@@ -29029,6 +29284,7 @@ function appPrompt(title, bodyText, { placeholder = "", type = "password" } = {}
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 async function init() {
+  await syncAuthSession();
   resetStartupLiveWaiters();
   reportStartupProgress({
     step: 1,
@@ -29050,6 +29306,7 @@ async function init() {
     initPromptModal();
     setupNav();
     initPopoutButtons();
+    mountForecastSection();
     initSettingsSectionNav();
     // v2.8.10 Phase C: one-shot check of /api/health/db-integrity.
     // If the boot-time probe restored adsi.db from a backup slot, show a
@@ -35936,7 +36193,7 @@ function initControllerIdentityAndNetwork() {
     btnSave.addEventListener("click", async () => {
       const newName = (document.getElementById("setOperatorNameProfile")?.value || "").trim() || "OPERATOR";
       const newDev = (document.getElementById("setDeviceNameProfile")?.value || "").trim() || "Workstation";
-      localStorage.setItem("inverter_2_operator_name", newName);
+      setDeviceOperatorName(newName);
       localStorage.setItem("inverter_2_device_name", newDev);
       if (pillDisplay) pillDisplay.textContent = `👤 ${newName}`;
 
@@ -35964,6 +36221,22 @@ function initControllerIdentityAndNetwork() {
   if (btnRefreshUrls && btnRefreshUrls.dataset.bound !== "1") {
     btnRefreshUrls.dataset.bound = "1";
     btnRefreshUrls.addEventListener("click", refreshConnectUrls);
+  }
+
+  const btnRefreshGatewayLink = document.getElementById("btnRefreshGatewayLink");
+  if (btnRefreshGatewayLink && btnRefreshGatewayLink.dataset.bound !== "1") {
+    btnRefreshGatewayLink.dataset.bound = "1";
+    btnRefreshGatewayLink.addEventListener("click", () => {
+      refreshReplicationHealth(false).catch(() => {});
+    });
+  }
+
+  const btnRefreshRuntimeHealth = document.getElementById("btnRefreshRuntimeHealth");
+  if (btnRefreshRuntimeHealth && btnRefreshRuntimeHealth.dataset.bound !== "1") {
+    btnRefreshRuntimeHealth.dataset.bound = "1";
+    btnRefreshRuntimeHealth.addEventListener("click", () => {
+      refreshRuntimePerf(false).catch(() => {});
+    });
   }
 
   const btnAcq = document.getElementById("btnAcquireLockManual");
@@ -36028,8 +36301,9 @@ async function refreshConnectUrls() {
   } catch (_) {}
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   try {
+    await syncAuthSession();
     initControllerIdentityAndNetwork();
     refreshConnectUrls();
   } catch (_) {}

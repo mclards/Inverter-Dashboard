@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-title" content="ADSI Dashboard" />
     <link rel="apple-touch-icon" href="/assets/icon-256.png" />
-    <link rel="stylesheet" href="css/style.css?v=2.0.3" />
+    <link rel="stylesheet" href="css/style.css?v=2.1.4" />
     <script>
       // Pre-paint calibrator-mode gate. Runs during <head> parsing — before
       // <body> exists — so the fleet dashboard chrome is hidden on the very
@@ -1023,10 +1023,20 @@
           </button>
         </div>
         <div class="forecast-shell">
-          <div class="forecast-main">
+            <div class="forecast-main">
             <span class="smsg" id="forecastPageMsg"></span>
             <div class="forecast-page-sections" id="forecastPageSections">
-              <div class="sgroup settings-card" id="forecastSection">
+              <div class="sgroup settings-card forecast-section-context" id="forecastOperationsSection">
+                <div class="sgroup-title"><span class="mdi mdi-chart-line icon-inline" aria-hidden="true"></span> Forecast Preview &amp; Validation</div>
+                  <div class="sinfo">Forecast configuration, Solcast credentials, and model tuning are centralized under <strong>Settings → Forecast Configuration</strong>. Review forecast performance in Analytics and retrieve forecast data from Export.</div>
+                  <div class="sgroup-actions" style="margin-top:12px;">
+                    <button id="btnOpenForecastSettings" class="btn btn-outline" type="button" data-role-min="devClard" title="Open the centralized Forecast Configuration settings.">
+                      <span class="mdi mdi-cog-outline" aria-hidden="true"></span><span>Open Forecast Configuration</span>
+                    </button>
+                  </div>
+                <div id="forecastPreviewHost"></div>
+              </div>
+              <div class="sgroup settings-card" id="forecastSection" data-role-min="devClard" hidden>
                 <div class="sgroup-title" title="Active forecast provider, Solcast access and credentials, and forecast tuning."><span class="mdi mdi-weather-partly-cloudy icon-inline" aria-hidden="true"></span> Forecast Configuration</div>
                 <div class="card-tabs" role="tablist" aria-label="Forecast sub-sections">
                   <button id="fcTabProvider" class="card-tab active" type="button" role="tab" aria-selected="true" aria-controls="fcPanelProvider" data-card-tab="provider" title="Active day-ahead forecast source — Local ML or Solcast.">
@@ -1195,8 +1205,8 @@
                   </div>
                 </div>
                 <div class="sgroup-actions">
-                  <button id="btnSolcastSaveTest" class="btn btn-accent" type="button" title="Save the active Solcast settings first, then test the selected access mode." aria-label="Save and test Solcast settings">
-                    <span class="mdi mdi-content-save-check-outline" aria-hidden="true"></span><span>Save and Test Solcast</span>
+                  <button id="btnSolcastSaveTest" class="btn btn-accent" type="button" title="Save the active Solcast settings, then verify the selected connection without loading a preview chart." aria-label="Save and verify Solcast connection">
+                    <span class="mdi mdi-content-save-check-outline" aria-hidden="true"></span><span>Save &amp; Verify Connection</span>
                   </button>
                   <span class="smsg" id="solcastTestMsg"></span>
                 </div>
@@ -1856,21 +1866,30 @@
                 <select id="settingsSectionSelect" class="sel settings-section-sel" aria-label="Select settings section" title="Choose a settings category to configure">
                   <optgroup label="Plant &amp; Data">
                     <option value="plantConfigSection" selected>Plant</option>
-                    <option value="opsCompactSection">Data &amp; Polling</option>
                   </optgroup>
-                  <optgroup label="Inverter Hardware">
-                    <option value="inverterClockSection">Inverter Clocks</option>
-                    <option value="stopReasonsSection">Stop Reasons</option>
-                    <option value="serialNumberSection">Serial Number</option>
+                  <optgroup label="Server Administration" data-role-min="devClard">
+                    <option value="serverControlSection" data-role-min="devClard">Server Lifecycle</option>
+                  </optgroup>
+                  <optgroup label="Inverter Hardware" data-role-min="devClard">
+                    <option value="inverterTopologySection" data-role-min="devClard">Inverter Topology</option>
+                    <option value="opsCompactSection" data-role-min="devClard">Data &amp; Polling</option>
+                    <option value="inverterClockSection" data-role-min="devClard">Inverter Clocks</option>
+                    <option value="stopReasonsSection" data-role-min="devClard">Stop Reasons</option>
+                    <option value="serialNumberSection" data-role-min="devClard">Serial Number</option>
+                  </optgroup>
+                  <optgroup label="Forecast &amp; Automation" data-role-min="devClard">
+                    <option value="forecastSection" data-role-min="devClard">Forecast Configuration</option>
                   </optgroup>
                   <optgroup label="Connectivity &amp; Backup">
                     <option value="connectivitySection">Server &amp; Identity</option>
-                    <option value="cloudBackupSection">Cloud Backup</option>
-                    <option value="localBackupSection">Local Backup</option>
+                    <option value="cloudBackupSection" data-role-min="devClard">Cloud Backup</option>
+                    <option value="localBackupSection" data-role-min="devClard">Local Backup</option>
+                  </optgroup>
+                  <optgroup label="System" data-role-min="devClard">
+                    <option value="licenseSection" data-role-min="devClard">License</option>
+                    <option value="appUpdateSection" data-role-min="devClard">App Updates</option>
                   </optgroup>
                   <optgroup label="System">
-                    <option value="licenseSection">License</option>
-                    <option value="appUpdateSection">App Updates</option>
                     <option value="aboutSection">About</option>
                   </optgroup>
                 </select>
@@ -1886,7 +1905,7 @@
                   <span class="mdi mdi-server-cog settings-menu-ico" aria-hidden="true"></span>
                   <span class="settings-menu-label">Server Lifecycle</span>
                 </button>
-                <div class="settings-menu-group-label" data-role-min="devClard" aria-hidden="true">Inverter Hardware</div>
+                <div class="settings-menu-group-label" data-role-min="devClard" aria-hidden="true">Topology &amp; Data</div>
                 <button class="settings-menu-btn" type="button" data-settings-section="inverterTopologySection" data-role-min="devClard" title="Configure inverter IP addresses, subnet mapping, and power node units.">
                   <span class="mdi mdi-lan-connect settings-menu-ico" aria-hidden="true"></span>
                   <span class="settings-menu-label">Inverter Topology</span>
@@ -1895,6 +1914,12 @@
                   <span class="mdi mdi-tune-variant settings-menu-ico" aria-hidden="true"></span>
                   <span class="settings-menu-label">Data &amp; Polling</span>
                 </button>
+                <div class="settings-menu-group-label" data-role-min="devClard" aria-hidden="true">Forecast &amp; Automation</div>
+                <button class="settings-menu-btn" type="button" data-settings-section="forecastSection" data-role-min="devClard" title="Configure the authoritative forecast provider, Solcast access, credentials, preview, and model tuning.">
+                  <span class="mdi mdi-weather-partly-cloudy settings-menu-ico" aria-hidden="true"></span>
+                  <span class="settings-menu-label">Forecast Configuration</span>
+                </button>
+                <div class="settings-menu-group-label" data-role-min="devClard" aria-hidden="true">Inverter Diagnostics</div>
                 <button class="settings-menu-btn" type="button" data-settings-section="inverterClockSection" data-role-min="devClard" title="Scheduled time sync, drift triggers, and per-unit counter health.">
                   <span class="mdi mdi-clock-outline settings-menu-ico" aria-hidden="true"></span>
                   <span class="settings-menu-label">Inverter Clocks</span>
@@ -2061,7 +2086,7 @@
           <!-- SERVER LIFECYCLE (devClard only) -->
           <div class="sgroup settings-card" id="serverControlSection" data-role-min="devClard" hidden>
             <div class="sgroup-title" title="Start, stop, and manage local server processes and background execution.">
-              <span class="mdi mdi-server-cog icon-inline" aria-hidden="true"></span> Server Lifecycle &amp; Background Service
+              <span class="mdi mdi-server-cog icon-inline" aria-hidden="true"></span> Server Lifecycle &amp; Services
             </div>
             <div class="settings-subsection">
               <div class="rep-health-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
@@ -2078,18 +2103,18 @@
                   <div id="srvStatusTelemetry" class="license-value" style="font-family:var(--font-mono);font-size:12px;">—</div>
                 </div>
                 <div class="license-item">
-                  <div class="license-label">AI Forecast Engine (:9200)</div>
+                  <div class="license-label">AI Forecast Worker</div>
                   <div id="srvStatusForecast" class="license-value" style="font-family:var(--font-mono);font-size:12px;">—</div>
                 </div>
               </div>
 
-              <div class="srow" style="margin-top:16px; display:flex; flex-direction:column; gap:8px;">
-                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; font-size:12.5px;">
-                  <input type="checkbox" id="chkKeepServerBackground" style="accent-color:var(--accent); width:16px; height:16px;" />
+              <div class="srow" style="margin-top:16px; display:flex; flex-direction:column; gap:10px;">
+                <label class="chk-inline" title="Keep local server services running in background after closing the dashboard window.">
+                  <input type="checkbox" id="chkKeepServerBackground" />
                   <span>Run as Background Service (Keep server running even if the dashboard window is closed)</span>
                 </label>
-                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; font-size:12.5px;">
-                  <input type="checkbox" id="chkAutoStartServer" style="accent-color:var(--accent); width:16px; height:16px;" />
+                <label class="chk-inline" title="Automatically start the local server and background services when the application starts.">
+                  <input type="checkbox" id="chkAutoStartServer" />
                   <span>Auto-start local server services on application launch</span>
                 </label>
               </div>
@@ -2120,16 +2145,12 @@
               <!-- Top Helper Bar -->
               <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:10px; margin-bottom:14px; padding:12px; border-radius:8px; background:var(--surface2); border:1px solid var(--border);">
                 <div class="field">
-                  <label for="topolInverterModel" style="font-size:11px; font-weight:700; color:var(--text2);">Inverter Model</label>
-                  <select id="topolInverterModel" class="inp">
-                    <option value="INGECON_SUN_3PLAY">INGECON SUN 3Play (100TL / 160TL)</option>
-                    <option value="INGECON_SUN_POWERMAX">INGECON SUN PowerMax (1MW+)</option>
-                    <option value="GENERIC_MODBUS">Generic Modbus Inverter</option>
-                  </select>
+                  <label for="topolInverterModel" style="font-size:11px; font-weight:700; color:var(--text2);">Inverter Protocol Profile</label>
+                  <input id="topolInverterModel" class="inp" value="INGECON SUN PMax (four-node central inverter)" readonly aria-readonly="true" title="Fixed to the installed PMax register map; this is not a user-editable topology value." />
                 </div>
                 <div class="field">
                   <label for="topolModbusPort" style="font-size:11px; font-weight:700; color:var(--text2);">Modbus TCP Port</label>
-                  <input type="number" id="topolModbusPort" class="inp" min="1" max="65535" value="502" />
+                  <input type="number" id="topolModbusPort" class="inp" value="502" readonly aria-readonly="true" title="The PMax transport uses Modbus TCP port 502." />
                 </div>
                 <div class="field">
                   <label for="topolBaseIp" style="font-size:11px; font-weight:700; color:var(--text2);">Base IP for Auto-Fill</label>
@@ -2152,7 +2173,7 @@
                     <tr style="position:sticky; top:0; background:var(--surface2); z-index:2;">
                       <th style="padding:8px 10px; text-align:left; width:80px;">Inverter</th>
                       <th style="padding:8px 10px; text-align:left; min-width:180px;">IP Address</th>
-                      <th style="padding:8px 10px; text-align:center; width:220px;">Active Nodes / Units</th>
+                      <th style="padding:8px 10px; text-align:center; width:220px;">Active Nodes</th>
                       <th style="padding:8px 10px; text-align:center; width:100px;">Status</th>
                       <th style="padding:8px 10px; text-align:center; width:80px;">Action</th>
                     </tr>
@@ -2224,6 +2245,10 @@
                 <span class="mdi mdi-lan-connect icon-inline" aria-hidden="true"></span>
                 <span class="card-tab-label">Network &amp; URLs</span>
               </button>
+              <button id="connTabLink" class="card-tab" type="button" role="tab" aria-selected="false" aria-controls="connPanelLink" data-card-tab="link" title="Current gateway connection state and secure network reachability.">
+                <span class="mdi mdi-link-variant icon-inline" aria-hidden="true"></span>
+                <span class="card-tab-label">Gateway Link</span>
+              </button>
               <button id="connTabIdentity" class="card-tab" type="button" role="tab" aria-selected="false" aria-controls="connPanelIdentity" data-card-tab="identity" title="Personal operator profile, device identifier, and theme preferences.">
                 <span class="mdi mdi-account-circle-outline icon-inline" aria-hidden="true"></span>
                 <span class="card-tab-label">Controller Identity</span>
@@ -2231,6 +2256,10 @@
               <button id="connTabLock" class="card-tab" type="button" role="tab" aria-selected="false" aria-controls="connPanelLock" data-card-tab="lock" title="Real-time SCADA single-writer write-lease arbitration.">
                 <span class="mdi mdi-lock-outline icon-inline" aria-hidden="true"></span>
                 <span class="card-tab-label">Control Lock</span>
+              </button>
+              <button id="connTabRuntime" class="card-tab" type="button" role="tab" aria-selected="false" aria-controls="connPanelRuntime" data-card-tab="runtime" data-role-min="devClard" title="Gateway runtime and polling health counters for technical diagnosis.">
+                <span class="mdi mdi-chart-timeline-variant-shimmer icon-inline" aria-hidden="true"></span>
+                <span class="card-tab-label">Runtime Health</span>
               </button>
             </div>
             <div id="connPanelAccess" class="card-tab-panel active" data-card-tab-panel="access" role="tabpanel" aria-labelledby="connTabAccess">
@@ -2255,6 +2284,43 @@
                     <span class="mdi mdi-refresh" aria-hidden="true"></span><span>Refresh Network Interfaces</span>
                   </button>
                   <span class="smsg" id="networkMsg"></span>
+                </div>
+              </div>
+            </div>
+            <div id="connPanelLink" class="card-tab-panel" data-card-tab-panel="link" role="tabpanel" aria-labelledby="connTabLink" hidden>
+              <div class="settings-subsection">
+                <div class="rep-group-label" title="Live connectivity to the configured gateway. This is informational and does not permit local polling in Remote Client mode.">Gateway Connection Health</div>
+                <div class="rep-health-grid">
+                  <div class="license-item">
+                    <div class="license-label">Operating Mode</div>
+                    <div id="repModeVal" class="license-value">Checking...</div>
+                  </div>
+                  <div class="license-item">
+                    <div class="license-label">Gateway</div>
+                    <div id="repGatewayVal" class="license-value" style="font-family:var(--font-mono);font-size:12px;">Checking...</div>
+                  </div>
+                  <div class="license-item">
+                    <div class="license-label">Connection</div>
+                    <div id="repConnectedVal" class="license-value">Checking...</div>
+                  </div>
+                  <div class="license-item">
+                    <div class="license-label">Secure Network</div>
+                    <div id="repTailnetVal" class="license-value">Checking...</div>
+                  </div>
+                  <div class="license-item">
+                    <div class="license-label">Last Gateway Check</div>
+                    <div id="repLastReconcileVal" class="license-value">—</div>
+                  </div>
+                  <div class="license-item">
+                    <div class="license-label">Connection Notes</div>
+                    <div id="repErrorsVal" class="license-value">—</div>
+                  </div>
+                </div>
+                <div class="sgroup-actions" style="margin-top:12px;">
+                  <button id="btnRefreshGatewayLink" class="btn btn-outline" type="button" title="Refresh the current gateway and secure-network connection state.">
+                    <span class="mdi mdi-refresh" aria-hidden="true"></span><span>Refresh Gateway Link</span>
+                  </button>
+                  <span class="smsg" id="replicationMsg"></span>
                 </div>
               </div>
             </div>
@@ -2307,45 +2373,71 @@
                 </div>
               </div>
             </div>
-            <div id="connPanelRuntime" class="card-tab-panel" data-card-tab-panel="runtime" role="tabpanel" aria-labelledby="connTabRuntime" hidden>
+            <div id="connPanelRuntime" class="card-tab-panel" data-card-tab-panel="runtime" role="tabpanel" aria-labelledby="connTabRuntime" data-role-min="devClard" hidden>
               <div class="settings-subsection">
                 <div class="rep-health-grid">
-                  <div class="license-label">Uptime</div>
-                  <div id="perfUptimeVal" class="license-value">-</div>
+                  <div class="license-item" title="Current runtime role of this dashboard device.">
+                    <div class="license-label">Operating Mode</div>
+                    <div id="perfModeVal" class="license-value">-</div>
+                  </div>
+                  <div class="license-item" title="Time since the gateway process was started.">
+                    <div class="license-label">Uptime</div>
+                    <div id="perfUptimeVal" class="license-value">-</div>
+                  </div>
+                  <div class="license-item" title="Number of distinct data keys currently held in the live in-memory snapshot.">
+                    <div class="license-label">Live Value Keys</div>
+                    <div id="perfLiveKeysVal" class="license-value">-</div>
+                  </div>
+                  <div class="license-item" title="Total number of completed inverter polling cycles since startup.">
+                    <div class="license-label">Polling Cycles</div>
+                    <div id="perfPollTicksVal" class="license-value">-</div>
+                  </div>
+                  <div class="license-item" title="Time taken by the most recent full polling cycle across all inverters.">
+                    <div class="license-label">Poll Duration</div>
+                    <div id="perfPollDurVal" class="license-value">-</div>
+                  </div>
+                  <div class="license-item" title="Cumulative count of failed data fetch attempts from the Python inverter service.">
+                    <div class="license-label">Fetch Errors</div>
+                    <div id="perfFetchErrVal" class="license-value">-</div>
+                  </div>
+                  <div class="license-item" title="Total telemetry rows written to the SQLite database since startup.">
+                    <div class="license-label">Rows Persisted</div>
+                    <div id="perfPersistRowsVal" class="license-value">-</div>
+                  </div>
+                  <div class="license-item" title="Telemetry rows skipped, for example outside the solar window or duplicate data.">
+                    <div class="license-label">Persist Skipped</div>
+                    <div id="perfPersistSkipVal" class="license-value">-</div>
+                  </div>
+                  <div class="license-item" title="Number of WebSocket clients currently connected to the live data stream.">
+                    <div class="license-label">Connected Clients</div>
+                    <div id="perfWsClientsVal" class="license-value">-</div>
+                  </div>
+                  <div class="license-item" title="WebSocket frames dropped because of connection failures or slow consumers.">
+                    <div class="license-label">WS Delivery Drops</div>
+                    <div id="perfWsDropsVal" class="license-value">-</div>
+                  </div>
+                  <div class="license-item" title="Gateway process CPU usage at the latest runtime sample.">
+                    <div class="license-label">CPU</div>
+                    <div id="perfCpuVal" class="license-value">-</div>
+                  </div>
+                  <div class="license-item" title="Gateway resident memory at the latest runtime sample.">
+                    <div class="license-label">Memory</div>
+                    <div id="perfMemVal" class="license-value">-</div>
+                  </div>
+                  <div class="license-item" title="Most recent poller, gateway, or replication error, if any.">
+                    <div class="license-label">Recent Errors</div>
+                    <div id="perfErrorsVal" class="license-value">-</div>
+                  </div>
                 </div>
-                <div class="license-item" title="Number of distinct data keys currently held in the live in-memory snapshot.">
-                  <div class="license-label">Live Value Keys</div>
-                  <div id="perfLiveKeysVal" class="license-value">-</div>
-                </div>
-                <div class="license-item" title="Total number of completed inverter polling cycles since startup.">
-                  <div class="license-label">Polling Cycles</div>
-                  <div id="perfPollTicksVal" class="license-value">-</div>
-                </div>
-                <div class="license-item" title="Time taken by the most recent full polling cycle across all inverters.">
-                  <div class="license-label">Poll Duration</div>
-                  <div id="perfPollDurVal" class="license-value">-</div>
-                </div>
-                <div class="license-item" title="Cumulative count of failed data fetch attempts from the Python inverter service.">
-                  <div class="license-label">Fetch Errors</div>
-                  <div id="perfFetchErrVal" class="license-value">-</div>
-                </div>
-                <div class="license-item" title="Total telemetry rows written to the SQLite database since startup.">
-                  <div class="license-label">Rows Persisted</div>
-                  <div id="perfPersistRowsVal" class="license-value">-</div>
-                </div>
-                <div class="license-item" title="Telemetry rows skipped (e.g. outside solar window or duplicate data).">
-                  <div class="license-label">Persist Skipped</div>
-                  <div id="perfPersistSkipVal" class="license-value">-</div>
-                </div>
-                <div class="license-item" title="Number of WebSocket clients currently connected to the live data stream.">
-                  <div class="license-label">Connected Clients</div>
-                  <div id="perfWsClientsVal" class="license-value">-</div>
-                </div>
-                <div class="license-item" title="WebSocket frames dropped due to client connection failures or slow consumers.">
-                  <div class="license-label">WS Delivery Drops</div>
-                  <div id="perfWsDropsVal" class="license-value">-</div>
+                <div class="sgroup-actions" style="margin-top:12px;">
+                  <button id="btnRefreshRuntimeHealth" class="btn btn-outline" type="button" title="Refresh gateway process and telemetry runtime counters.">
+                    <span class="mdi mdi-refresh" aria-hidden="true"></span><span>Refresh Runtime Health</span>
+                  </button>
+                  <span class="smsg" id="perfMsg"></span>
                 </div>
               </div>
+            </div>
+          </div>
 <div class="sgroup settings-card" id="licenseSection" data-role-min="devClard">
             <div class="sgroup-title" title="Entitlement state, remaining term, and license activity. Replace the current file when required."><span class="mdi mdi-shield-key-outline icon-inline" aria-hidden="true"></span> License</div>
             <div class="license-grid">
@@ -3652,7 +3744,7 @@ Hover any pill in the column for the row-specific explanation.">Anchor</th>
 
     <script src="js/jsmpeg.min.js"></script>
     <script src="/vendor/hls.min.js"></script>
-    <script src="js/app.js?v=2.0.2"></script>
+    <script src="js/app.js?v=2.0.16"></script>
 
     <!-- Cap Schedule Form Modal -->
     <div id="capScheduleModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="capScheduleFormTitle">

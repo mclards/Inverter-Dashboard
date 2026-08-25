@@ -14427,6 +14427,132 @@ body.mode-transition-active {
   order: 6;
 }
 
+/* Forecast configuration is centralized in Settings, while the operational
+ * preview remains a first-class Forecast-page card. The host is transparent
+ * to the forecast card grid so the retained preview keeps its full width. */
+#page-forecast #forecastPreviewHost {
+  display: contents;
+}
+
+#page-forecast #forecastOperationsSection > .sgroup-title {
+  display: block;
+}
+
+#page-forecast #forecastOperationsSection .forecast-preview-panel {
+  grid-column: 1 / -1;
+  width: 100%;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border-color: var(--forecast-preview-panel-border);
+  background: var(--forecast-preview-panel-bg);
+  box-shadow: var(--forecast-preview-shadow);
+}
+
+#page-forecast #forecastOperationsSection .forecast-preview-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+#page-forecast #forecastOperationsSection .forecast-preview-toolbar label {
+  grid-column: span 4;
+}
+
+#page-forecast #forecastOperationsSection .forecast-preview-toolbar-buttons {
+  grid-column: span 12;
+  align-self: flex-end;
+  display: flex;
+}
+
+#page-forecast #forecastOperationsSection .forecast-preview-toolbar-buttons .btn {
+  min-height: 36px;
+  min-width: 180px;
+}
+
+#page-forecast #forecastOperationsSection .forecast-preview-metrics {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+#page-forecast #forecastOperationsSection .forecast-preview-metric {
+  min-height: 62px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--forecast-preview-metric-bg);
+}
+
+#page-forecast #forecastOperationsSection .forecast-preview-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+
+#page-forecast #forecastOperationsSection .forecast-preview-value {
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+#page-forecast #forecastOperationsSection .forecast-preview-chart-wrap {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--forecast-preview-panel-border);
+  border-radius: 16px;
+  background: var(--forecast-preview-chart-bg);
+}
+
+#page-forecast #forecastOperationsSection .forecast-preview-chart-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+#page-forecast #forecastOperationsSection .forecast-preview-chart-title {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+#page-forecast #forecastOperationsSection .forecast-preview-chart-note {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+}
+
+#page-forecast #forecastOperationsSection .forecast-preview-chart-emphasis {
+  padding: 6px 10px;
+  border: 1px solid var(--forecast-preview-panel-border);
+  border-radius: 999px;
+  color: var(--text2);
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+#page-forecast #forecastOperationsSection .forecast-preview-chart-canvas {
+  min-height: 240px;
+  height: clamp(240px, 36vh, 400px);
+  padding: 10px 14px 14px;
+  border: 1px solid var(--forecast-preview-panel-border);
+  border-radius: 14px;
+  background: var(--forecast-preview-chart-inner-bg);
+}
+
+#page-forecast #forecastOperationsSection .forecast-preview-chart-canvas canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
 #page-forecast .forecast-page-sections > .sgroup.settings-card > .sgroup-title {
   grid-column: 1 / -1;
   position: static;
@@ -14561,7 +14687,29 @@ body.mode-transition-active {
 #page-settings .settings-sidebar-card:first-child {
   flex: 1 1 0;
   min-height: 0;
+  overflow: hidden;
+}
+
+#page-settings .settings-nav-card {
+  display: flex;
+  flex-direction: column;
+}
+
+#page-settings .settings-nav-card .settings-sidebar-head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  flex: 0 0 auto;
+  background: var(--surface);
+}
+
+#page-settings .settings-nav-card .settings-menu {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-gutter: stable;
 }
 
 #page-settings #settingsSelectWrap {
@@ -15001,6 +15149,11 @@ body.mode-transition-active {
   color: var(--text);
 }
 
+#page-settings .settings-sections > .sgroup.settings-card > *:not(.srow),
+#page-settings .settings-sections > .sgroup.settings-card > .settings-subsection,
+#page-settings .settings-sections > .sgroup.settings-card > .cb-subsection,
+#page-settings .settings-sections > .sgroup.settings-card > .invtopology-wrap,
+#page-settings .settings-sections > .sgroup.settings-card > #topologyContainer,
 #page-settings .settings-sections > .sgroup.settings-card > .sinfo,
 #page-settings .settings-sections > .sgroup.settings-card > .sgroup-actions,
 #page-settings .settings-sections > .sgroup.settings-card > .license-grid,
@@ -15008,11 +15161,15 @@ body.mode-transition-active {
 #page-settings .settings-sections > .sgroup.settings-card > .cb-progress-wrap,
 #page-settings .settings-sections > .sgroup.settings-card > .card-tabs,
 #page-settings .settings-sections > .sgroup.settings-card > .card-tab-panel,
+#page-settings .settings-sections > .sgroup.settings-card > .invclock-tabs,
+#page-settings .settings-sections > .sgroup.settings-card > .invclock-tab-panel,
 #page-settings
   .settings-sections
   > .sgroup.settings-card
   > #cbCloudListSection {
   grid-column: 1 / -1;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Inside an active tab panel the former subsection wrapper is one level
@@ -25878,6 +26035,7 @@ table.fcal-settings-table .fcal-set-readonly {
     background: var(--surface) !important;
     border: 1px solid var(--border) !important;
     flex: 0 0 auto !important;
+    overflow: visible !important;
   }
 
   #page-settings .settings-sidebar-head {

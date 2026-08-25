@@ -22,17 +22,31 @@ Version : 3.0 (Day-Ahead Hardened)
  2026 Engr. Clariden Montao REE. All rights reserved.
 """
 
+import sys
+import os
+
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, 'w')
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, 'w')
+
+try:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 import argparse
 import hashlib
 import json
 import logging
 import warnings
 import math
-import os
 import queue
 import sqlite3
 import subprocess
-import sys
 import threading
 import time
 import uuid

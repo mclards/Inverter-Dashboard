@@ -1332,7 +1332,10 @@ function normalizeGatewayUrl(value) {
 }
 
 function readOperationMode() {
-  return sanitizeOperationMode(getSetting("operationMode", "gateway"), "gateway");
+  // The presence of a validated Server Host URL is the single operational
+  // choice: host present = Remote client; host blank = Gateway/server.
+  // This also repairs stale operationMode values left by older releases.
+  return getRemoteGatewayBaseUrl() ? "remote" : "gateway";
 }
 
 function isRemoteMode() {
@@ -5813,7 +5816,7 @@ function sendRemoteJsonResult(res, result) {
   res.status(Number(result?.status || 502));
   if (result?.data && typeof result.data === "object") return res.json(result.data);
   if (/text\/html/i.test(String(result?.contentType || "")) || /^\s*<!doctype\s+html/i.test(String(result?.text || ""))) {
-    return res.json({
+    return res.status(502).json({
       ok: false,
       error: Number(result?.status || 0) === 404
         ? "The gateway does not support Hikvision relay yet. Update or restart the gateway dashboard."
@@ -6076,6 +6079,11 @@ const _OPERATOR_AUTH_FORWARD_HEADERS = [
   "authorization",
 ];
 
+const _DASHBOARD_IDENTITY_FORWARD_HEADERS = [
+  "x-device-id",
+  "x-operator-name",
+];
+
 function _collectOperatorAuthHeaders(req) {
   const out = {};
   if (!req || !req.headers) return out;
@@ -6084,6 +6092,29 @@ function _collectOperatorAuthHeaders(req) {
     if (typeof v === "string" && v.trim()) out[name] = v;
   }
   return out;
+}
+
+function _collectDashboardIdentityHeaders(req) {
+  const out = {};
+  if (!req || !req.headers) return out;
+  for (const name of _DASHBOARD_IDENTITY_FORWARD_HEADERS) {
+    const value = req.headers[name];
+    if (typeof value === "string" && value.trim()) out[name] = value.trim().slice(0, 128);
+  }
+  return out;
+}
+
+function resolveDashboardAuditOperator(req, suppliedOperator = "", fallback = "OPERATOR") {
+  const rawDeviceId = String(req?.headers?.["x-device-id"] || "").trim();
+  const validDeviceId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawDeviceId)
+    ? rawDeviceId.toLowerCase()
+    : "";
+  const rawName = String(
+    req?.headers?.["x-operator-name"] || suppliedOperator || fallback,
+  ).replace(/[\r\n\u0000-\u001f\u007f]/g, " ").trim() || fallback;
+  if (!validDeviceId || rawName.startsWith("SYSTEM:")) return rawName.slice(0, 64);
+  const suffix = ` @${validDeviceId}`;
+  return `${rawName.slice(0, Math.max(1, 64 - suffix.length))}${suffix}`;
 }
 
 async function proxyToRemote(req, res, tokenOverride = "", options = {}) {
@@ -6104,6 +6135,7 @@ async function proxyToRemote(req, res, tokenOverride = "", options = {}) {
   const timeoutMs = resolveProxyTimeout(target);
   const headers = {
     ...buildRemoteProxyHeaders(tokenOverride),
+    ..._collectDashboardIdentityHeaders(req),
   };
   // Forward operator-auth headers (bulk-auth / topology / session / acted-by)
   // so gateway-side `_requireBulkAuth` and similar checks see the operator
@@ -6176,6 +6208,7 @@ async function proxyWriteToRemote(req, res, targetPath = "/api/write") {
             "Content-Type": "application/json",
             "x-control-priority": "high",
             ...buildRemoteProxyHeaders(),
+            ..._collectDashboardIdentityHeaders(req),
           },
           body: JSON.stringify(payload),
           timeout: REMOTE_CONTROL_PROXY_TIMEOUT_MS,
@@ -6386,8 +6419,11 @@ async function executeLocalControlWriteRequest(bodyRaw = {}, options = {}) {
     throw err;
   }
 
-  const operatorName =
-    String(operator || getSetting("operatorName", "OPERATOR")).trim() || "OPERATOR";
+  const operatorName = resolveDashboardAuditOperator(
+    options.req,
+    operator,
+    getSetting("operatorName", "OPERATOR"),
+  );
   const cfg = loadIpConfigFromDb();
   const targetIp = String(
     cfg?.inverters?.[invNum] ?? cfg?.inverters?.[String(invNum)] ?? "",
@@ -6566,8 +6602,11 @@ async function executeLocalBatchControlWriteRequest(bodyRaw = {}, options = {}) 
     throw err;
   }
 
-  const operatorName =
-    String(operator || getSetting("operatorName", "OPERATOR")).trim() || "OPERATOR";
+  const operatorName = resolveDashboardAuditOperator(
+    options.req,
+    operator,
+    getSetting("operatorName", "OPERATOR"),
+  );
   const cfg = loadIpConfigFromDb();
   const targetIp = String(
     cfg?.inverters?.[invNum] ?? cfg?.inverters?.[String(invNum)] ?? "",
@@ -12984,6 +13023,23 @@ function sanitizeIpConfig(input) {
   return out;
 }
 
+function canonicalIpConfigPath() {
+  // The Inverter Dashboard's canonical operator-visible configuration. Keep
+  // this separate from DATA_DIR so a development launch cannot silently use a
+  // repository store or another dashboard product's ProgramData directory.
+  if (PORTABLE_ROOT) return path.join(PORTABLE_ROOT, "config", "ipconfig.json");
+  const explicitDataDir = String(
+    process.env.INVERTER_DATA_DIR ||
+      process.env.IM_DATA_DIR ||
+      process.env.ADSI_DATA_DIR ||
+      "",
+  ).trim();
+  if (explicitDataDir) return path.join(explicitDataDir, "ipconfig.json");
+  const programDataRoot =
+    process.env.PROGRAMDATA || process.env.ALLUSERSPROFILE || "C:\\ProgramData";
+  return path.join(programDataRoot, "Inverter-Dashboard", "db", "ipconfig.json");
+}
+
 function legacyIpConfigPaths() {
   // Only include paths under user-data / portable roots — these persist
   // across updates. Paths under the installed app directory
@@ -12992,7 +13048,7 @@ function legacyIpConfigPaths() {
   // installer run, so letting them feed the fallback chain allows a
   // stale bundled ipconfig to silently overwrite user customizations
   // on the first post-update boot.
-  const preferred = [];
+  const preferred = [canonicalIpConfigPath()];
   if (PORTABLE_ROOT) {
     preferred.push(path.join(PORTABLE_ROOT, "config", "ipconfig.json"));
   }
@@ -13013,6 +13069,17 @@ function readLegacyIpConfigIfAny() {
   return null;
 }
 
+function readCanonicalIpConfigIfAny() {
+  const p = canonicalIpConfigPath();
+  try {
+    if (!fs.existsSync(p)) return null;
+    return sanitizeIpConfig(JSON.parse(fs.readFileSync(p, "utf8")));
+  } catch (err) {
+    console.warn("[config] canonical file read failed:", err.message);
+    return null;
+  }
+}
+
 function mirrorIpConfigToLegacyFiles(cfg) {
   for (const p of legacyIpConfigPaths()) {
     try {
@@ -13025,6 +13092,23 @@ function mirrorIpConfigToLegacyFiles(cfg) {
 
 function loadIpConfigFromDb() {
   const raw = getSetting("ipConfigJson", "");
+  // The managed ProgramData JSON is the operator-visible configuration source.
+  // Promote a validated file into the settings DB before any consumer (Node
+  // poller, Python engine, or topology UI) reads it. This keeps the existing
+  // DB-backed remote/security flow while ensuring a legitimate field edit is
+  // never shadowed by a stale legacy database mirror.
+  const canonical = readCanonicalIpConfigIfAny();
+  if (canonical) {
+    const canonicalJson = JSON.stringify(canonical);
+    if (raw !== canonicalJson) {
+      try {
+        setSetting("ipConfigJson", canonicalJson);
+      } catch (err) {
+        console.warn("[config] canonical DB sync failed:", err.message);
+      }
+    }
+    return canonical;
+  }
   if (raw) {
     try {
       return sanitizeIpConfig(JSON.parse(raw));
@@ -15495,6 +15579,7 @@ function getLiveAlarmBitmap(inv, slave) {
  * cross-cutting (DC + AC bridge instability).
  */
 function loadCriticalPatterns(inv, slave, now) {
+  if (!db || !db.open) return [];
   const windowMs = criticalAlarmPatterns.DEFAULT_WINDOW_MS;
   const windowCutoff = now - windowMs;
 
@@ -15589,6 +15674,7 @@ const EOL_POST_ACK_GRACE_MS        = 24 * 60 * 60 * 1000;  // 24 h
 // resolved the latest ack timestamp (see loadCriticalPatterns), we use it
 // to avoid a second DAO lookup; otherwise we resolve it locally.
 function _evaluateIgbtHealthEolSignal(inv, slave, now, _postAckCutoffOverride) {
+  if (!db || !db.open) return null;
   const HEALTH_WINDOW_DAYS = 90;
   const cutoffMs = now - HEALTH_WINDOW_DAYS * 24 * 60 * 60 * 1000;
   let ip = "";
@@ -16225,6 +16311,7 @@ function captureThermalBaselineForDate(dateStr) {
 }
 
 function backfillThermalBaselineOnStartup() {
+  if (!db || !db.open) return;
   // On startup, ensure the last N days are populated. Skip dates already present.
   try {
     const ipConfig = loadIpConfigFromDb();
@@ -18966,6 +19053,23 @@ function _scheduleNextClockSync() {
 
 try { _scheduleNextClockSync(); } catch (_) { /* boot-time safe */ }
 
+// Lightweight lifecycle probe for the Electron shell. This endpoint must stay
+// independent of the telemetry data path: a healthy HTTP gateway can report a
+// degraded poller separately, instead of making the desktop label guess from a
+// spawned process object or from a 404 on an unrelated route.
+app.get("/api/health", (req, res) => {
+  const mode = readOperationMode();
+  const perf = typeof poller.getPerfStats === "function" ? poller.getPerfStats() : {};
+  res.json({
+    ok: true,
+    service: "gateway",
+    operationMode: mode,
+    uptimeSec: Number(process.uptime().toFixed(2)),
+    pollerRunning: mode !== "remote",
+    lastLiveFrameTs: Number(perf.lastLiveFrameTs || perf.last_live_frame_ts || 0),
+  });
+});
+
 app.get("/api/live", (req, res) => {
   // Hot-path optimization for gateway mode: avoid per-request stringify cost.
   // Supports ETag for direct consumers that can tolerate cached heartbeat data.
@@ -20341,7 +20445,7 @@ app.post("/api/plant-cap/setpoint/apply", express.json(), async (req, res) => {
   } catch (_) {}
   const target_pct = Number(b.target_pct);
   const force = Boolean(b.force);
-  const operator = String(b.operator || "operator").slice(0, 64);
+  const operator = resolveDashboardAuditOperator(req, b.operator, "operator");
   const isSetpointOp = opcode === "set";
   if (isSetpointOp && (!Number.isFinite(target_pct) || target_pct < 0 || target_pct > 100)) {
     return res.status(400).json({ ok: false, error: "target_pct must be 0–100" });
@@ -20628,13 +20732,20 @@ app.get("/api/credentials-reference", (req, res) => {
   });
 });
 
-app.get("/api/settings", (req, res) => {
-  res.json(
-    browserAuth.redactSettingsSnapshot(
-      buildSettingsSnapshot(),
-      !browserAuth.directLoopback(req),
-    ),
-  );
+app.get("/api/settings", async (req, res) => {
+  try {
+    const snapshot = isRemoteMode()
+      ? await fetchRemoteSettingsForClient()
+      : buildSettingsSnapshot();
+    res.json(
+      browserAuth.redactSettingsSnapshot(
+        snapshot,
+        !browserAuth.directLoopback(req),
+      ),
+    );
+  } catch (err) {
+    res.status(Number(err?.status || 502)).json({ ok: false, error: String(err?.message || err) });
+  }
 });
 
 app.get("/api/settings/defaults", (req, res) => {
@@ -20718,16 +20829,9 @@ function _applyIpConfigPost(req, res) {
   }
 }
 
-// Remote-mode IP-config save ("save to both"). The gateway is the authoritative
-// store, so the edit is forwarded there FIRST; only on a confirmed gateway save
-// is the gateway's sanitized config mirrored back into THIS remote viewer's
-// local DB + legacy files so both sides stay byte-for-byte identical. The local
-// poller is intentionally never touched (there is none in remote mode), but a
-// configChanged broadcast refreshes the remote dashboard's inverter cards
-// immediately. Operator-auth headers (e.g. x-topology-key for a serial-bearing
-// save) are forwarded transparently so the gateway re-validates exactly as if
-// the request had arrived locally; the remote-bridge token still wins on
-// Authorization so it is never clobbered.
+// Remote-mode IP configuration is gateway-authoritative. The edit is forwarded
+// to the gateway and this client never mirrors it into its standby DB or legacy
+// files. A standby refresh is the only supported way to obtain a local copy.
 async function _applyIpConfigPostRemote(req, res) {
   // Reject obviously malformed payloads before spending a gateway round-trip.
   // A real save always carries the object-map config shape; the legacy serial
@@ -20749,7 +20853,11 @@ async function _applyIpConfigPostRemote(req, res) {
       .json({ ok: false, error: "Remote gateway URL cannot be localhost in remote mode." });
   }
   const target = `${base}/api/ip-config`;
-  const headers = { "Content-Type": "application/json", ...buildRemoteProxyHeaders() };
+  const headers = {
+    "Content-Type": "application/json",
+    ...buildRemoteProxyHeaders(),
+    ..._collectDashboardIdentityHeaders(req),
+  };
   for (const [name, value] of Object.entries(_collectOperatorAuthHeaders(req))) {
     if (name === "authorization" && headers.Authorization) continue;
     headers[name] = value;
@@ -20792,27 +20900,14 @@ async function _applyIpConfigPostRemote(req, res) {
     gatewayCfg.inverters &&
     typeof gatewayCfg.inverters === "object";
   if (!gatewayCfgUsable) {
-    return res.json({
-      ...(gatewayCfg && typeof gatewayCfg === "object" ? gatewayCfg : {}),
-      ok: true,
-      localMirrorWarning:
-        "Gateway returned an unexpected configuration shape; local mirror skipped.",
+    return res.status(502).json({
+      ok: false,
+      error: "Gateway returned an invalid IP configuration response.",
     });
   }
   // Gateway accepted the save — mirror its authoritative config locally so the
   // remote viewer's own store matches what the gateway will poll with.
-  try {
-    const cfg = saveIpConfigToDb(gatewayCfg);
-    mirrorIpConfigToLegacyFiles(cfg);
-    pastDailyReportCache.clear();
-    pastReportSummaryCache.clear();
-    broadcastUpdate({ type: "configChanged" });
-    return res.json(cfg);
-  } catch (err) {
-    // The gateway already persisted the change; surface success but flag that
-    // the local mirror could not be written so it is not silently swallowed.
-    return res.json({ ...gatewayCfg, ok: true, localMirrorWarning: err.message });
-  }
+  return res.json(gatewayCfg);
 }
 
 app.post("/api/ip-config", (req, res) => {
@@ -21203,28 +21298,99 @@ app.post("/api/substation-meter/:date/recalculate", (req, res) => {
 });
 
 // --- REMOTE MODE PROXY SUPPORT ---
+// A Remote client is a viewer/controller for one gateway, not an independent
+// plant. Only these device-specific settings may remain on the client.
+const REMOTE_CLIENT_LOCAL_SETTING_KEYS = new Set([
+  "operationMode",
+  "remoteGatewayUrl",
+  "remoteApiToken",
+  "remoteAutoSync",
+  "tailscaleDeviceHint",
+  "wireguardInterface",
+  "csvSavePath",
+  "invGridLayout",
+  "exportUiState",
+  "cameraConfig",
+  "go2rtcAutoStart",
+  "operatorName",
+]);
+
+function withoutRemoteClientLocalSettings(payload) {
+  const out = { ...(payload || {}) };
+  for (const key of REMOTE_CLIENT_LOCAL_SETTING_KEYS) delete out[key];
+  return out;
+}
+
+function remoteClientLocalSettingsSnapshot() {
+  const local = buildSettingsSnapshot();
+  const out = {};
+  for (const key of REMOTE_CLIENT_LOCAL_SETTING_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(local, key)) out[key] = local[key];
+  }
+  // The populated local host is the sole role authority for this device.
+  out.operationMode = "remote";
+  return out;
+}
+
+function mergeRemoteSettingsForClient(remoteSnapshot) {
+  return {
+    ...(remoteSnapshot && typeof remoteSnapshot === "object" ? remoteSnapshot : {}),
+    ...remoteClientLocalSettingsSnapshot(),
+  };
+}
+
+async function fetchRemoteSettingsForClient() {
+  const targetUrl = getRemoteGatewayBaseUrl();
+  const token = getRemoteApiToken();
+  if (!targetUrl || !token) {
+    const error = new Error("Remote gateway URL or Remote API token is not configured.");
+    error.status = 503;
+    throw error;
+  }
+  try {
+    const { default: fetch } = await import("node-fetch");
+    const response = await fetch(`${targetUrl}/api/settings`, {
+      method: "GET",
+      headers: buildRemoteProxyHeaders(token),
+    });
+    const raw = await response.text();
+    let payload = {};
+    try { payload = raw ? JSON.parse(raw) : {}; } catch (_) {}
+    if (!response.ok || !payload || typeof payload !== "object") {
+      const error = new Error(String(payload?.error || raw || `Gateway settings request failed (${response.status}).`));
+      error.status = response.status || 502;
+      throw error;
+    }
+    return mergeRemoteSettingsForClient(payload);
+  } catch (err) {
+    if (err?.status) throw err;
+    const error = new Error(`Remote gateway settings request failed: ${err?.message || err}`);
+    error.status = 502;
+    throw error;
+  }
+}
+
 async function _applySettingsPostRemote(req, res, targetUrl, token, modeBefore) {
   try {
-    const payload = { ...req.body };
-    // Strip local-only config before proxying to gateway
-    if (payload.remoteGatewayUrl !== undefined) delete payload.remoteGatewayUrl;
-    if (payload.remoteApiToken !== undefined) delete payload.remoteApiToken;
-    if (payload.cameraConfig !== undefined) delete payload.cameraConfig;
-    // A viewer must never switch the authoritative gateway into Remote mode.
-    if (payload.operationMode !== undefined) delete payload.operationMode;
+    // A viewer must never copy device-only configuration into plant settings
+    // or switch the authoritative gateway into Remote mode.
+    const payload = withoutRemoteClientLocalSettings(req.body);
 
     // Attempt remote save
     const { default: fetch } = await import('node-fetch');
     const response = await fetch(`${targetUrl}/api/settings`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...buildRemoteProxyHeaders(token) },
+      headers: {
+        'Content-Type': 'application/json',
+        ...buildRemoteProxyHeaders(token),
+        ..._collectDashboardIdentityHeaders(req),
+      },
       body: JSON.stringify(payload)
     });
 
     if (response.ok) {
-      // Allow local update of things like operationMode and token if they exist in original request
-      // But we intercept the rest. Actually, let's just let the normal save proceed locally too,
-      // so local DB matches remote gateway, but we swallow the fact it was done locally.
+      // The caller persists only its explicit device-local allow-list after
+      // this succeeds; plant settings remain exclusively on the gateway.
       return { remoteSuccess: true, response: await response.json() };
     } else {
       return { remoteSuccess: false, status: response.status, text: await response.text() };
@@ -21236,11 +21402,26 @@ async function _applySettingsPostRemote(req, res, targetUrl, token, modeBefore) 
 
 app.post("/api/settings", async (req, res) => {
   const currentMode = readOperationMode();
+  const requestBody = req.body && typeof req.body === "object" ? req.body : {};
+  const requestKeys = Object.keys(requestBody);
+  // A populated Server Host URL is the sole role authority.  Never trust an
+  // incoming operationMode flag to turn a Remote client into a local gateway:
+  // that would allow a mixed request to bypass the authoritative server.
+  const remoteClientSave = currentMode === "remote";
+  // Device-local connection/preferences changes must remain possible when the
+  // gateway is offline.  In particular, clearing Server Host URL is how an
+  // operator deliberately returns this device to local gateway mode; it must
+  // not require the old remote gateway (or its token) to be reachable.
+  const remoteClientLocalOnlySave =
+    remoteClientSave &&
+    requestKeys.length > 0 &&
+    requestKeys.every((key) => REMOTE_CLIENT_LOCAL_SETTING_KEYS.has(key));
+  let remoteSaveResult = null;
 
   // ── Local-only settings: persist BEFORE any remote proxy so they are
   // always saved regardless of gateway connectivity or remote save outcome.
   // cameraConfig and go2rtcAutoStart are never forwarded to the gateway.
-  {
+  if (!remoteClientSave) {
     const localUpdates = {};
     if (req.body.cameraConfig !== undefined) {
       localUpdates.cameraConfig = JSON.stringify(sanitizeCameraConfig(req.body.cameraConfig));
@@ -21258,14 +21439,18 @@ app.post("/api/settings", async (req, res) => {
     }
   }
 
-  if (currentMode === 'remote' && req.body.operationMode !== 'gateway') {
+  if (remoteClientSave && !remoteClientLocalOnlySave) {
     const targetUrl = getRemoteGatewayBaseUrl();
     const token = getRemoteApiToken();
-    if (targetUrl && token) {
-      const remoteRes = await _applySettingsPostRemote(req, res, targetUrl, token, currentMode);
-      if (!remoteRes.remoteSuccess) {
-         return res.status(500).json({ ok: false, error: 'Remote save failed', details: remoteRes });
-      }
+    if (!targetUrl || !token) {
+      return res.status(503).json({
+        ok: false,
+        error: "Remote settings are unavailable until this client has a configured gateway URL and Remote API token.",
+      });
+    }
+    remoteSaveResult = await _applySettingsPostRemote(req, res, targetUrl, token, currentMode);
+    if (!remoteSaveResult.remoteSuccess) {
+      return res.status(502).json({ ok: false, error: "Remote save failed", details: remoteSaveResult });
     }
   }
 
@@ -21337,7 +21522,7 @@ app.post("/api/settings", async (req, res) => {
   } =
     req.body || {};
 
-  if (ipConfig !== undefined) {
+  if (ipConfig !== undefined && !remoteClientSave) {
     const safeIpConfig = sanitizeIpConfig(ipConfig);
     updates.ipConfigJson = JSON.stringify(safeIpConfig);
     mirrorIpConfigToLegacyFiles(safeIpConfig);
@@ -21677,23 +21862,16 @@ app.post("/api/settings", async (req, res) => {
     updates.inverterPollConfig = JSON.stringify(sanitizePollConfig(inverterPollConfig));
   }
 
-  const effectiveMode = sanitizeOperationMode(
-    updates.operationMode !== undefined ? updates.operationMode : modeBefore,
-    modeBefore,
-  );
   const effectiveRemoteGatewayUrl = String(
     updates.remoteGatewayUrl !== undefined
       ? updates.remoteGatewayUrl
       : remoteGatewayBefore,
   ).trim();
+  const effectiveMode = effectiveRemoteGatewayUrl ? "remote" : "gateway";
+  // Do not accept a separate, contradictory mode selection. Persist the
+  // derived value so all existing remote/gateway safeguards see one truth.
+  updates.operationMode = effectiveMode;
   if (effectiveMode === "remote") {
-    if (!effectiveRemoteGatewayUrl) {
-      return res.status(400).json({
-        ok: false,
-        error:
-          "Remote mode requires a configured Remote Gateway URL. Enter the gateway address first, then save again.",
-      });
-    }
     if (isUnsafeRemoteLoop(effectiveRemoteGatewayUrl)) {
       return res.status(400).json({
         ok: false,
@@ -21788,28 +21966,34 @@ app.post("/api/settings", async (req, res) => {
     updates.crashGapRatio = String(r);
   }
 
+  const persistedUpdates = remoteClientSave
+    ? Object.fromEntries(
+      Object.entries(updates).filter(([key]) => REMOTE_CLIENT_LOCAL_SETTING_KEYS.has(key)),
+    )
+    : updates;
+
   db.transaction(() => {
-    Object.entries(updates).forEach(([k, v]) => setSetting(k, v));
+    Object.entries(persistedUpdates).forEach(([k, v]) => setSetting(k, v));
   })();
 
   // Audit log every applied settings change so gateway and remote viewers
   // share a unified history. Sensitive keys are redacted to avoid leaking
   // secrets into audit_log (which replicates to remote viewers).
-  if (Object.keys(updates).length > 0) {
+  if (Object.keys(persistedUpdates).length > 0) {
     const SENSITIVE_SETTING_KEYS = new Set([
       "remoteApiToken",
       "solcastApiKey",
       "solcastToolkitPassword",
       "solcastToolkitTotpSecret",
     ]);
-    const operatorName = String(
-      (req.body && req.body.operator) ||
-      req.headers["x-operator"] ||
+    const operatorName = resolveDashboardAuditOperator(
+      req,
+      req.body && req.body.operator,
       getSetting("operatorName", "OPERATOR"),
-    ).slice(0, 64);
+    );
     const auditTs = Date.now();
     const reqIp = String(req.ip || req.connection?.remoteAddress || "").slice(0, 64);
-    Object.entries(updates).forEach(([k, v]) => {
+    Object.entries(persistedUpdates).forEach(([k, v]) => {
       const display = SENSITIVE_SETTING_KEYS.has(k)
         ? (v ? "<redacted>" : "<cleared>")
         : (typeof v === "string" && v.length > 200 ? v.slice(0, 200) + "…" : String(v));
@@ -21829,13 +22013,13 @@ app.post("/api/settings", async (req, res) => {
     // /api/settings instead of waiting on the next replication tick. Mode/
     // gateway/token changes are still handled separately below with the
     // heavier `configChanged` event that triggers UI rebuild.
-    try { broadcastUpdate({ type: "settingsChanged", keys: Object.keys(updates) }); } catch (_) {}
+    try { broadcastUpdate({ type: "settingsChanged", keys: Object.keys(persistedUpdates) }); } catch (_) {}
   }
 
   // Reschedule the clock-sync cron if the schedule changed.
   if (
-    updates.inverterClockAutoSyncEnabled !== undefined ||
-    updates.inverterClockAutoSyncAt !== undefined
+    persistedUpdates.inverterClockAutoSyncEnabled !== undefined ||
+    persistedUpdates.inverterClockAutoSyncAt !== undefined
   ) {
     try { _scheduleNextClockSync(); } catch (_) { /* non-fatal */ }
   }
@@ -21861,18 +22045,18 @@ app.post("/api/settings", async (req, res) => {
     }
   }
   if (
-    updates.inverterCount !== undefined ||
-    updates.nodeCount !== undefined
+    persistedUpdates.inverterCount !== undefined ||
+    persistedUpdates.nodeCount !== undefined
   ) {
     pastDailyReportCache.clear();
     pastReportSummaryCache.clear();
   }
-  if (updates.remoteAutoSync === "0") {
+  if (persistedUpdates.remoteAutoSync === "0") {
     remoteBridgeState.autoSyncAttempted = false;
   }
   let retentionScheduled = false;
-  if (updates.retainDays !== undefined) {
-    const retainDaysAfter = Math.max(1, Number(updates.retainDays || retainDaysBefore));
+  if (persistedUpdates.retainDays !== undefined) {
+    const retainDaysAfter = Math.max(1, Number(persistedUpdates.retainDays || retainDaysBefore));
     if (retainDaysAfter !== retainDaysBefore) {
       retentionScheduled = true;
       // Fire-and-forget: pruneOldData is async and yields between batches to avoid
@@ -21882,7 +22066,9 @@ app.post("/api/settings", async (req, res) => {
       });
     }
   }
-  const snapshot = buildSettingsSnapshot();
+  const snapshot = remoteClientSave
+    ? mergeRemoteSettingsForClient(remoteSaveResult?.response?.settings)
+    : buildSettingsSnapshot();
   res.json({
     ok: true,
     csvSavePath: exportDirResolved || getSetting("csvSavePath", "C:\\Logs\\InverterDashboard"),
@@ -22847,6 +23033,8 @@ app.get("/api/weather/hourly-today", async (req, res) => {
 });
 
 app.post("/api/forecast/solcast/test", async (req, res) => {
+  // The gateway owns forecast credentials and test snapshots in Remote mode.
+  if (isRemoteMode()) return proxyToRemote(req, res);
   try {
     const cfg = buildSolcastConfigFromInput(req.body || {});
     if (!isHttpUrl(cfg.baseUrl)) {
@@ -22963,6 +23151,8 @@ app.post("/api/forecast/solcast/test", async (req, res) => {
 });
 
 app.post("/api/forecast/solcast/preview", async (req, res) => {
+  // A Remote client previews the gateway's authoritative forecast state.
+  if (isRemoteMode()) return proxyToRemote(req, res);
   try {
     const cfg = buildSolcastConfigFromInput(req.body || {});
     if (!isHttpUrl(cfg.baseUrl)) {
@@ -23193,6 +23383,8 @@ app.post("/api/export/solcast-preview", async (req, res) => {
 // credentials, and the action only refreshes a local snapshot cache.
 // Do NOT add topology/bulk auth here without operator sign-off.
 app.post("/api/forecast/solcast/load-data", async (req, res) => {
+  // Never build a second Solcast cache on a Remote client.
+  if (isRemoteMode()) return proxyToRemote(req, res);
   try {
     if (!hasUsableSolcastConfig(getSolcastConfig())) {
       // No Toolkit credentials → report stored snapshots as the fallback.
@@ -23233,6 +23425,7 @@ app.post("/api/forecast/solcast/load-data", async (req, res) => {
 });
 
 app.get("/api/solcast/snapshot-dates", (req, res) => {
+  if (isRemoteMode()) return proxyToRemote(req, res);
   try {
     const rows = db.prepare(
       `SELECT DISTINCT forecast_day FROM solcast_snapshots ORDER BY forecast_day DESC`
@@ -23255,6 +23448,7 @@ app.get("/api/analytics/forecast-dates", (req, res) => {
 });
 
 app.get("/api/solcast/week-ahead", (req, res) => {
+  if (isRemoteMode()) return proxyToRemote(req, res);
   try {
     const tz = getSolcastConfig()?.timeZone || "Asia/Manila";
     const baseDate = localDateStrInTz(Date.now(), tz);
@@ -26186,6 +26380,7 @@ setInterval(() => {
 const BACKUP_DIR = path.join(DATA_DIR, "backups");
 let _backupSlot = 0;
 async function runPeriodicBackup() {
+  if (!db || !db.open) return;
   // v2.8.14: skip Tier 1 in remote mode. The local DB is an in-memory shadow
   // of the gateway's data (see "Viewer model" notes in this file); copying it
   // to backups/adsi_backup_*.db would be misleading — operators might think
@@ -26253,6 +26448,7 @@ setInterval(_refreshTier1NextScheduled, 2 * 60 * 60 * 1000).unref();
 // Operator-tunable via the `stopReasonsRetainDays` / `stopHistogramRetainDays`
 // settings.  Runs every 6 h to keep growth bounded without a startup spike.
 async function _prunStopReasonRetention() {
+  if (!db || !db.open) return;
   try {
     // v2.11.1 — floor bumped 7 → 90 d. The stop_reasons rows are joined with
     // `alarms.stop_reason_id` for the alarm-drilldown's "Captured at the moment
@@ -26294,6 +26490,7 @@ try {
   console.warn("[dailyAgg] init failed:", err?.message || err);
 }
 async function _prunDailyParamRetention() {
+  if (!db || !db.open) return;
   try {
     const days = Math.max(7, Number(getSetting("paramRetainDays", 365)) || 365);
     // v2.11.2 — injection turns this from DELETE-only into archive-then-delete.
@@ -26315,6 +26512,7 @@ setInterval(_prunDailyParamRetention, 6 * 60 * 60 * 1000).unref();      // every
 // the gateway remains the only writer and owner of the authoritative history.
 function _pruneForecastIntradayAuditRetention() {
   if (isRemoteMode()) return;
+  if (!db || !db.open) return;
   try {
     const cutoffTs = Date.now() - (30 * 24 * 60 * 60 * 1000);
     const result = stmts.pruneForecastIntradayRunAuditBeforeTs.run(cutoffTs);
@@ -26347,6 +26545,7 @@ const _igbtSnapshotDeleteOld = db.prepare(`
 
 function _captureIgbtHealthSnapshots() {
   if (isRemoteMode()) return;            // gateway-only
+  if (!db || !db.open) return;
   try {
     const tsMs = Date.now();
     // Use a fixed 90-day window for the score inputs — mirrors what the
@@ -26377,6 +26576,7 @@ function _captureIgbtHealthSnapshots() {
 
 function _pruneIgbtHealthSnapshots() {
   if (isRemoteMode()) return;
+  if (!db || !db.open) return;
   try {
     const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
     const info = _igbtSnapshotDeleteOld.run(cutoff);
@@ -26439,6 +26639,7 @@ let _critBlockTickQueued   = false;
 
 async function _runCriticalPatternEnforcerTick() {
   if (isRemoteMode()) return;       // gateway-only loop
+  if (!db || !db.open) return;
   if (_critBlockTickInFlight) {
     // Coalesce: if a tick is in flight, just remember another fire was
     // requested and let the current tick complete. Avoids unbounded

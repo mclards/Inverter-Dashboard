@@ -43,7 +43,10 @@ __all__ = [
 
 _MBAP_PROTO = 0x0000
 _MODBUS_TCP_PORT = 502
-_FILENAME_RE = re.compile(r"^[A-Za-z]{3}\d{4}")   # ISM "LLLnnnn..." rule
+# Ingeteam firmware identifiers use an uppercase three-letter product prefix
+# (for example AAV1003...). Accepting lowercase also admitted Windows temp
+# names such as ``tmp1234.S`` through this irreversible-operation gate.
+_FILENAME_RE = re.compile(r"^[A-Z]{3}\d{4}")      # ISM "LLLnnnn..." rule
 
 _TXN_LOCK = threading.Lock()
 _TXN = [0]

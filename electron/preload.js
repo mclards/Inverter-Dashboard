@@ -58,6 +58,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   // Admin
   getAuthKey: () => ipcRenderer.invoke("get-auth-key"),
+  getAuthSession: () => ipcRenderer.invoke("get-auth-session"),
 
   // App update
   getUpdateState: () => ipcRenderer.invoke("app-update-get-state"),
@@ -126,4 +127,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
   startServer: () => ipcRenderer.invoke("server:start"),
   stopServer: () => ipcRenderer.invoke("server:stop"),
   setServerBackground: (enabled) => ipcRenderer.invoke("server:set-background", enabled),
+  setServerAutoStart: (enabled) => ipcRenderer.invoke("server:set-auto-start", enabled),
 });

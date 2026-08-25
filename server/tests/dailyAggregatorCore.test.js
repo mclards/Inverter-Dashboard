@@ -217,14 +217,12 @@ function run() {
   {
     resetState();
     const now = Date.now();
-    const parts = _internal._localParts(now);
-    // Snap to start of the current 5-min slot, then craft a frame deep
-    // inside that slot and a follow-up exactly 5 min later (next slot).
-    const slotStartMin = Math.floor(parts.minute / 5) * 5;
-    const slotStart = new Date(parts.year, parts.month - 1, parts.day,
-                               parts.hour, slotStartMin, 0, 0).getTime();
-    const tsA = slotStart + 30_000;          // 30 s into slot N
-    const tsB = slotStart + 5 * 60_000 + 30_000; // 30 s into slot N+1
+    let tsA = now - 120_000;
+    const partsA = _internal._localParts(tsA);
+    if (partsA.minute % 5 === 4 && partsA.second > 45) {
+      tsA -= 30_000;
+    }
+    const tsB = tsA + 300_000;
     const slotA = _internal._slotIndex(_internal._localParts(tsA));
     dailyAggregator.ingestLiveSample(makeFrame({ ts: tsA, pac: 1000 }));
     assert.strictEqual(insertedRows.length, 0, "first frame: no flush yet");
@@ -243,17 +241,17 @@ function run() {
   {
     resetState();
     const now = Date.now();
-    const parts = _internal._localParts(now);
-    const slotStartMin = Math.floor(parts.minute / 5) * 5;
-    const slotStart = new Date(parts.year, parts.month - 1, parts.day,
-                               parts.hour, slotStartMin, 0, 0).getTime();
-    const tsA = slotStart + 30_000;
-    const tsB = slotStart + 5 * 60_000 + 30_000;
+    let tsA = now - 120_000;
+    const partsA = _internal._localParts(tsA);
+    if (partsA.minute % 5 === 4 && partsA.second > 45) {
+      tsA -= 30_000;
+    }
+    const tsB = tsA + 300_000;
     dailyAggregator.ingestLiveSample(makeFrame({ ts: tsA }));
     dailyAggregator.ingestLiveSample(makeFrame({ ts: tsB })); // flush slot A
     clearInserts();
     // Late sample re-targeting slot A — must be rejected via _wasReaped()
-    dailyAggregator.ingestLiveSample(makeFrame({ ts: tsA + 60_000 }));
+    dailyAggregator.ingestLiveSample(makeFrame({ ts: tsA + 10_000 }));
     assert.strictEqual(_internal.stats.samples_dropped_reaped_slot, 1);
     assert.strictEqual(insertedRows.length, 0, "no clobbering INSERT");
   }
@@ -261,7 +259,6 @@ function run() {
   // ── 14. Reaped-slot LRU eviction — bound to 256 entries ──────────────
   {
     resetState();
-    // Manually populate with 260 entries via _flush by iterating slots.
     // Simulate by calling _rememberReaped via the public flushAll path —
     // here we just assert the LRU bound by direct manipulation.
     const map = _internal.reapedSlots;
@@ -346,13 +343,13 @@ function run() {
   {
     resetState();
     const now = Date.now();
-    const parts = _internal._localParts(now);
-    const slotStartMin = Math.floor(parts.minute / 5) * 5;
-    const slotStart = new Date(parts.year, parts.month - 1, parts.day,
-                               parts.hour, slotStartMin, 0, 0).getTime();
-    const tsA = slotStart + 5_000;
-    const tsB = slotStart + 30_000;
-    const tsFlush = slotStart + 5 * 60_000 + 5_000; // next slot
+    let tsA = now - 120_000;
+    const partsA = _internal._localParts(tsA);
+    if (partsA.minute % 5 === 4 && partsA.second > 35) {
+      tsA -= 30_000;
+    }
+    const tsB = tsA + 20_000;
+    const tsFlush = tsA + 300_000; // next slot
     dailyAggregator.ingestLiveSample(makeFrame({
       ts: tsA, vdc: 800, idc: 5, pac: 1000, alarm_32: 0x0001, parce_kwh: 1000,
     }));

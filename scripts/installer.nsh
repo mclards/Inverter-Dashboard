@@ -28,6 +28,8 @@
   ; and legacy executable values before electron-builder launches the app.
   DeleteRegValue HKCU "Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers" "$INSTDIR\Inverter Dashboard.exe"
   DeleteRegValue HKLM "Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers" "$INSTDIR\Inverter Dashboard.exe"
+  DeleteRegValue HKCU "Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers" "$INSTDIR\ADSI Inverter Dashboard.exe"
+  DeleteRegValue HKLM "Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers" "$INSTDIR\ADSI Inverter Dashboard.exe"
   DeleteRegValue HKCU "Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers" "$PROGRAMFILES64\ADSI Inverters Dashboard\ADSI Inverters Dashboard.exe"
   DeleteRegValue HKLM "Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers" "$PROGRAMFILES64\ADSI Inverters Dashboard\ADSI Inverters Dashboard.exe"
   DeleteRegValue HKCU "Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers" "$PROGRAMFILES64\ADSI Plant Dashboard\ADSI Plant Dashboard.exe"

@@ -99,13 +99,21 @@ function listNodeTests() {
 
 function runNodeTests() {
   const files = listNodeTests();
-  console.log(`\n[smoke] Found ${files.length} Node test files in ${NODE_TESTS_DIR}`);
+  let electronExe = null;
+  try {
+    electronExe = require("electron");
+  } catch (_) {}
+  const runner = electronExe && fs.existsSync(electronExe) ? electronExe : process.execPath;
+  const runnerEnv = electronExe ? { ...process.env, ELECTRON_RUN_AS_NODE: "1" } : process.env;
+
+  console.log(`\n[smoke] Found ${files.length} Node test files in ${NODE_TESTS_DIR} (runner: ${path.basename(runner)})`);
   for (const file of files) {
     const fullPath = path.join(NODE_TESTS_DIR, file);
     logHeader(`Node test: ${file}`);
     const startedAt = Date.now();
-    const r = spawnSync(process.execPath, [fullPath], {
+    const r = spawnSync(runner, [fullPath], {
       cwd: REPO_ROOT,
+      env: runnerEnv,
       stdio: ["ignore", "pipe", "pipe"],
       timeout: PER_NODE_TEST_TIMEOUT_MS,
       encoding: "utf8",

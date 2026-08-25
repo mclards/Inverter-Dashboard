@@ -1846,10 +1846,7 @@
           const r = await fetch("/api/settings", { cache: "no-store" });
           if (!r.ok) return false;
           const s = await r.json();
-          return (
-            String(s?.operationMode || "gateway").trim().toLowerCase() ===
-            "remote"
-          );
+          return Boolean(String(s?.remoteGatewayUrl || "").trim());
         } catch {
           return false;
         }
@@ -1857,7 +1854,7 @@
 
       function alertClientModeUnavailable(feature) {
         alert(
-          `${feature} is available only in Gateway mode.\nChange Operation Mode in Settings to continue.`,
+          `${feature} is available only on the gateway/server.\nClear the Server Host URL and restart this dashboard to continue.`,
         );
       }
 

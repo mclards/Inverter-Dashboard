@@ -952,14 +952,13 @@
           <section class="settings-card wide">
             <div class="settings-card-head">
               <div>
-                <div class="settings-card-title">Operation Mode &amp; Remote Access</div>
-                <div class="settings-card-copy">The gateway polls the plant; a remote viewer consumes and manages gateway-owned data.</div>
+                <div class="settings-card-title">Server Host &amp; Remote Access</div>
+                <div class="settings-card-copy">Leave Server Host URL blank for this gateway/server. Enter a host to make this device a remote viewer.</div>
               </div>
             </div>
             <div class="form-grid">
-              <label class="field"><span>Operation Mode</span><select id="set_operationMode"><option value="gateway">Gateway (plant-connected)</option><option value="remote">Remote (gateway-linked)</option></select></label>
               <label class="check-field"><input id="set_remoteAutoSync" type="checkbox" /><span>Refresh standby data automatically</span></label>
-              <label class="field span-2"><span>Remote Gateway URL</span><input id="set_remoteGatewayUrl" class="mono" type="text" inputmode="url" placeholder="http://100.x.x.x:3500" autocomplete="off" /></label>
+              <label class="field span-2"><span>Server Host URL</span><input id="set_remoteGatewayUrl" class="mono" type="text" inputmode="url" placeholder="Leave blank on the server; e.g. http://100.x.x.x:3500 on a remote client" autocomplete="off" /></label>
               <label class="field span-2"><span>Remote API Token</span><input id="set_remoteApiToken" class="mono" type="password" maxlength="256" autocomplete="new-password" /><small>Stored locally and redacted from audit details.</small></label>
               <label class="field span-2"><span>Tailscale Device Hint</span><input id="set_tailscaleDeviceHint" class="mono" type="text" maxlength="120" placeholder="plant-gateway" autocomplete="off" /></label>
             </div>
@@ -1410,16 +1409,14 @@
           const r = await fetch("/api/settings", { cache: "no-store" });
           if (!r.ok) return false;
           const s = await r.json();
-          return (
-            String(s?.operationMode || "gateway").trim().toLowerCase() === "remote"
-          );
+          return Boolean(String(s?.remoteGatewayUrl || "").trim());
         } catch {
           return false;
         }
       }
       function alertClientModeUnavailable(feature) {
         alert(
-          `${feature} view is available only in Gateway mode.\nChange Operation Mode in Settings to continue.`,
+          `${feature} view is available only on the gateway/server.\nClear Server Host URL and restart this dashboard to continue.`,
         );
       }
       document.getElementById("toTopologyBtn").addEventListener("click", async () => {
@@ -1458,7 +1455,7 @@
         "plantName", "operatorName", "csvSavePath", "retainDays",
         "inverterCount", "nodeCount", "invGridLayout", "apiUrl", "writeUrl",
         "remoteGatewayUrl", "remoteApiToken", "tailscaleDeviceHint",
-        "operationMode", "forecastProvider", "inverterClockAutoSyncAt",
+        "forecastProvider", "inverterClockAutoSyncAt",
         "inverterClockDriftThresholdS",
       ];
       let generalDirty = false;
@@ -1538,10 +1535,8 @@
           throw new Error("Retention Window must be between 1 and 1,095 days.");
         if (!/^https?:\/\//i.test(payload.apiUrl) || !/^https?:\/\//i.test(payload.writeUrl))
           throw new Error("Data and Write API URLs must begin with http:// or https://.");
-        if (payload.operationMode === "remote" && !payload.remoteGatewayUrl.trim())
-          throw new Error("Remote mode requires a Remote Gateway URL.");
         if (payload.remoteGatewayUrl && !/^https?:\/\//i.test(payload.remoteGatewayUrl))
-          throw new Error("Remote Gateway URL must begin with http:// or https://.");
+          throw new Error("Server Host URL must begin with http:// or https://.");
         if (!/^\d{2}:\d{2}$/.test(payload.inverterClockAutoSyncAt))
           throw new Error("Daily Sync Time must use HH:MM format.");
         if (!Number.isFinite(payload.inverterClockDriftThresholdS) || payload.inverterClockDriftThresholdS < 60 || payload.inverterClockDriftThresholdS > 86400)
@@ -1559,6 +1554,7 @@
         payload.retainDays = Number(payload.retainDays);
         payload.inverterClockDriftThresholdS = Number(payload.inverterClockDriftThresholdS);
         payload.remoteAutoSync = Boolean(document.getElementById("set_remoteAutoSync")?.checked);
+        payload.operationMode = String(payload.remoteGatewayUrl || "").trim() ? "remote" : "gateway";
         payload.inverterClockAutoSyncEnabled = Boolean(
           document.getElementById("set_inverterClockAutoSyncEnabled")?.checked,
         ) ? "1" : "0";
@@ -1601,7 +1597,7 @@
       async function saveGeneralSettings() {
         const payload = collectGeneralSettings();
         const previousMode = String(settingsSnapshot.operationMode || "gateway").toLowerCase();
-        const nextMode = String(payload.operationMode || "gateway").toLowerCase();
+        const nextMode = String(payload.remoteGatewayUrl || "").trim() ? "remote" : "gateway";
         const result = await fetchJson("/api/settings", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -1626,14 +1622,14 @@
           if (generalDirty) collectGeneralSettings();
           const previousMode = String(settingsSnapshot.operationMode || "gateway").toLowerCase();
           const requestedMode = String(
-            document.getElementById("set_operationMode")?.value || previousMode,
-          ).toLowerCase();
+            document.getElementById("set_remoteGatewayUrl")?.value || "",
+          ).trim() ? "remote" : "gateway";
           if (
             generalDirty &&
             previousMode === "remote" &&
             requestedMode === "gateway" &&
             !confirm(
-              "Switch this workstation to Gateway mode?\n\nRemote mode does not continuously maintain the local database. Refresh the standby database in the main Settings page first if current history is required. The desktop app should restart after this change.",
+              "Clear the Server Host URL and make this workstation the Gateway/server?\n\nRemote mode does not continuously maintain the local database. Refresh the standby database in the main Settings page first if current history is required. The desktop app should restart after this change.",
             )
           ) {
             setStatus("Save cancelled. No changes were sent.", "");

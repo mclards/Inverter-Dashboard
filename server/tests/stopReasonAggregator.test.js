@@ -158,7 +158,7 @@ function run() {
   test("count: 5-min-bucket dedup collapses cross-table duplicates", () => {
     const { db, tmpPath } = makeDb();
     try {
-      const t = now - 2 * 24 * 3600_000;
+      const t = Math.floor((now - 2 * 24 * 3600_000) / 300_000) * 300_000 + 30_000;
       insertStd(db, 7, t);
       insertVendor(db, 7, t + 30_000); // 30 s later, same bucket
       const n = countMotivesCombined(db, IP, SLAVE, cutoff, [7]);

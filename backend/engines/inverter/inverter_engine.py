@@ -14,6 +14,14 @@ if sys.stdout is None:
 if sys.stderr is None:
     sys.stderr = open(os.devnull, 'w')
 
+try:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 import subprocess
 import re
 import os
@@ -178,19 +186,27 @@ PORTABLE_ROOT = str(
     or os.getenv("ADSI_PORTABLE_DATA_DIR")
     or ""
 ).strip()
-if not PORTABLE_ROOT:
-    _auto_storage = Path(__file__).resolve().parent.parent.parent.parent / "storage"
-    if _auto_storage.exists():
-        PORTABLE_ROOT = str(_auto_storage)
-    elif sys.platform.startswith("linux") and Path("/var/lib/inverter-dashboard").exists():
-        PORTABLE_ROOT = "/var/lib/inverter-dashboard"
-
 EXPLICIT_DATA_DIR = str(
     os.getenv("INVERTER_DATA_DIR")
     or os.getenv("IM_DATA_DIR")
     or os.getenv("ADSI_DATA_DIR")
     or ""
 ).strip()
+
+# A repository-local `storage` directory is useful only for explicitly opted-in
+# isolated developer runs. Auto-selecting it on Windows made a normal
+# `python inverter_engine.py` launch silently ignore the operator's ProgramData
+# configuration. Electron supplies INVERTER_DATA_DIR for production launches.
+if (
+    not PORTABLE_ROOT
+    and not EXPLICIT_DATA_DIR
+    and os.getenv("ADSI_USE_REPO_STORAGE", "").strip().lower() in {"1", "true", "yes"}
+):
+    _auto_storage = Path(__file__).resolve().parent.parent.parent.parent / "storage"
+    if _auto_storage.exists():
+        PORTABLE_ROOT = str(_auto_storage)
+    elif sys.platform.startswith("linux") and Path("/var/lib/inverter-dashboard").exists():
+        PORTABLE_ROOT = "/var/lib/inverter-dashboard"
 
 if PORTABLE_ROOT:
     PROGRAMDATA_DIR = Path(PORTABLE_ROOT) / "programdata"
@@ -200,7 +216,7 @@ else:
         or os.getenv("ALLUSERSPROFILE")
         or str(Path.home())
     )
-    PROGRAMDATA_DIR = Path(PROGRAMDATA_ROOT) / "InverterDashboard-2.0"
+    PROGRAMDATA_DIR = Path(PROGRAMDATA_ROOT) / "Inverter-Dashboard"
 PROGRAMDATA_DIR.mkdir(parents=True, exist_ok=True)
 
 if EXPLICIT_DATA_DIR:
@@ -218,7 +234,14 @@ if not DB_PATH.exists() and (DATA_DIR / "adsi.db").exists():
 if PORTABLE_ROOT:
     IPCONFIG_PATH = Path(PORTABLE_ROOT) / "config" / "ipconfig.json"
 else:
-    IPCONFIG_PATH = DATA_DIR / "ipconfig.json"
+    # Match the Electron/gateway canonical configuration path. DATA_DIR is
+    # normally this exact location; retaining the explicit expression guards
+    # a launcher that did not pass INVERTER_DATA_DIR.
+    IPCONFIG_PATH = (
+        DATA_DIR / "ipconfig.json"
+        if EXPLICIT_DATA_DIR
+        else Path(PROGRAMDATA_ROOT) / "Inverter-Dashboard" / "db" / "ipconfig.json"
+    )
 IPCONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
 LEGACY_IPCONFIG_PATHS = [
     DATA_DIR / "ipconfig.json",
@@ -228,8 +251,7 @@ LEGACY_IPCONFIG_PATHS = [
     # and Path.cwd() / "ipconfig.json". In a PyInstaller bundle __file__'s
     # directory is the extracted _MEIxxxx dir which may contain a stale
     # build-time ipconfig, and CWD depends on how the installer launches
-    # the service Ã¢â‚¬â€ both would be replaced on every update and could
-    # silently shadow the user's real config.
+    # the service Ã¢â‚¬â€  both would be replaced on every update and could
 ]
 AUTORESET_PATH = PROGRAMDATA_DIR / "autoreset.json"
 SERVICE_STOP_FILE_RAW = str(
@@ -463,8 +485,12 @@ def _default_ipconfig():
     cfg = {"inverters": {}, "poll_interval": {}, "units": {}, "losses": {}}
     for i in range(1, 28):
         key = str(i)
-        cfg["inverters"][key] = ""
+        cfg["inverters"][key] = f"192.168.1.{100 + i}"
         cfg["poll_interval"][key] = float(DEFAULT_INTERVAL)
+        # The sanitiser uses this as the fallback for a missing ``units``
+        # entry.  Keep every config section structurally complete so a valid
+        # legacy/partial ipconfig can never prevent the telemetry service
+        # from starting.
         cfg["units"][key] = [1, 2, 3, 4]
         cfg["losses"][key] = float(DEFAULT_LOSS_PCT)
     return cfg
@@ -560,7 +586,16 @@ def _write_ipconfig_file(path_obj, cfg):
 
 def _load_ipconfig_sync():
     """Synchronous load; called via executor so the event loop stays unblocked."""
-    # 1) Primary source: Node/Electron DB settings key (single source of truth).
+    # 1) Primary source: the managed ProgramData config file. The dashboard
+    # exposes this exact file to field operators, so a valid edit must take
+    # effect even when an older DB mirror is still present after an upgrade.
+    canonical_raw = _read_ipconfig_file(IPCONFIG_PATH)
+    if canonical_raw is not None:
+        return _sanitize_ipconfig(canonical_raw)
+
+    # 2) DB mirror. Node synchronizes this from the canonical file at startup
+    # and on topology saves; it remains the safe fallback during a temporary
+    # file-system outage.
     db_raw = _read_ipconfig_from_db()
     if db_raw is not None:
         cfg = _sanitize_ipconfig(db_raw)
@@ -4799,7 +4834,7 @@ async def main():
         print(
             "[ENGINE] WARNING: ipconfig lists zero inverters. Service will stay up "
             "waiting for ipconfig hot-reload, but /data and /metrics will return empty "
-            "until an inverter IP is configured.  Check %PROGRAMDATA%\\InverterDashboard\\ipconfig.json."
+            "until an inverter IP is configured.  Check %PROGRAMDATA%\\Inverter-Dashboard\\db\\ipconfig.json."
         )
 
     # v2.9.0 Slice C Ã¢â‚¬â€ crash-recovery seed before polling begins.
@@ -4864,5 +4899,3 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         print("[ENGINE] Stopping...")
-
-

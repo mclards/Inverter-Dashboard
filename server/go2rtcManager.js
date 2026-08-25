@@ -292,7 +292,7 @@ async function start(enableAutoRestart = true) {
   crashCount = 0;
 
   // Check if already running via Systemd service or external process
-  const alreadyHealthy = await checkHealth();
+  const alreadyHealthy = await healthCheck();
   if (alreadyHealthy) {
     status = "running";
     startHealthLoop();
@@ -302,7 +302,7 @@ async function start(enableAutoRestart = true) {
   // Port checks
   const apiPortFree = await isPortFree(API_PORT);
   if (!apiPortFree) {
-    // If port is occupied but checkHealth didn't respond, report status
+    // If port is occupied but healthCheck didn't respond, report status
     status = "error";
     return { ok: false, error: `Port ${API_PORT} (go2rtc API) already in use` };
   }
@@ -398,7 +398,7 @@ function isRunning() {
 
 // Auto-detect running systemd instance on gateway boot
 setTimeout(async () => {
-  const alive = await checkHealth();
+  const alive = await healthCheck();
   if (alive) {
     status = "running";
     lastHealthTs = Date.now();

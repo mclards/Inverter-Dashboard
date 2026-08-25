@@ -1,12 +1,12 @@
 "use strict";
 
-// Regression: remote-mode IP-config save ("save to both") + hardening.
+// Regression: remote-mode IP-config save (gateway-authoritative) + hardening.
 // -------------------------------------------------------------------------
 // Feature (2026-06-08): the IP Configuration window is now editable from a
 // Remote viewer. A remote POST /api/ip-config must:
 //   1. forward the edit to the gateway (authoritative) — _applyIpConfigPostRemote,
-//   2. adopt the GATEWAY's returned/sanitized config (not the posted body),
-//   3. mirror that config into the remote's OWN local store so both sides match,
+//   2. return the GATEWAY's sanitized config (not the posted body),
+//   3. never mirror that config into the Remote client's local standby store,
 //   4. reject a malformed payload before spending a gateway round-trip,
 //   5. NOT wipe the local config if the gateway answers 200 with a bad shape,
 //   6. surface a gateway failure as an error instead of a false local-only save.
@@ -65,6 +65,7 @@ const GATEWAY_CFG = {
 const dummyState = {
   lastPostBody: null,
   postCount: 0,
+  settingsPostCount: 0,
   mode: "ok", // "ok" | "fail" | "garbage"
 };
 
@@ -114,8 +115,8 @@ async function setMode(mode) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(
       mode === "remote"
-        ? { operationMode: "remote", remoteGatewayUrl: GATEWAY_BASE_URL, remoteApiToken: "" }
-        : { operationMode: "gateway" },
+        ? { remoteGatewayUrl: GATEWAY_BASE_URL, remoteApiToken: "test-remote-token" }
+        : { remoteGatewayUrl: "" },
     ),
   });
   const ok = await waitFor(async () => {
@@ -131,6 +132,12 @@ function inv1(cfg) {
 async function run() {
   const gatewayServer = http.createServer(async (req, res) => {
     const url = String(req.url || "");
+    if (url.startsWith("/api/settings")) {
+      if (req.method === "POST") dummyState.settingsPostCount += 1;
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true, settings: {} }));
+      return;
+    }
     if (url.startsWith("/api/ip-config")) {
       if (req.method === "POST") {
         dummyState.postCount += 1;
@@ -176,6 +183,7 @@ async function run() {
     }, 20000, 200);
     if (!ready) throw new Error("App server did not become ready.");
 
+    const localBeforeRemoteSave = await fetchJson(`${APP_BASE_URL}/api/ip-config`);
     const POSTED = {
       inverters: { 1: "192.168.9.99" }, // intentionally different from GATEWAY_CFG
       poll_interval: { 1: 0.05 },
@@ -202,17 +210,16 @@ async function run() {
 
     // ── Contract 3: gateway cfg mirrored into the LOCAL store (save to both) ──
     await setMode("gateway");
-    const localCfg = await fetchJson(`${APP_BASE_URL}/api/ip-config`);
-    assert.equal(inv1(localCfg), "10.77.0.51", "local store must hold the gateway's mirrored inverter-1 IP");
     assert.equal(
-      String(localCfg?.inverters?.[2] || localCfg?.inverters?.["2"] || ""),
-      "10.77.0.52",
-      "local store must hold the gateway's mirrored inverter-2 IP",
+      dummyState.settingsPostCount,
+      0,
+      "clearing Server Host URL must not POST an empty settings payload to the former gateway",
     );
+    const localCfg = await fetchJson(`${APP_BASE_URL}/api/ip-config`);
     assert.deepEqual(
-      (Array.isArray(localCfg?.units?.[1]) ? localCfg.units[1] : localCfg?.units?.["1"]) || [],
-      [1, 2],
-      "local store must mirror the gateway's enabled-units for inverter 1",
+      localCfg,
+      localBeforeRemoteSave,
+      "remote topology saves must not alter the local standby configuration",
     );
 
     // ── Contract 4: malformed payload rejected BEFORE any gateway round-trip ──
@@ -237,18 +244,14 @@ async function run() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(POSTED),
     });
-    assert.equal(garbageResp.ok, true, "garbage gateway-200 should still resolve ok (gateway owns truth)");
-    assert.ok(
-      String(garbageResp.body?.localMirrorWarning || ""),
-      "garbage gateway-200 should flag that the local mirror was skipped",
-    );
+    assert.equal(garbageResp.ok, false, "garbage gateway-200 must be rejected");
     // Confirm the previously-mirrored good config survived (not overwritten by defaults).
     await setMode("gateway");
     const afterGarbage = await fetchJson(`${APP_BASE_URL}/api/ip-config`);
-    assert.equal(
-      inv1(afterGarbage),
-      "10.77.0.51",
-      "garbage gateway response must NOT overwrite the local config with defaults",
+    assert.deepEqual(
+      afterGarbage,
+      localBeforeRemoteSave,
+      "garbage gateway response must not alter the local standby configuration",
     );
 
     // ── Contract 6: a gateway failure surfaces as an error ──

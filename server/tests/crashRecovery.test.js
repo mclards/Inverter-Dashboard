@@ -21,6 +21,7 @@
  * `npm run rebuild:native:node`, so better-sqlite3 ABI matches Node.
  */
 
+process.noAsar = true;
 const assert = require("assert");
 const fs = require("fs");
 const os = require("os");

@@ -18,18 +18,18 @@ const serverModule = require("../index.js");
 const { db, stmts } = dbModule;
 
 const insertIntradayRow = db.prepare(`
-  INSERT INTO forecast_intraday_adjusted(
+  INSERT OR REPLACE INTO forecast_intraday_adjusted(
     date, ts, slot, time_hms, kwh_inc, kwh_lo, kwh_hi,
     source, updated_ts, series_run_id
   ) VALUES(?, ?, ?, ?, ?, ?, ?, 'test', ?, ?)
 `);
 const insertDayAheadRow = db.prepare(`
-  INSERT INTO forecast_dayahead(
+  INSERT OR REPLACE INTO forecast_dayahead(
     date, ts, slot, time_hms, kwh_inc, kwh_lo, kwh_hi, source, updated_ts
   ) VALUES(?, ?, ?, ?, ?, ?, ?, 'test', ?)
 `);
 const insertAudit = db.prepare(`
-  INSERT INTO forecast_intraday_run_audit(
+  INSERT OR REPLACE INTO forecast_intraday_run_audit(
     target_date, generated_ts, cutoff_slot, algorithm_version, execution_mode,
     eligible_slots, strength, run_status, notes_json, series_run_id,
     output_updated_ts, authoritative_algorithm, challenger_status,

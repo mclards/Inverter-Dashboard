@@ -253,6 +253,87 @@
         text-transform: uppercase;
       }
 
+      .server-host-context {
+        margin: -2px 0 16px;
+      }
+
+      .server-host-note {
+        margin: 6px 2px 0;
+        color: var(--text3);
+        font-size: 10.5px;
+        line-height: 1.4;
+      }
+
+      .connection-summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: color-mix(in srgb, var(--bg) 80%, var(--surface));
+      }
+
+      .connection-summary-copy {
+        min-width: 0;
+        display: grid;
+        gap: 2px;
+      }
+
+      .connection-summary-title {
+        color: var(--text2);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .connection-summary-detail {
+        overflow: hidden;
+        color: var(--text3);
+        font-size: 10px;
+        line-height: 1.35;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .connection-action,
+      .connection-editor-actions button {
+        flex: 0 0 auto;
+        border: 0;
+        background: transparent;
+        color: var(--accent);
+        cursor: pointer;
+        font: inherit;
+        font-size: 10.5px;
+        font-weight: 700;
+        padding: 4px 0;
+      }
+
+      .connection-action:hover,
+      .connection-editor-actions button:hover {
+        color: var(--text);
+        text-decoration: underline;
+      }
+
+      .remote-connection-local-action {
+        display: block;
+        width: fit-content;
+        margin: 14px auto 0;
+        border: 0;
+        padding: 0;
+        background: transparent;
+        color: var(--text3);
+        cursor: pointer;
+        font: inherit;
+        font-size: 10.5px;
+        font-weight: 700;
+      }
+
+      .remote-connection-local-action:hover {
+        color: var(--text);
+        text-decoration: underline;
+      }
+
       .inp {
         width: 100%;
         height: 44px;
@@ -452,7 +533,8 @@
 
       /* ── Modal overlay ───────────────────────────────────────────────────── */
       #modal-bg,
-      #reset-bg {
+      #reset-bg,
+      #remote-connection-bg {
         display: none;
         position: fixed;
         inset: 0;
@@ -465,7 +547,8 @@
       }
 
       :root[data-theme="light"] #modal-bg,
-      :root[data-theme="light"] #reset-bg {
+      :root[data-theme="light"] #reset-bg,
+      :root[data-theme="light"] #remote-connection-bg {
         background: rgba(180, 168, 148, 0.6);
       }
 
@@ -503,6 +586,10 @@
 
       .modal .field:first-of-type {
         margin-top: 0;
+      }
+
+      .remote-connection-modal .server-host-note {
+        margin: 8px 2px 0;
       }
 
       .modal-actions {
@@ -607,15 +694,15 @@
         </div>
       </div>
 
-      <div class="field field--icon" id="serverUrlField" title="Target Server URL (Gateway or Remote Plant Address)">
-        <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect width="20" height="8" x="2" y="2" rx="2" ry="2"/>
-          <rect width="20" height="8" x="2" y="14" rx="2" ry="2"/>
-          <line x1="6" x2="6.01" y1="6" y2="6"/>
-          <line x1="6" x2="6.01" y1="18" y2="18"/>
-        </svg>
-        <input id="serverUrl" class="inp" type="text" placeholder="Server URL (Default: http://127.0.0.1:3500)" aria-label="Server URL" autocomplete="off" />
-      </div>
+      <section class="server-host-context" aria-label="Dashboard connection mode">
+        <div id="connectionSummary" class="connection-summary">
+          <div class="connection-summary-copy">
+            <span id="connectionSummaryTitle" class="connection-summary-title">Local dashboard server</span>
+            <span id="connectionSummaryDetail" class="connection-summary-detail">This device will run the dashboard services and poll the inverters.</span>
+          </div>
+          <button id="btnConfigureRemote" class="connection-action" type="button">Connect to server</button>
+        </div>
+      </section>
 
       <div class="field field--icon">
         <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -683,13 +770,55 @@
       </div>
     </div>
 
+    <div id="remote-connection-bg" role="presentation">
+      <section id="remoteConnectionEditor" class="modal remote-connection-modal" role="dialog" aria-modal="true" aria-labelledby="remoteConnectionTitle">
+        <h3 id="remoteConnectionTitle">Connect to Dashboard Server</h3>
+        <div class="field field--icon" id="serverUrlField" title="Gateway host used by a Remote client.">
+          <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect width="20" height="8" x="2" y="2" rx="2" ry="2"/>
+            <rect width="20" height="8" x="2" y="14" rx="2" ry="2"/>
+            <line x1="6" x2="6.01" y1="6" y2="6"/>
+            <line x1="6" x2="6.01" y1="18" y2="18"/>
+          </svg>
+          <input id="serverUrl" class="inp" type="text" placeholder="e.g. http://100.x.x.x:3500" aria-label="Server host URL" autocomplete="url" />
+        </div>
+        <p id="serverHostNote" class="server-host-note">Checking connection mode…</p>
+        <div id="remoteApiTokenField" class="field field--icon" hidden>
+          <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          <input id="remoteApiToken" class="inp" type="password" maxlength="256" placeholder="Remote API token" aria-label="Remote API token" autocomplete="new-password" />
+        </div>
+        <button id="btnUseLocalServer" class="remote-connection-local-action" type="button">Use this device as server</button>
+        <div class="modal-actions">
+          <button id="btnCancelRemote" class="btn btn-outline" type="button">Cancel</button>
+          <button id="btnConfirmRemote" class="btn btn-primary" type="button">Done</button>
+        </div>
+      </section>
+    </div>
+
     <div id="msg" class="msg"></div>
 
     <script>
       window.addEventListener("DOMContentLoaded", async () => {
+        try {
+          window.electronAPI?.reportStartupReady?.({ text: "Sign in to continue" });
+        } catch (_) {}
         const serverUrlInput = document.getElementById("serverUrl");
         const usernameInput = document.getElementById("username");
         const passwordInput = document.getElementById("password");
+        const remoteApiTokenInput = document.getElementById("remoteApiToken");
+        const remoteApiTokenField = document.getElementById("remoteApiTokenField");
+        const connectionSummary = document.getElementById("connectionSummary");
+        const connectionSummaryTitle = document.getElementById("connectionSummaryTitle");
+        const connectionSummaryDetail = document.getElementById("connectionSummaryDetail");
+        const remoteConnectionEditor = document.getElementById("remoteConnectionEditor");
+        const remoteConnectionBg = document.getElementById("remote-connection-bg");
+        const configureRemoteButton = document.getElementById("btnConfigureRemote");
+        const cancelRemoteButton = document.getElementById("btnCancelRemote");
+        const confirmRemoteButton = document.getElementById("btnConfirmRemote");
+        const useLocalServerButton = document.getElementById("btnUseLocalServer");
         const rememberCheck = document.getElementById("rememberMe");
         const modalBg = document.getElementById("modal-bg");
         const resetBg = document.getElementById("reset-bg");
@@ -705,18 +834,106 @@
           });
         }
 
-        // Initialize Server URL from storage or current origin
+        // In browser mode the page is already served by its gateway. In the
+        // desktop app, the local operation mode decides whether this is a
+        // blank server-device field or the Remote client's streaming host.
         const defaultServer = (window.location.protocol.startsWith("http") && window.location.origin !== "null")
           ? window.location.origin
           : "http://127.0.0.1:3500";
-        const savedServer = localStorage.getItem("inverter_target_server") || defaultServer;
-        if (serverUrlInput) serverUrlInput.value = savedServer;
+        const serverHostNote = document.getElementById("serverHostNote");
+        let connectionContext = { remoteGatewayUrl: "", remoteApiTokenConfigured: false };
+        let savedServerHost = "";
+        let remoteEditorOpen = false;
+
+        function renderRemoteConnectionUi() {
+          const hasServerHost = Boolean(String(serverUrlInput?.value || "").trim());
+          if (remoteApiTokenField) remoteApiTokenField.hidden = !remoteEditorOpen || !hasServerHost;
+          if (!hasServerHost && remoteApiTokenInput) remoteApiTokenInput.value = "";
+          if (remoteApiTokenInput) {
+            remoteApiTokenInput.placeholder = connectionContext.remoteApiTokenConfigured
+              ? "Remote API token saved locally (enter to replace)"
+              : "Remote API token required";
+          }
+          if (serverHostNote) {
+            serverHostNote.textContent = hasServerHost
+              ? (connectionContext.remoteApiTokenConfigured
+                ? "Remote client: dashboard data streams from this server host. A successful Sign In saves host changes; leave the token blank to keep the saved secret."
+                : "Remote client: enter the server's Remote API token. A successful Sign In saves the host and token locally.")
+              : "Leave this blank to run this device as the local dashboard server and poll the inverters. A successful Sign In saves that local-server choice.";
+          }
+          if (connectionSummaryTitle) {
+            connectionSummaryTitle.textContent = hasServerHost ? "Remote dashboard client" : "Local dashboard server";
+          }
+          if (connectionSummaryDetail) {
+            connectionSummaryDetail.textContent = hasServerHost
+              ? `Server: ${String(serverUrlInput?.value || "").trim()}`
+              : "This device will run the dashboard services and poll the inverters.";
+          }
+          if (configureRemoteButton) {
+            configureRemoteButton.textContent = hasServerHost
+              ? (connectionContext.remoteApiTokenConfigured ? "Change" : "Complete setup")
+              : "Connect to server";
+          }
+        }
+
+        function openRemoteConnectionEditor() {
+          if (!electronLoginApi) return;
+          remoteEditorOpen = true;
+          renderRemoteConnectionUi();
+          openLayer(remoteConnectionBg);
+          serverUrlInput?.focus();
+        }
+
+        function closeRemoteConnectionEditor({ discard = false, useLocalServer = false } = {}) {
+          remoteEditorOpen = false;
+          if (serverUrlInput && (discard || useLocalServer)) {
+            serverUrlInput.value = useLocalServer ? "" : savedServerHost;
+          }
+          if (remoteApiTokenInput && (discard || useLocalServer)) remoteApiTokenInput.value = "";
+          renderRemoteConnectionUi();
+          closeLayer(remoteConnectionBg);
+        }
+
+        async function applyConnectionContext() {
+          if (!electronLoginApi) {
+            if (serverUrlInput) {
+              serverUrlInput.value = defaultServer;
+              serverUrlInput.readOnly = true;
+            }
+            if (remoteApiTokenField) remoteApiTokenField.hidden = true;
+            if (connectionSummaryTitle) connectionSummaryTitle.textContent = "Dashboard server";
+            if (connectionSummaryDetail) connectionSummaryDetail.textContent = "This browser is connected directly to the dashboard gateway.";
+            if (configureRemoteButton) configureRemoteButton.hidden = true;
+            if (serverHostNote) {
+              serverHostNote.textContent = "This browser is connected to the dashboard gateway shown above.";
+            }
+            return;
+          }
+
+          let context;
+          try {
+            context = await electronLoginApi.getConnectionContext();
+          } catch (_) {
+            context = { operationMode: "gateway", remoteGatewayUrl: "", remoteApiTokenConfigured: false };
+          }
+          connectionContext = context || connectionContext;
+          savedServerHost = String(context?.remoteGatewayUrl || "");
+          if (serverUrlInput) {
+            // This field itself chooses the device role. It must be editable
+            // on a server device so an operator can turn it into a client
+            // before signing in; leaving it blank keeps this device local.
+            serverUrlInput.disabled = false;
+            serverUrlInput.readOnly = false;
+            serverUrlInput.value = savedServerHost;
+          }
+          renderRemoteConnectionUi();
+        }
 
         const api = electronLoginApi || {
           lastError: "",
           async checkLogin(username, password) {
             this.lastError = "";
-            const targetServer = (serverUrlInput?.value || savedServer).trim().replace(/\/$/, "");
+            const targetServer = defaultServer.replace(/\/$/, "");
             try {
               const response = await fetch(`${targetServer}/api/auth/login`, {
                 method: "POST",
@@ -730,7 +947,6 @@
                 this.lastError = String(payload?.error || "The sign-in details are not valid.");
                 return false;
               }
-              localStorage.setItem("inverter_target_server", targetServer);
               localStorage.setItem("adsi_operator_name", payload.username || username);
               localStorage.setItem("adsi_operator_role", payload.role || "operator");
               return true;
@@ -743,7 +959,7 @@
           async saveRemembered() { return false; },
           async clearRemembered() { return true; },
           async changeUsernamePassword(authKey, newUsername, newPassword) {
-            const targetServer = (serverUrlInput?.value || savedServer).trim().replace(/\/$/, "");
+            const targetServer = defaultServer.replace(/\/$/, "");
             try {
               const response = await fetch(`${targetServer}/api/auth/change`, {
                 method: "POST",
@@ -763,13 +979,20 @@
           },
           async resetPassword() { return false; },
           loginSuccess() {
-            const targetServer = (serverUrlInput?.value || savedServer).trim().replace(/\/$/, "");
+            const targetServer = defaultServer.replace(/\/$/, "");
             window.location.replace(`${targetServer}/index.html`);
           },
           async hasSession() {
             return false;
           },
         };
+
+        await applyConnectionContext();
+        serverUrlInput?.addEventListener("input", renderRemoteConnectionUi);
+        configureRemoteButton?.addEventListener("click", openRemoteConnectionEditor);
+        cancelRemoteButton?.addEventListener("click", () => closeRemoteConnectionEditor({ discard: true }));
+        confirmRemoteButton?.addEventListener("click", () => closeRemoteConnectionEditor());
+        useLocalServerButton?.addEventListener("click", () => closeRemoteConnectionEditor({ useLocalServer: true }));
 
         if (!electronLoginApi) {
           const rememberLabel = rememberCheck?.closest("label");
@@ -807,7 +1030,7 @@
         function closeLayer(layer) {
           if (!layer) return;
           layer.style.display = "none";
-          const stillOpen = modalBg.style.display === "flex" || resetBg.style.display === "flex";
+          const stillOpen = modalBg.style.display === "flex" || resetBg.style.display === "flex" || remoteConnectionBg.style.display === "flex";
           if (!stillOpen) document.body.classList.remove("modal-open");
         }
 
@@ -842,10 +1065,27 @@
           const pass = passwordInput.value.trim();
           if (!user || !pass) return showMsg("Enter your username and password.", "error");
 
-          const ok = await api.checkLogin(user, pass);
+          const res = await api.checkLogin(user, pass);
+          const ok = typeof res === "object" ? !!res?.ok : !!res;
           if (!ok) return showMsg(api.lastError || "The sign-in details are not valid.", "error");
 
+          if (typeof api.prepareConnection === "function") {
+            const connection = await api.prepareConnection({
+              serverHost: serverUrlInput?.value || "",
+              remoteApiToken: remoteApiTokenInput?.value || "",
+            });
+            if (!connection?.ok) {
+              return showMsg(connection?.error || "The server host URL could not be applied.", "error");
+            }
+          }
+
           const isDev = user.toLowerCase() === "devclard";
+          const role = (typeof res === "object" && res?.role) ? res.role : (isDev ? "developer" : "operator");
+          const name = (typeof res === "object" && res?.username) ? res.username : (isDev ? "devClard" : user);
+
+          localStorage.setItem("adsi_operator_name", name);
+          localStorage.setItem("adsi_operator_role", role);
+
           if (!isDev && rememberCheck.checked) {
             await api.saveRemembered({ username: user, password: pass, remember: true });
           } else {
@@ -932,11 +1172,15 @@
             if (e.target === layer) closeLayer(layer);
           });
         });
+        remoteConnectionBg?.addEventListener("click", (e) => {
+          if (e.target === remoteConnectionBg) closeRemoteConnectionEditor({ discard: true });
+        });
 
         document.addEventListener("keydown", (e) => {
           if (e.key === "Escape") {
             if (modalBg.style.display === "flex") closeLayer(modalBg);
             else if (resetBg.style.display === "flex") closeLayer(resetBg);
+            else if (remoteConnectionBg.style.display === "flex") closeRemoteConnectionEditor({ discard: true });
             return;
           }
 
@@ -949,6 +1193,11 @@
           if (resetBg.style.display === "flex") {
             e.preventDefault();
             handleResetSave();
+            return;
+          }
+          if (remoteConnectionBg.style.display === "flex") {
+            e.preventDefault();
+            closeRemoteConnectionEditor();
             return;
           }
 

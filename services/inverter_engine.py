@@ -14,6 +14,14 @@ if sys.stdout is None:
 if sys.stderr is None:
     sys.stderr = open(os.devnull, 'w')
 
+try:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 import subprocess
 import re
 import os
@@ -141,12 +149,14 @@ def inverter_number_from_ip(ip):
 # -------------------------------------------------
 
 PORTABLE_ROOT = str(
-    os.getenv("IM_PORTABLE_DATA_DIR")
+    os.getenv("INVERTER_PORTABLE_DATA_DIR")
+    or os.getenv("IM_PORTABLE_DATA_DIR")
     or os.getenv("ADSI_PORTABLE_DATA_DIR")
     or ""
 ).strip()
 EXPLICIT_DATA_DIR = str(
-    os.getenv("IM_DATA_DIR")
+    os.getenv("INVERTER_DATA_DIR")
+    or os.getenv("IM_DATA_DIR")
     or os.getenv("ADSI_DATA_DIR")
     or ""
 ).strip()
@@ -184,18 +194,19 @@ DB_PATH = DATA_DIR / "adsi.db"
 if PORTABLE_ROOT:
     IPCONFIG_PATH = Path(PORTABLE_ROOT) / "config" / "ipconfig.json"
 else:
-    IPCONFIG_PATH = DATA_DIR / "ipconfig.json"
+    IPCONFIG_PATH = (
+        DATA_DIR / "ipconfig.json"
+        if EXPLICIT_DATA_DIR
+        else Path(PROGRAMDATA_ROOT) / "Inverter-Dashboard" / "db" / "ipconfig.json"
+    )
 IPCONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
 LEGACY_IPCONFIG_PATHS = [
     DATA_DIR / "ipconfig.json",
     PROGRAMDATA_DIR / "config" / "ipconfig.json",
     PROGRAMDATA_DIR / "ipconfig.json",
-    # NOTE: Intentionally excluding Path(__file__).parent / "ipconfig.json"
-    # and Path.cwd() / "ipconfig.json". In a PyInstaller bundle __file__'s
-    # directory is the extracted _MEIxxxx dir which may contain a stale
-    # build-time ipconfig, and CWD depends on how the installer launches
-    # the service — both would be replaced on every update and could
-    # silently shadow the user's real config.
+    Path(os.path.expandvars("%APPDATA%")) / "inverter-dashboard" / "config" / "ipconfig.json",
+    Path(os.path.expandvars("%APPDATA%")) / "InverterDashboard-2.0" / "config" / "ipconfig.json",
+    Path(os.path.expandvars("%APPDATA%")) / "Inverter-Dashboard" / "config" / "ipconfig.json",
 ]
 AUTORESET_PATH = PROGRAMDATA_DIR / "autoreset.json"
 SERVICE_STOP_FILE_RAW = str(
@@ -429,7 +440,7 @@ def _default_ipconfig():
     cfg = {"inverters": {}, "poll_interval": {}, "units": {}, "losses": {}}
     for i in range(1, 28):
         key = str(i)
-        cfg["inverters"][key] = ""
+        cfg["inverters"][key] = f"192.168.1.{100 + i}"
         cfg["poll_interval"][key] = float(DEFAULT_INTERVAL)
         cfg["units"][key] = [1, 2, 3, 4]
         cfg["losses"][key] = float(DEFAULT_LOSS_PCT)
@@ -526,7 +537,13 @@ def _write_ipconfig_file(path_obj, cfg):
 
 def _load_ipconfig_sync():
     """Synchronous load; called via executor so the event loop stays unblocked."""
-    # 1) Primary source: Node/Electron DB settings key (single source of truth).
+    # 1) The managed ProgramData config is the field-operator source. Prefer
+    # it to a stale DB mirror left by an earlier dashboard installation.
+    canonical_raw = _read_ipconfig_file(IPCONFIG_PATH)
+    if canonical_raw is not None:
+        return _sanitize_ipconfig(canonical_raw)
+
+    # 2) DB mirror fallback.
     db_raw = _read_ipconfig_from_db()
     if db_raw is not None:
         cfg = _sanitize_ipconfig(db_raw)
@@ -4744,7 +4761,7 @@ async def main():
         print(
             "[ENGINE] WARNING: ipconfig lists zero inverters. Service will stay up "
             "waiting for ipconfig hot-reload, but /data and /metrics will return empty "
-            "until an inverter IP is configured.  Check %PROGRAMDATA%\\InverterDashboard\\ipconfig.json."
+            "until an inverter IP is configured.  Check %PROGRAMDATA%\\Inverter-Dashboard\\db\\ipconfig.json."
         )
 
     # v2.9.0 Slice C — crash-recovery seed before polling begins.

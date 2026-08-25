@@ -67,7 +67,7 @@ test.describe("Global Configuration window", () => {
       const cases = [
         ["tab-plant", "#set_plantName"],
         ["tab-hardware", "#set_inverterClockAutoSyncAt"],
-        ["tab-connectivity", "#set_operationMode"],
+        ["tab-connectivity", "#set_remoteGatewayUrl"],
       ];
       await expect(configWindow.locator("#tab-system")).toHaveCount(0);
       await expect(configWindow.getByRole("button", { name: "System & License" })).toHaveCount(0);

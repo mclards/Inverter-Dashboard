@@ -1879,44 +1879,53 @@
                 <div class="settings-menu-group-label" aria-hidden="true">Plant &amp; Data</div>
                 <button class="settings-menu-btn active" type="button" data-settings-section="plantConfigSection" title="Site identity, operator naming, and core fleet sizing.">
                   <span class="mdi mdi-factory settings-menu-ico" aria-hidden="true"></span>
-                  <span class="settings-menu-label">Plant</span>
+                  <span class="settings-menu-label">Plant &amp; Display</span>
                 </button>
-                <button class="settings-menu-btn" type="button" data-settings-section="opsCompactSection" title="Operational endpoints, export storage, and polling timing.">
+                <div class="settings-menu-group-label" data-role-min="devClard" aria-hidden="true">Server Administration</div>
+                <button class="settings-menu-btn" type="button" data-settings-section="serverControlSection" data-role-min="devClard" title="Start, stop, restart, and configure local server processes and background daemon.">
+                  <span class="mdi mdi-server-cog settings-menu-ico" aria-hidden="true"></span>
+                  <span class="settings-menu-label">Server Lifecycle</span>
+                </button>
+                <div class="settings-menu-group-label" data-role-min="devClard" aria-hidden="true">Inverter Hardware</div>
+                <button class="settings-menu-btn" type="button" data-settings-section="inverterTopologySection" data-role-min="devClard" title="Configure inverter IP addresses, subnet mapping, and power node units.">
+                  <span class="mdi mdi-lan-connect settings-menu-ico" aria-hidden="true"></span>
+                  <span class="settings-menu-label">Inverter Topology</span>
+                </button>
+                <button class="settings-menu-btn" type="button" data-settings-section="opsCompactSection" data-role-min="devClard" title="Operational endpoints, export storage, and polling timing.">
                   <span class="mdi mdi-tune-variant settings-menu-ico" aria-hidden="true"></span>
                   <span class="settings-menu-label">Data &amp; Polling</span>
                 </button>
-                <div class="settings-menu-group-label" aria-hidden="true">Inverter Hardware</div>
-                <button class="settings-menu-btn" type="button" data-settings-section="inverterClockSection" title="Scheduled time sync, drift triggers, and per-unit counter health.">
+                <button class="settings-menu-btn" type="button" data-settings-section="inverterClockSection" data-role-min="devClard" title="Scheduled time sync, drift triggers, and per-unit counter health.">
                   <span class="mdi mdi-clock-outline settings-menu-ico" aria-hidden="true"></span>
                   <span class="settings-menu-label">Inverter Clocks</span>
                 </button>
-                <button class="settings-menu-btn" type="button" data-settings-section="stopReasonsSection" title="DebugDesc snapshots and lifetime motive counters via vendor SCOPE peek.">
+                <button class="settings-menu-btn" type="button" data-settings-section="stopReasonsSection" data-role-min="devClard" title="DebugDesc snapshots and lifetime motive counters via vendor SCOPE peek.">
                   <span class="mdi mdi-stop-circle-outline settings-menu-ico" aria-hidden="true"></span>
                   <span class="settings-menu-label">Stop Reasons</span>
                 </button>
-                <button class="settings-menu-btn" type="button" data-settings-section="serialNumberSection" title="Read, edit, and send the inverter serial via FC11 read + FC16 unlock+write+verify.">
+                <button class="settings-menu-btn" type="button" data-settings-section="serialNumberSection" data-role-min="devClard" title="Read, edit, and send the inverter serial via FC11 read + FC16 unlock+write+verify.">
                   <span class="mdi mdi-barcode settings-menu-ico" aria-hidden="true"></span>
                   <span class="settings-menu-label">Serial Number</span>
                 </button>
                 <div class="settings-menu-group-label" aria-hidden="true">Connectivity &amp; Identity</div>
                 <button class="settings-menu-btn" type="button" data-settings-section="connectivitySection" title="Server network discovery, reachable connection URLs, controller profile, and SCADA mutex.">
                   <span class="mdi mdi-server-network settings-menu-ico" aria-hidden="true"></span>
-                  <span class="settings-menu-label">Server &amp; Identity</span>
+                  <span class="settings-menu-label">Server Endpoints</span>
                 </button>
-                <button class="settings-menu-btn" type="button" data-settings-section="cloudBackupSection" title="Provider access, backup policy, restore actions, and history.">
+                <button class="settings-menu-btn" type="button" data-settings-section="cloudBackupSection" data-role-min="devClard" title="Provider access, backup policy, restore actions, and history.">
                   <span class="mdi mdi-cloud-upload-outline settings-menu-ico" aria-hidden="true"></span>
                   <span class="settings-menu-label">Cloud Backup</span>
                 </button>
-                <button class="settings-menu-btn" type="button" data-settings-section="localBackupSection" title="Portable .adsibak export and restore for OS migration.">
+                <button class="settings-menu-btn" type="button" data-settings-section="localBackupSection" data-role-min="devClard" title="Portable .adsibak export and restore for OS migration.">
                   <span class="mdi mdi-folder-zip-outline settings-menu-ico" aria-hidden="true"></span>
                   <span class="settings-menu-label">Local Backup</span>
                 </button>
                 <div class="settings-menu-group-label" aria-hidden="true">System</div>
-                <button class="settings-menu-btn" type="button" data-settings-section="licenseSection" title="Entitlement status, remaining term, and license activity.">
+                <button class="settings-menu-btn" type="button" data-settings-section="licenseSection" data-role-min="devClard" title="Entitlement status, remaining term, and license activity.">
                   <span class="mdi mdi-certificate-outline settings-menu-ico" aria-hidden="true"></span>
                   <span class="settings-menu-label">License</span>
                 </button>
-                <button class="settings-menu-btn" type="button" data-settings-section="appUpdateSection" title="Installed build status, release checks, and update actions.">
+                <button class="settings-menu-btn" type="button" data-settings-section="appUpdateSection" data-role-min="devClard" title="Installed build status, release checks, and update actions.">
                   <span class="mdi mdi-cloud-download-outline settings-menu-ico" aria-hidden="true"></span>
                   <span class="settings-menu-label">App Updates</span>
                 </button>
@@ -1933,11 +1942,11 @@
                 <span>Save Settings</span>
               </button>
               <div class="settings-utility-grid">
-                <button id="btnExportSettingsConfig" class="btn btn-outline" title="Export the current settings to a portable JSON file for backup or transfer to another workstation.">
+                <button id="btnExportSettingsConfig" class="btn btn-outline" data-role-min="devClard" title="Export the current settings to a portable JSON file for backup or transfer to another workstation.">
                   <span class="mdi mdi-export-variant" aria-hidden="true"></span>
                   <span>Export Settings</span>
                 </button>
-                <button id="btnImportSettingsConfig" class="btn btn-outline" title="Import settings from a previously exported JSON file. Overwrites current values after confirmation.">
+                <button id="btnImportSettingsConfig" class="btn btn-outline" data-role-min="devClard" title="Import settings from a previously exported JSON file. Overwrites current values after confirmation.">
                   <span class="mdi mdi-import" aria-hidden="true"></span>
                   <span>Import Settings</span>
                 </button>
@@ -1949,20 +1958,20 @@
                   <span class="mdi mdi-folder-open-outline" aria-hidden="true"></span>
                   <span>Open Folder</span>
                 </button>
-                <div class="settings-utility-sep" aria-hidden="true"></div>
-                <button id="btnOpenIpConfig" class="btn btn-outline" title="Open Global Configuration for inverter addressing, plant data, hardware clocks, connectivity, and backup.">
+                <div class="settings-utility-sep" data-role-min="devClard" aria-hidden="true"></div>
+                <button id="btnOpenIpConfig" class="btn btn-outline" data-role-min="devClard" title="Open Inverter Topology for inverter addressing, node units, and connectivity.">
                   <span class="mdi mdi-lan-connect" aria-hidden="true"></span>
-                  <span>Global Configuration</span>
+                  <span>Inverter Topology</span>
                 </button>
-                <button id="btnOpenCalibrator" class="btn btn-outline" title="Open the isolated Utility Tool (calibration + inverter settings viewer) with COM vs Ethernet transport selector.">
+                <button id="btnOpenCalibrator" class="btn btn-outline" data-role-min="devClard" title="Open the isolated Utility Tool (calibration + inverter settings viewer) with COM vs Ethernet transport selector.">
                   <span class="mdi mdi-tune-variant" aria-hidden="true"></span>
                   <span>Utility Tool</span>
                 </button>
-                <button id="btnCreateCalibratorShortcut" class="btn btn-outline" title="Create a Desktop shortcut that launches the Utility Tool directly — no dashboard, no login required.">
+                <button id="btnCreateCalibratorShortcut" class="btn btn-outline" data-role-min="devClard" title="Create a Desktop shortcut that launches the Utility Tool directly — no dashboard, no login required.">
                   <span class="mdi mdi-rocket-launch-outline" aria-hidden="true"></span>
                   <span>Utility Tool Shortcut</span>
                 </button>
-                <button id="btnResetSettingsDefaults" class="btn btn-red" title="Reset all settings to factory defaults. This cannot be undone without a prior export or backup.">
+                <button id="btnResetSettingsDefaults" class="btn btn-red" data-role-min="devClard" title="Reset all settings to factory defaults. This cannot be undone without a prior export or backup.">
                   <span class="mdi mdi-restore" aria-hidden="true"></span>
                   <span>Restore Defaults</span>
                 </button>
@@ -2048,7 +2057,125 @@
               /></label>
             </div>
           </div>
-          <div class="sgroup settings-card" id="opsCompactSection">
+
+          <!-- SERVER LIFECYCLE (devClard only) -->
+          <div class="sgroup settings-card" id="serverControlSection" data-role-min="devClard" hidden>
+            <div class="sgroup-title" title="Start, stop, and manage local server processes and background execution.">
+              <span class="mdi mdi-server-cog icon-inline" aria-hidden="true"></span> Server Lifecycle &amp; Background Service
+            </div>
+            <div class="settings-subsection">
+              <div class="rep-health-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+                <div class="license-item">
+                  <div class="license-label">Server State</div>
+                  <div id="srvStatusBadge" class="license-value" style="font-weight:700; color:var(--text2);">Checking...</div>
+                </div>
+                <div class="license-item">
+                  <div class="license-label">Web Gateway (:3500)</div>
+                  <div id="srvStatusWeb" class="license-value" style="font-family:var(--font-mono);font-size:12px;">—</div>
+                </div>
+                <div class="license-item">
+                  <div class="license-label">Telemetry Engine (:9100)</div>
+                  <div id="srvStatusTelemetry" class="license-value" style="font-family:var(--font-mono);font-size:12px;">—</div>
+                </div>
+                <div class="license-item">
+                  <div class="license-label">AI Forecast Engine (:9200)</div>
+                  <div id="srvStatusForecast" class="license-value" style="font-family:var(--font-mono);font-size:12px;">—</div>
+                </div>
+              </div>
+
+              <div class="srow" style="margin-top:16px; display:flex; flex-direction:column; gap:8px;">
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; font-size:12.5px;">
+                  <input type="checkbox" id="chkKeepServerBackground" style="accent-color:var(--accent); width:16px; height:16px;" />
+                  <span>Run as Background Service (Keep server running even if the dashboard window is closed)</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; font-size:12.5px;">
+                  <input type="checkbox" id="chkAutoStartServer" style="accent-color:var(--accent); width:16px; height:16px;" />
+                  <span>Auto-start local server services on application launch</span>
+                </label>
+              </div>
+
+              <div class="sgroup-actions" style="margin-top:16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <button id="btnStartLocalServer" class="btn btn-primary" type="button" title="Start the local Express server, Modbus telemetry poller, and forecasting engine.">
+                  <span class="mdi mdi-play" aria-hidden="true"></span><span>Start Local Server</span>
+                </button>
+                <button id="btnStopLocalServer" class="btn btn-red" type="button" title="Stop all local server services and background processes.">
+                  <span class="mdi mdi-stop" aria-hidden="true"></span><span>Stop Local Server</span>
+                </button>
+                <button id="btnRefreshServerStatus" class="btn btn-outline" type="button" title="Query current server lifecycle status.">
+                  <span class="mdi mdi-refresh" aria-hidden="true"></span><span>Check Status</span>
+                </button>
+                <span class="smsg" id="srvActionMsg"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- INVERTER TOPOLOGY & IP CONFIGURATION (devClard only) -->
+          <div class="sgroup settings-card" id="inverterTopologySection" data-role-min="devClard" hidden>
+            <div class="sgroup-title" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;" title="Inverter IP addressing, subnet mapping, and power node units.">
+              <div><span class="mdi mdi-lan-connect icon-inline" aria-hidden="true"></span> Inverter Topology &amp; IP Addressing</div>
+              <div id="invTopologyReachBadge" class="reach-badge" style="font-size:11px; padding:3px 8px; border-radius:6px; background:var(--surface2); border:1px solid var(--border);">Online: — / 27</div>
+            </div>
+
+            <div class="settings-subsection">
+              <!-- Top Helper Bar -->
+              <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:10px; margin-bottom:14px; padding:12px; border-radius:8px; background:var(--surface2); border:1px solid var(--border);">
+                <div class="field">
+                  <label for="topolInverterModel" style="font-size:11px; font-weight:700; color:var(--text2);">Inverter Model</label>
+                  <select id="topolInverterModel" class="inp">
+                    <option value="INGECON_SUN_3PLAY">INGECON SUN 3Play (100TL / 160TL)</option>
+                    <option value="INGECON_SUN_POWERMAX">INGECON SUN PowerMax (1MW+)</option>
+                    <option value="GENERIC_MODBUS">Generic Modbus Inverter</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="topolModbusPort" style="font-size:11px; font-weight:700; color:var(--text2);">Modbus TCP Port</label>
+                  <input type="number" id="topolModbusPort" class="inp" min="1" max="65535" value="502" />
+                </div>
+                <div class="field">
+                  <label for="topolBaseIp" style="font-size:11px; font-weight:700; color:var(--text2);">Base IP for Auto-Fill</label>
+                  <input type="text" id="topolBaseIp" class="inp" placeholder="192.168.1.100" />
+                </div>
+                <div class="field" style="display:flex; flex-direction:row; align-items:flex-end; gap:8px;">
+                  <button id="btnAutoFillIpGrid" class="btn btn-outline" type="button" style="height:34px; font-size:11.5px;" title="Auto-fill inverter IPs sequentially from Base IP.">
+                    <span class="mdi mdi-auto-fix" aria-hidden="true"></span><span>Auto-Fill IPs</span>
+                  </button>
+                  <button id="btnClearAllIps" class="btn btn-outline" type="button" style="height:34px; font-size:11.5px;" title="Clear all IP addresses to blank.">
+                    <span class="mdi mdi-close" aria-hidden="true"></span><span>Clear</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Inverter IP Table Grid Container -->
+              <div id="inverterIpTableWrap" style="max-height:480px; overflow-y:auto; border:1px solid var(--border); border-radius:8px;">
+                <table class="rep-table" style="width:100%; border-collapse:collapse; font-size:12px;">
+                  <thead>
+                    <tr style="position:sticky; top:0; background:var(--surface2); z-index:2;">
+                      <th style="padding:8px 10px; text-align:left; width:80px;">Inverter</th>
+                      <th style="padding:8px 10px; text-align:left; min-width:180px;">IP Address</th>
+                      <th style="padding:8px 10px; text-align:center; width:220px;">Active Nodes / Units</th>
+                      <th style="padding:8px 10px; text-align:center; width:100px;">Status</th>
+                      <th style="padding:8px 10px; text-align:center; width:80px;">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="inverterIpTableBody">
+                    <!-- Populated dynamically via JS -->
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="sgroup-actions" style="margin-top:14px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <button id="btnSaveInverterTopology" class="btn btn-accent" type="button" title="Save IP address topology directly to ipconfig.json.">
+                  <span class="mdi mdi-content-save-outline" aria-hidden="true"></span><span>Save Inverter Topology</span>
+                </button>
+                <button id="btnScanTopologyStatus" class="btn btn-outline" type="button" title="Test IP reachability for all configured inverters.">
+                  <span class="mdi mdi-radar" aria-hidden="true"></span><span>Check Inverter Reachability</span>
+                </button>
+                <span class="smsg" id="topolSaveMsg"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="sgroup settings-card" id="opsCompactSection" data-role-min="devClard" hidden>
             <div class="sgroup-title" title="Python service endpoints, export storage and retention window, and Modbus polling timing."><span class="mdi mdi-tune-variant icon-inline" aria-hidden="true"></span> Data &amp; Polling</div>
             <div class="card-tabs" role="tablist" aria-label="Data and polling sub-sections">
               <button id="opsTabEndpoints" class="card-tab active" type="button" role="tab" aria-selected="true" aria-controls="opsPanelEndpoints" data-card-tab="endpoints" title="Python inverter service endpoints (data + write).">
@@ -2219,19 +2346,7 @@
                   <div id="perfWsDropsVal" class="license-value">-</div>
                 </div>
               </div>
-              <div class="rep-health-errors">
-                <div class="license-label">Recent Errors</div>
-                <div id="perfErrorsVal" class="license-value">-</div>
-              </div>
-              <div class="sgroup-actions">
-                <button id="btnRefreshRuntimePerf" class="btn btn-outline" type="button" title="Refresh runtime performance counters such as CPU, memory, poll duration, and errors." aria-label="Refresh runtime performance diagnostics">
-                  <span class="mdi mdi-refresh" aria-hidden="true"></span><span>Refresh</span>
-                </button>
-                <span class="smsg" id="perfMsg"></span>
-              </div>
-              </div>
-          </div>
-          <div class="sgroup settings-card" id="licenseSection">
+<div class="sgroup settings-card" id="licenseSection" data-role-min="devClard">
             <div class="sgroup-title" title="Entitlement state, remaining term, and license activity. Replace the current file when required."><span class="mdi mdi-shield-key-outline icon-inline" aria-hidden="true"></span> License</div>
             <div class="license-grid">
               <div class="license-item" title="Current license validation state (valid, expired, missing, or error).">
@@ -2276,7 +2391,7 @@
               </table>
             </div>
           </div>
-          <div class="sgroup settings-card" id="appUpdateSection">
+          <div class="sgroup settings-card" id="appUpdateSection" data-role-min="devClard">
             <div class="sgroup-title" title="Installed build, comparison with the release channel, and update actions for this workstation."><span class="mdi mdi-update icon-inline" aria-hidden="true"></span> App Updates</div>
             <div class="license-grid">
               <div class="license-item" title="Currently installed application version from package.json.">
@@ -2784,7 +2899,7 @@
           </div>
 
           <!-- v2.9.0 Slice G — Inverter Clock Sync + Counter Health -->
-          <div class="sgroup settings-card" id="inverterClockSection" hidden>
+          <div class="sgroup settings-card" id="inverterClockSection" data-role-min="devClard" hidden>
             <!-- Remote-mode indicator: hidden in gateway mode, shown when this dashboard
                  is acting as a remote viewer. Tells the operator that data is mirrored
                  from the gateway and actions are forwarded to it. -->
@@ -2968,7 +3083,7 @@ Hover any pill in the column for the row-specific explanation.">Anchor</th>
           </div>
 
           <!-- v2.10.0 Slice C minimal — Serial Number Setting (Read / Edit / Send) -->
-          <div class="sgroup settings-card" id="serialNumberSection" hidden>
+          <div class="sgroup settings-card" id="serialNumberSection" data-role-min="devClard" hidden>
             <div id="snbRemoteBanner" class="invclock-remote-banner" hidden role="status" aria-live="polite"
                  title="In remote mode the audit log mirrors from the gateway, but Read and Send execute on the gateway only — they are disabled here.">
               <span class="mdi mdi-cloud-sync-outline icon-inline" aria-hidden="true"></span>
@@ -3219,7 +3334,7 @@ Hover any pill in the column for the row-specific explanation.">Anchor</th>
           <!-- v2.11.x Field Calibration — relocated to its own top-level page (#page-field-calibration). -->
 
           <!-- v2.10.0 Slice D minimal — Stop Reasons (DebugDesc snapshots) -->
-          <div class="sgroup settings-card" id="stopReasonsSection" hidden>
+          <div class="sgroup settings-card" id="stopReasonsSection" data-role-min="devClard" hidden>
             <div id="srnRemoteBanner" class="invclock-remote-banner" hidden role="status" aria-live="polite"
                  title="In remote mode captured snapshots mirror from the gateway, but Refresh executes on the gateway only — it is disabled here.">
               <span class="mdi mdi-cloud-sync-outline icon-inline" aria-hidden="true"></span>

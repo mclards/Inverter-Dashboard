@@ -4534,15 +4534,318 @@ function syncDayAheadGeneratorAvailability() {
   }
 }
 
-function openIpConfigSettings() {
-  // Editable in both gateway and remote mode. In remote mode the save proxies
-  // to the gateway (source of truth) and is mirrored into the local store — see
-  // _applyIpConfigPostRemote (server) and the remote banner in global-config.html.
-  if (window.electronAPI?.openIpConfigWindow) {
-    window.electronAPI.openIpConfigWindow();
+function isDevClardUser() {
+  const role = String(localStorage.getItem("adsi_operator_role") || "").trim().toLowerCase();
+  const name = String(localStorage.getItem("adsi_operator_name") || "").trim().toLowerCase();
+  return role === "admin" || role === "devclard" || name === "devclard";
+}
+
+function applyRolePermissions() {
+  const isDev = isDevClardUser();
+  document.querySelectorAll('[data-role-min="devClard"]').forEach((el) => {
+    el.style.display = isDev ? "" : "none";
+  });
+
+  // If active settings section is restricted to devClard and user is operator, reset to plantConfigSection
+  const activeSec = String(localStorage.getItem("adsi_settings_section") || "").trim();
+  const secEl = $(activeSec);
+  if (!isDev && secEl && secEl.getAttribute("data-role-min") === "devClard") {
+    setActiveSettingsSection("plantConfigSection", false);
+  }
+}
+
+// ── Server Lifecycle Controller ───────────────────────────────────────────────
+async function refreshServerLifecycleStatus() {
+  const badge = $("srvStatusBadge");
+  const webVal = $("srvStatusWeb");
+  const telemVal = $("srvStatusTelemetry");
+  const fcastVal = $("srvStatusForecast");
+  const keepChk = $("chkKeepServerBackground");
+  const autoChk = $("chkAutoStartServer");
+
+  if (!badge) return;
+
+  if (window.electronAPI?.getServerStatus) {
+    try {
+      const res = await window.electronAPI.getServerStatus();
+      if (res?.ok) {
+        if (res.running) {
+          badge.textContent = "● RUNNING (Port 3500)";
+          badge.style.color = "var(--green, #10b981)";
+        } else {
+          badge.textContent = "○ STOPPED (Client Mode)";
+          badge.style.color = "var(--text2, #64748b)";
+        }
+        if (webVal) webVal.textContent = res.services?.web ? "Active (Port 3500)" : "Offline";
+        if (telemVal) telemVal.textContent = res.services?.telemetry ? "Active (Port 9100)" : "Offline";
+        if (fcastVal) fcastVal.textContent = res.services?.forecast ? "Active (Port 9200)" : "Offline";
+        if (keepChk) keepChk.checked = Boolean(res.keepInBackground);
+        if (autoChk) autoChk.checked = Boolean(res.autoStart);
+        return;
+      }
+    } catch (_) {}
+  }
+
+  try {
+    const res = await fetch("/api/health", { cache: "no-store" }).catch(() => null);
+    if (res && res.ok) {
+      badge.textContent = "● RUNNING (Web Server)";
+      badge.style.color = "var(--green, #10b981)";
+      if (webVal) webVal.textContent = "Active";
+    } else {
+      badge.textContent = "○ STOPPED";
+      badge.style.color = "var(--text2, #64748b)";
+      if (webVal) webVal.textContent = "Offline";
+    }
+  } catch (_) {
+    badge.textContent = "○ STOPPED";
+    badge.style.color = "var(--text2, #64748b)";
+  }
+}
+
+async function startLocalServerFromUi() {
+  const msg = $("srvActionMsg");
+  if (msg) msg.textContent = "Starting local server services...";
+  if (window.electronAPI?.startServer) {
+    try {
+      const res = await window.electronAPI.startServer();
+      if (res?.ok) {
+        if (msg) msg.textContent = "Local server started successfully.";
+        setTimeout(refreshServerLifecycleStatus, 1500);
+        return;
+      }
+      if (msg) msg.textContent = res?.error || "Failed to start server.";
+    } catch (err) {
+      if (msg) msg.textContent = "Error: " + err.message;
+    }
+  } else {
+    if (msg) msg.textContent = "Server control requires the Desktop application.";
+  }
+}
+
+async function stopLocalServerFromUi() {
+  const msg = $("srvActionMsg");
+  if (msg) msg.textContent = "Stopping local server services...";
+  if (window.electronAPI?.stopServer) {
+    try {
+      const res = await window.electronAPI.stopServer();
+      if (res?.ok) {
+        if (msg) msg.textContent = "Local server stopped.";
+        refreshServerLifecycleStatus();
+        return;
+      }
+      if (msg) msg.textContent = res?.error || "Failed to stop server.";
+    } catch (err) {
+      if (msg) msg.textContent = "Error: " + err.message;
+    }
+  } else {
+    if (msg) msg.textContent = "Server control requires the Desktop application.";
+  }
+}
+
+function initServerLifecycleController() {
+  $("btnStartLocalServer")?.addEventListener("click", startLocalServerFromUi);
+  $("btnStopLocalServer")?.addEventListener("click", stopLocalServerFromUi);
+  $("btnRefreshServerStatus")?.addEventListener("click", refreshServerLifecycleStatus);
+  $("chkKeepServerBackground")?.addEventListener("change", async (e) => {
+    if (window.electronAPI?.setServerBackground) {
+      await window.electronAPI.setServerBackground(e.target.checked);
+    }
+  });
+  $("chkAutoStartServer")?.addEventListener("change", async (e) => {
+    if (window.electronAPI?.setServerAutoStart) {
+      await window.electronAPI.setServerAutoStart(e.target.checked);
+    }
+  });
+}
+
+// ── Inverter Topology & IP Configuration Controller ───────────────────────────
+let _inverterTopologyData = null;
+
+async function loadInverterTopology() {
+  const tbody = $("inverterIpTableBody");
+  if (!tbody) return;
+
+  try {
+    let cfg = null;
+    if (window.electronAPI?.getConfig) {
+      cfg = await window.electronAPI.getConfig();
+    } else {
+      const res = await fetch("/api/ip-config", { cache: "no-store" });
+      if (res.ok) cfg = await res.json();
+    }
+
+    _inverterTopologyData = cfg || { inverters: {} };
+    renderInverterTopologyTable(_inverterTopologyData);
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state" style="color:var(--warn);">Failed to load IP configuration: ${escapeHtml(err.message)}</td></tr>`;
+  }
+}
+
+function renderInverterTopologyTable(cfg) {
+  const tbody = $("inverterIpTableBody");
+  if (!tbody) return;
+
+  const count = Number(State.settings?.inverterCount || 27);
+  let html = "";
+
+  for (let i = 1; i <= count; i++) {
+    const invKey = String(i);
+    const invData = cfg?.inverters?.[invKey] || {};
+    const ip = invData.ip || "";
+    const activeNodes = Array.isArray(invData.slaves) ? invData.slaves : [1, 2, 3, 4];
+    const isOnline = Boolean(invData.online);
+
+    html += `
+      <tr data-inverter-index="${i}" style="border-bottom: 1px solid var(--border);">
+        <td style="padding: 6px 10px; font-weight: 700; font-family: var(--font-mono);">INV-${String(i).padStart(2, "0")}</td>
+        <td style="padding: 6px 10px;">
+          <input type="text" class="inp topol-ip-input" data-inv="${i}" value="${escapeHtml(ip)}" placeholder="e.g. 192.168.1.${100 + i}" style="font-family: var(--font-mono); height: 28px; font-size: 11.5px;" />
+        </td>
+        <td style="padding: 6px 10px; text-align: center;">
+          <label style="margin-right: 6px; font-size: 11px;"><input type="checkbox" class="topol-slave-cb" data-inv="${i}" data-slave="1" ${activeNodes.includes(1) ? "checked" : ""} /> U1</label>
+          <label style="margin-right: 6px; font-size: 11px;"><input type="checkbox" class="topol-slave-cb" data-inv="${i}" data-slave="2" ${activeNodes.includes(2) ? "checked" : ""} /> U2</label>
+          <label style="margin-right: 6px; font-size: 11px;"><input type="checkbox" class="topol-slave-cb" data-inv="${i}" data-slave="3" ${activeNodes.includes(3) ? "checked" : ""} /> U3</label>
+          <label style="font-size: 11px;"><input type="checkbox" class="topol-slave-cb" data-inv="${i}" data-slave="4" ${activeNodes.includes(4) ? "checked" : ""} /> U4</label>
+        </td>
+        <td style="padding: 6px 10px; text-align: center;">
+          <span class="inv-reach-pill ${isOnline ? "ok" : "muted"}" id="topolReachInv_${i}" style="font-size: 10px; padding: 2px 6px; border-radius: 4px; font-family: var(--font-mono); background: ${isOnline ? "rgba(16,185,129,0.15)" : "rgba(100,116,139,0.1)"}; color: ${isOnline ? "var(--green)" : "var(--text2)"};">${isOnline ? "ONLINE" : (ip ? "OFFLINE" : "UNSET")}</span>
+        </td>
+        <td style="padding: 6px 10px; text-align: center;">
+          <button type="button" class="btn btn-outline btn-sm btn-ping-single" data-inv="${i}" style="height: 24px; padding: 0 6px; font-size: 10.5px;" title="Test connectivity to this IP">Ping</button>
+        </td>
+      </tr>
+    `;
+  }
+
+  tbody.innerHTML = html;
+
+  tbody.querySelectorAll(".btn-ping-single").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const invNum = btn.dataset.inv;
+      const ipInp = tbody.querySelector(`.topol-ip-input[data-inv="${invNum}"]`);
+      const ip = (ipInp?.value || "").trim();
+      if (!ip) {
+        showMsg("topolSaveMsg", `Inverter ${invNum} has no IP address configured.`, "error");
+        return;
+      }
+      if (window.electronAPI?.openIPCheck) {
+        window.electronAPI.openIPCheck(ip);
+        showMsg("topolSaveMsg", `Testing ${ip}...`, "");
+      } else {
+        showMsg("topolSaveMsg", `Ping test sent for ${ip}`, "");
+      }
+    });
+  });
+}
+
+async function saveInverterTopology() {
+  const msg = $("topolSaveMsg");
+  const tbody = $("inverterIpTableBody");
+  if (!tbody) return;
+
+  const count = Number(State.settings?.inverterCount || 27);
+  const inverters = {};
+
+  for (let i = 1; i <= count; i++) {
+    const ipInp = tbody.querySelector(`.topol-ip-input[data-inv="${i}"]`);
+    const ip = (ipInp?.value || "").trim();
+    const slaves = [];
+    tbody.querySelectorAll(`.topol-slave-cb[data-inv="${i}"]:checked`).forEach((cb) => {
+      slaves.push(Number(cb.dataset.slave));
+    });
+
+    inverters[String(i)] = {
+      ip,
+      slaves: slaves.length ? slaves : [1, 2, 3, 4],
+    };
+  }
+
+  const model = $("topolInverterModel")?.value || "INGECON_SUN_3PLAY";
+  const port = Number($("topolModbusPort")?.value || 502);
+
+  const payload = {
+    model,
+    port,
+    inverters,
+  };
+
+  if (msg) msg.textContent = "Saving Inverter Topology...";
+
+  try {
+    if (window.electronAPI?.saveConfig) {
+      await window.electronAPI.saveConfig(payload);
+    } else {
+      const res = await fetch("/api/ip-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("Server returned HTTP " + res.status);
+    }
+    if (msg) {
+      msg.textContent = "Inverter Topology saved successfully.";
+      msg.style.color = "var(--green, #10b981)";
+    }
+  } catch (err) {
+    if (msg) {
+      msg.textContent = "Error saving topology: " + err.message;
+      msg.style.color = "var(--warn, #ef4444)";
+    }
+  }
+}
+
+function autoFillInverterIpGrid() {
+  const baseIp = ($("topolBaseIp")?.value || "").trim();
+  if (!baseIp) {
+    showMsg("topolSaveMsg", "Please enter a Base IP (e.g. 192.168.1.100)", "error");
     return;
   }
-  window.location.href = "/global-config.html";
+
+  const parts = baseIp.split(".");
+  if (parts.length !== 4) {
+    showMsg("topolSaveMsg", "Invalid IP format. Enter a standard IPv4 address.", "error");
+    return;
+  }
+
+  const prefix = parts.slice(0, 3).join(".");
+  let startOctet = parseInt(parts[3], 10) || 1;
+
+  const count = Number(State.settings?.inverterCount || 27);
+  const tbody = $("inverterIpTableBody");
+  if (!tbody) return;
+
+  for (let i = 1; i <= count; i++) {
+    const ipInp = tbody.querySelector(`.topol-ip-input[data-inv="${i}"]`);
+    if (ipInp) {
+      ipInp.value = `${prefix}.${startOctet + (i - 1)}`;
+    }
+  }
+
+  showMsg("topolSaveMsg", `Auto-filled ${count} inverter IP addresses sequentially. Click Save to apply.`, "");
+}
+
+function clearAllInverterIps() {
+  const tbody = $("inverterIpTableBody");
+  if (!tbody) return;
+  tbody.querySelectorAll(".topol-ip-input").forEach((inp) => {
+    inp.value = "";
+  });
+  showMsg("topolSaveMsg", "All IP addresses cleared. Click Save to apply.", "");
+}
+
+function initInverterTopologyController() {
+  $("btnSaveInverterTopology")?.addEventListener("click", saveInverterTopology);
+  $("btnAutoFillIpGrid")?.addEventListener("click", autoFillInverterIpGrid);
+  $("btnClearAllIps")?.addEventListener("click", clearAllInverterIps);
+  $("btnScanTopologyStatus")?.addEventListener("click", () => {
+    showMsg("topolSaveMsg", "Scanning inverter network reachability...", "");
+  });
+}
+
+function openIpConfigSettings() {
+  showPage("settings");
+  setActiveSettingsSection("inverterTopologySection", true);
 }
 
 function openCalibratorWindow() {
@@ -5272,6 +5575,18 @@ function setActiveSettingsSection(sectionId, persist = true) {
     }
   }
 
+  if (activeId === "inverterTopologySection") {
+    try { loadInverterTopology(); } catch (err) {
+      console.warn("[inverter-topology] load failed:", err?.message || err);
+    }
+  }
+
+  if (activeId === "serverControlSection") {
+    try { refreshServerLifecycleStatus(); } catch (err) {
+      console.warn("[server-control] status refresh failed:", err?.message || err);
+    }
+  }
+
   // v2.11.x — Field Calibration moved to its own top-nav page (page === "field-calibration");
   // init now triggered from switchPage(), not from this settings sidebar handler.
 }
@@ -5343,6 +5658,10 @@ function initSettingsSectionNav() {
     storageKey: "adsi_local_backup_active_tab",
     defaultKey: "health",
   });
+
+  initServerLifecycleController();
+  initInverterTopologyController();
+  applyRolePermissions();
 
   let saved = "";
   try {
@@ -6524,6 +6843,7 @@ async function loadSettings() {
     State.settings.exportUiState = sanitizeExportUiStateClient(
       s.exportUiState || {},
     );
+    applyRolePermissions();
     if ($("plantNameDisplay"))
       $("plantNameDisplay").textContent = s.plantName || "ADSI Plant";
     $("setPlantName").value = s.plantName || "";

@@ -2151,6 +2151,11 @@ app.on("window-all-closed", () => {
     setTimeout(() => app.exit(0), 600);
     return;
   }
+  const srvCfg = loadServerServiceConfig();
+  if (srvCfg.keepInBackground && isLocalServerRunning()) {
+    console.log("[main] Window closed but server is configured to keep running in background.");
+    return;
+  }
   if (process.platform !== "darwin") quit();
 });
 
@@ -2373,12 +2378,6 @@ function registerShortcutsOnce() {
       console.warn("[main] topology shortcut guard failed:", err.message);
     });
   });
-  globalShortcut.register("Control+I", () => {
-    const focused = BrowserWindow.getFocusedWindow() || mainWin || null;
-    openGlobalConfigWindowGuarded(focused).catch((err) => {
-      console.warn("[main] ip-config shortcut guard failed:", err.message);
-    });
-  });
   // Native Electron zoom shortcuts (Cmd/Ctrl + / - / 0).
   safeRegister("CommandOrControl+=", () => adjustZoom(0.1));
   safeRegister("CommandOrControl+Plus", () => adjustZoom(0.1));
@@ -2460,18 +2459,28 @@ function showLoginWindow() {
 async function startAfterLogin() {
   if (bootStarted) return;
   bootStarted = true;
-  showLoadingWindow();
-  updateLoadingStartupState({
-    step: 1,
-    progress: 15,
-    text: "Initializing application shell...",
-  });
-  updateLoadingStartupState({
-    step: 2,
-    progress: 35,
-    text: "Starting local dashboard services...",
-  });
-  startServer();
+  const srvCfg = loadServerServiceConfig();
+  if (srvCfg.autoStart) {
+    showLoadingWindow();
+    updateLoadingStartupState({
+      step: 1,
+      progress: 25,
+      text: "Initializing application shell...",
+    });
+    updateLoadingStartupState({
+      step: 2,
+      progress: 50,
+      text: "Starting local dashboard services...",
+    });
+    startServer();
+  } else {
+    // Client-Only Launch: Open dashboard directly without spinning up server processes
+    if (loginWin && !loginWin.isDestroyed()) {
+      loginWin.close();
+    }
+    registerShortcutsOnce();
+    createMainWindow();
+  }
 }
 
 function hashText(v) {
@@ -4618,9 +4627,14 @@ function loadMainUrlWithRetry() {
   if (!mainWin || mainWin.isDestroyed()) return;
   const doLoad = () => {
     if (!mainWin || mainWin.isDestroyed()) return;
-    mainWin.loadURL(SERVER_URL).catch((err) => {
-      console.error("[main] loadURL error:", err.message);
-    });
+    if (isLocalServerRunning()) {
+      mainWin.loadURL(SERVER_URL).catch((err) => {
+        console.warn("[main] loadURL error, falling back to local HTML:", err.message);
+        mainWin.loadFile(path.join(PUBLIC_DIR, "index.html")).catch(console.error);
+      });
+    } else {
+      mainWin.loadFile(path.join(PUBLIC_DIR, "index.html")).catch(console.error);
+    }
   };
   if (mainWin.__cacheClearedOnce) {
     doLoad();
@@ -5705,6 +5719,131 @@ ipcMain.on("window-close", () => quit());
 ipcMain.on("open-logs-folder", (_, folder) => {
   if (folder) shell.openPath(folder).catch(console.error);
 });
+
+// ─── Server Lifecycle Management ───────────────────────────────────────────
+function getServerServiceConfigPath() {
+  return path.join(app.getPath("userData"), "server-service-config.json");
+}
+
+function loadServerServiceConfig() {
+  try {
+    const p = getServerServiceConfigPath();
+    if (fs.existsSync(p)) {
+      const parsed = JSON.parse(fs.readFileSync(p, "utf8"));
+      return {
+        keepInBackground: Boolean(parsed?.keepInBackground),
+        autoStart: Boolean(parsed?.autoStart),
+      };
+    }
+  } catch (err) {
+    console.warn("[server-service] config read failed:", err.message);
+  }
+  return { keepInBackground: false, autoStart: false };
+}
+
+function saveServerServiceConfig(cfg) {
+  try {
+    const p = getServerServiceConfigPath();
+    const current = loadServerServiceConfig();
+    const updated = { ...current, ...cfg };
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    fs.writeFileSync(p, JSON.stringify(updated, null, 2), "utf8");
+    return { ok: true, config: updated };
+  } catch (err) {
+    console.warn("[server-service] config save failed:", err.message);
+    return { ok: false, error: err.message };
+  }
+}
+
+function isLocalServerRunning() {
+  return Boolean(
+    serverReadyFired ||
+    embeddedServerStarted ||
+    (backendProc && !backendProc.killed) ||
+    (webProc && !webProc.killed)
+  );
+}
+
+ipcMain.handle("server:get-status", async () => {
+  const running = isLocalServerRunning();
+  const cfg = loadServerServiceConfig();
+  return {
+    ok: true,
+    running,
+    port: 3500,
+    keepInBackground: cfg.keepInBackground,
+    autoStart: cfg.autoStart,
+    services: {
+      web: Boolean(embeddedServerStarted || (webProc && !webProc.killed)),
+      telemetry: Boolean(backendProc && !backendProc.killed),
+      forecast: Boolean(forecastProc && !forecastProc.killed),
+    },
+  };
+});
+
+ipcMain.handle("server:start", async () => {
+  if (isLocalServerRunning()) {
+    return { ok: true, running: true, port: 3500, message: "Server is already running." };
+  }
+  console.log("[main] Manual server start requested from UI");
+  try {
+    startServer();
+    return { ok: true, running: true, port: 3500 };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle("server:stop", async () => {
+  console.log("[main] Manual server stop requested from UI");
+  try {
+    serverReadyFired = false;
+    embeddedServerStarted = false;
+    clearBackendRestartTimer();
+    clearForecastRestartTimer();
+
+    if (backendProc && !backendProc.killed) {
+      backendProc.kill();
+      backendProc = null;
+    }
+    if (forecastProc && !forecastProc.killed) {
+      forecastProc.kill();
+      forecastProc = null;
+    }
+    if (webProc && !webProc.killed) {
+      webProc.kill();
+      webProc = null;
+    }
+    try {
+      const go2rtcManager = require("../server/go2rtcManager");
+      if (go2rtcManager && typeof go2rtcManager.stopGo2rtc === "function") {
+        await go2rtcManager.stopGo2rtc().catch(() => {});
+      }
+    } catch (_) {}
+    try {
+      const hikvisionManager = require("../server/hikvisionManager");
+      if (hikvisionManager && typeof hikvisionManager.stopHikvision === "function") {
+        await hikvisionManager.stopHikvision().catch(() => {});
+      }
+    } catch (_) {}
+
+    killImageNames(BACKEND_EXE_NAMES);
+    killImageNames(FORECAST_EXE_NAMES);
+
+    return { ok: true, running: false };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle("server:set-background", async (_, enabled) => {
+  return saveServerServiceConfig({ keepInBackground: Boolean(enabled) });
+});
+
+ipcMain.handle("server:set-auto-start", async (_, enabled) => {
+  return saveServerServiceConfig({ autoStart: Boolean(enabled) });
+});
+
 ipcMain.on("open-topology-window", async (event) => {
   const ownerWin = BrowserWindow.fromWebContents(event.sender) || null;
   await openTopologyWindowGuarded(ownerWin);

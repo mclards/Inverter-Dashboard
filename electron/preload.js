@@ -120,4 +120,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // Cloud Backup OAuth
   // Opens an OAuth window and returns { ok, callbackUrl } or { ok: false, error }
   openOAuthWindow: (authUrl) => ipcRenderer.invoke("oauth-start", { authUrl }),
+
+  // Server Lifecycle Controls
+  getServerStatus: () => ipcRenderer.invoke("server:get-status"),
+  startServer: () => ipcRenderer.invoke("server:start"),
+  stopServer: () => ipcRenderer.invoke("server:stop"),
+  setServerBackground: (enabled) => ipcRenderer.invoke("server:set-background", enabled),
 });

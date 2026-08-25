@@ -463,7 +463,7 @@ def _default_ipconfig():
     cfg = {"inverters": {}, "poll_interval": {}, "units": {}, "losses": {}}
     for i in range(1, 28):
         key = str(i)
-        cfg["inverters"][key] = f"192.168.1.{100 + i}"
+        cfg["inverters"][key] = ""
         cfg["poll_interval"][key] = float(DEFAULT_INTERVAL)
         cfg["units"][key] = [1, 2, 3, 4]
         cfg["losses"][key] = float(DEFAULT_LOSS_PCT)

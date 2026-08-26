@@ -70,9 +70,22 @@ def create_client(ip, port=502, timeout=1.0):
     timeout: TCP read timeout in seconds; configurable from dashboard settings.
     """
     try:
-        client = ModbusTcpClient(host=ip, port=port, timeout=timeout, retry_on_empty=False)
+        client = ModbusTcpClient(
+            host=ip,
+            port=port,
+            timeout=timeout,
+            retries=0,
+            reconnect_delay=0.0,
+            reconnect_delay_max=0.0,
+        )
     except TypeError:
-        client = ModbusTcpClient(host=ip, port=port, timeout=timeout)
+        try:
+            client = ModbusTcpClient(host=ip, port=port, timeout=timeout, retries=0)
+        except TypeError:
+            try:
+                client = ModbusTcpClient(host=ip, port=port, timeout=timeout, retry_on_empty=False)
+            except TypeError:
+                client = ModbusTcpClient(host=ip, port=port, timeout=timeout)
     try:
         client.connect()
     except Exception:
@@ -94,8 +107,11 @@ def _call_modbus(fn, *args, **kwargs):
 def read_input(client, address, count, unit):
     _refresh_timeout(client)
     try:
+        if hasattr(client, "connected") and not client.connected:
+            try: client.connect()
+            except Exception: pass
         r = _call_modbus(client.read_input_registers, address=address, count=count, unit=unit)
-        if r and not r.isError():
+        if r and not r.isError() and hasattr(r, "registers"):
             return r.registers
     except Exception:
         # Force clean reconnect on next read; do NOT swallow the FD.
@@ -105,8 +121,11 @@ def read_input(client, address, count, unit):
 def read_holding(client, address, count, unit):
     _refresh_timeout(client)
     try:
+        if hasattr(client, "connected") and not client.connected:
+            try: client.connect()
+            except Exception: pass
         r = _call_modbus(client.read_holding_registers, address=address, count=count, unit=unit)
-        if r and not r.isError():
+        if r and not r.isError() and hasattr(r, "registers"):
             return r.registers
     except Exception:
         _close_quietly(client)

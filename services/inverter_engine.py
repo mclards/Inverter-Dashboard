@@ -44,9 +44,35 @@ from fastapi.responses import JSONResponse
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 
-from drivers.modbus_tcp import create_client, read_input, read_holding, write_single
-from .shared_data import shared
-from . import firmware_buslock
+import sys
+_CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+_REPO_ROOT = os.path.abspath(os.path.join(_CURRENT_DIR, ".."))
+if _CURRENT_DIR not in sys.path:
+    sys.path.insert(0, _CURRENT_DIR)
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+try:
+    from drivers.modbus_tcp import create_client, read_input, read_holding, write_single
+except ImportError:
+    try:
+        from .drivers.modbus_tcp import create_client, read_input, read_holding, write_single
+    except ImportError:
+        try:
+            from services.drivers.modbus_tcp import create_client, read_input, read_holding, write_single
+        except ImportError:
+            create_client = read_input = read_holding = write_single = None
+
+try:
+    from shared_data import shared
+    import firmware_buslock
+except ImportError:
+    try:
+        from .shared_data import shared
+        from . import firmware_buslock
+    except ImportError:
+        from services.shared_data import shared
+        from services import firmware_buslock
 
 # RS485-USB fleet bridge removed in v2.11.x (field calibration moved to the
 # standalone Inverter Calibration Tool). Kept as a None sentinel so the
@@ -4218,13 +4244,31 @@ async def api_grid_control_state(ip: str, slave: int):
 # Phase 1 has NO writes — see Phase 2 for the future calibration_io module.
 # ───────────────────────────────────────────────────────────────────────────
 
-from services import calibration_decoder as _calib_dec
-from .calibration_core import (
-    _read_calibration_block_sync,
-    _read_live_for_calibration_sync,
-    _CALIB_READ_BASE,
-    _CALIB_READ_COUNT,
-)
+try:
+    import calibration_decoder as _calib_dec
+    from calibration_core import (
+        _read_calibration_block_sync,
+        _read_live_for_calibration_sync,
+        _CALIB_READ_BASE,
+        _CALIB_READ_COUNT,
+    )
+except ImportError:
+    try:
+        from services import calibration_decoder as _calib_dec
+        from services.calibration_core import (
+            _read_calibration_block_sync,
+            _read_live_for_calibration_sync,
+            _CALIB_READ_BASE,
+            _CALIB_READ_COUNT,
+        )
+    except ImportError:
+        from . import calibration_decoder as _calib_dec
+        from .calibration_core import (
+            _read_calibration_block_sync,
+            _read_live_for_calibration_sync,
+            _CALIB_READ_BASE,
+            _CALIB_READ_COUNT,
+        )
 
 async def read_calibration_block(ip: str, slave: int) -> dict:
     """Single-transaction FC03 read of holding 0x50..0x5E (15 regs)."""

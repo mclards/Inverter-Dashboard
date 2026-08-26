@@ -11,7 +11,10 @@ No socket I/O — only frame formatting. Designed for use in rs485_bridge.py.
 
 import struct
 import time
-from pymodbus.client.sync import ModbusSerialClient
+try:
+    from pymodbus.client import ModbusSerialClient
+except ImportError:
+    from pymodbus.client.sync import ModbusSerialClient
 
 def crc16_modbus(data: bytes) -> int:
     """

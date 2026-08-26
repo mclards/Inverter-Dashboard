@@ -44,20 +44,35 @@ from fastapi.responses import JSONResponse
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 
+import sys
+_CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+_REPO_ROOT = os.path.abspath(os.path.join(_CURRENT_DIR, "..", "..", ".."))
+if _CURRENT_DIR not in sys.path:
+    sys.path.insert(0, _CURRENT_DIR)
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
 try:
     from drivers.modbus_tcp import create_client, read_input, read_holding, write_single
 except ImportError:
     try:
         from .drivers.modbus_tcp import create_client, read_input, read_holding, write_single
     except ImportError:
-        create_client = read_input = read_holding = write_single = None
+        try:
+            from services.drivers.modbus_tcp import create_client, read_input, read_holding, write_single
+        except ImportError:
+            create_client = read_input = read_holding = write_single = None
 
 try:
     from shared_data import shared
     import firmware_buslock
 except ImportError:
-    from .shared_data import shared
-    from . import firmware_buslock
+    try:
+        from .shared_data import shared
+        from . import firmware_buslock
+    except ImportError:
+        from services.shared_data import shared
+        from services import firmware_buslock
 
 try:
     from stop_reason import read_with_lock as _read_with_lock

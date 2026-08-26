@@ -176,6 +176,13 @@
   --app-footer-h: 22px;
 }
 
+/* Browser role policy: developer-only controls are deny-by-default before
+   app.js has verified the signed session. The role-developer class is set only
+   from the authenticated session/Electron identity, never localStorage. */
+html:not(.role-developer) [data-role-min="devClard"] {
+  display: none !important;
+}
+
 :root[data-theme="light"] {
   /* Warm parchment light mode — muted, eye-friendly, no stark whites. */
   --bg: #e6dccb;

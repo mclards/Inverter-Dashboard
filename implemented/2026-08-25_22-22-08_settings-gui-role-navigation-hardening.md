@@ -13,6 +13,15 @@ Timestamp: 2026-08-25 22:22:08 (Asia/Taipei)
 - Operators see only shared settings: Plant & Display, Server & Identity, and About.
 - Developers see the complete Settings menu and selector, including lifecycle, topology, polling, hardware diagnostics, backup, licensing, and updates.
 - A stale saved developer-only section or Connectivity sub-tab now falls back to a permitted shared panel when an operator signs in, preventing empty Settings pages.
+- Web role enforcement now uses the role claim signed into the browser session. The renderer verifies `/api/auth/session` before enabling developer controls; it no longer trusts a role or username left in `localStorage` by an earlier user.
+- Developer-only controls are hidden by default until that signed session is verified. Stand-alone administration pages and protected administration APIs reject an operator browser session with `403 Developer access is required`.
+- Operator settings saves are reduced to an explicit shared-field allow-list in both the renderer and the server. Hidden developer configuration cannot be submitted by editing the page or calling the settings endpoint directly.
+- The browser application script now has its own updated cache version (`js/app.js?v=2.1.6`). This prevents a previously cached pre-hardening script from reusing an old `localStorage` developer role after an operator signs in.
+- Settings section normalization (`normalizeSettingsSectionId`) and activation (`setActiveSettingsSection`) strictly enforce `isDevClardUser()`, preventing an operator from navigating to or unhiding any developer sections (`serverControlSection`, `inverterTopologySection`, `opsCompactSection`, `forecastSection`, `licenseSection`, `appUpdateSection`, `cloudBackupSection`, `localBackupSection`, `inverterClockSection`, `stopReasonsSection`, `serialNumberSection`).
+- Dropdown select options/optgroups with `data-role-min="devClard"` are dynamically disabled and hidden for operators in `applyRolePermissions()`.
+- `#cloudBackupSection` and `#localBackupSection` card elements are marked with `data-role-min="devClard"` and `hidden`.
+- Every web login in `login.html` resets stale `adsi_settings_section` and card tab storage keys to guarantee that new sign-ins start completely clean on the default `plantConfigSection`.
+- A dedicated **Sign Out** button (`#remoteSignOutBtn`) is displayed on web sessions and wired to terminate the session via `POST /api/auth/logout`, clear client cache, and return to `/login.html`.
 
 ## Connectivity polish
 
@@ -41,14 +50,16 @@ Timestamp: 2026-08-25 22:22:08 (Asia/Taipei)
 
 ## Verification
 
-- JavaScript syntax checks passed for both shipped `app.js` files.
+- JavaScript syntax checks passed for both shipped `app.js` files (`node --check public/js/app.js frontend/public/js/app.js`).
 - Browser DOM checks confirmed all Settings cards are direct children of the Settings container and there are no duplicate HTML IDs.
 - Browser role checks confirmed the expected operator/developer menu, selector, and Connectivity tabs, including the safe operator fallback from a persisted developer-only tab.
 - Browser layout checks confirmed that the menu is scrollable, the Settings heading remains pinned while it scrolls, and the Settings page has no horizontal overflow.
 - Verified the two shipped HTML files and two shipped app scripts remain byte-identical.
 - `server/tests/serverLifecycleWiring.test.js` passed, covering canonical atomic persistence, preload exposure, Remote-mode interlocks, serialized Start/Stop, complete Stop wiring, recoverable background mode, paired renderer behavior, and matching asset cache versions.
 - `server/tests/ipConfigRemoteSave.test.js` now proves that clearing a Remote client's Server Host URL performs no empty settings POST to its former gateway, while shared topology changes remain gateway-authoritative.
-- Electron-based Node smoke suite passed: **108/108** tests (`node scripts/smoke-all.js --skip-python --no-rebuild`).
+- Electron-based Node smoke suite passed: **110/110** tests (`node scripts/smoke-all.js --skip-python --no-rebuild`).
+- `server/tests/browserRoleRestriction.test.js` covers signed operator/developer session claims and a developer-only route; `server/tests/webRoleRestrictionWiring.test.js` locks the paired web UI and server enforcement wiring.
+- Live Tailscale verification at `http://100.115.222.36:3500/` confirmed that `admin` / `1234` receives `operator` from both login and `/api/auth/session`, and that the served index references the cache-busted role-aware script (`js/app.js?v=2.1.6`).
 
 ## Scope
 

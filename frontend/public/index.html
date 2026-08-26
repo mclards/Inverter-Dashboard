@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-title" content="ADSI Dashboard" />
     <link rel="apple-touch-icon" href="/assets/icon-256.png" />
-    <link rel="stylesheet" href="css/style.css?v=2.1.4" />
+    <link rel="stylesheet" href="css/style.css?v=2.1.5" />
     <script>
       // Pre-paint calibrator-mode gate. Runs during <head> parsing — before
       // <body> exists — so the fleet dashboard chrome is hidden on the very
@@ -2564,7 +2564,7 @@
             </div>
           </div>
           <!-- -- Cloud Backup Panel ------------------------------------------- -->
-          <div class="sgroup settings-card" id="cloudBackupSection">
+          <div class="sgroup settings-card" id="cloudBackupSection" data-role-min="devClard" hidden>
             <div class="sgroup-title" title="Cloud provider access, backup policy and schedule, restore actions, and backup history."><span class="mdi mdi-cloud-sync-outline icon-inline" aria-hidden="true"></span> Cloud Backup &amp; Restore</div>
             <div class="card-tabs" role="tablist" aria-label="Cloud backup sub-sections">
               <button id="cbTabProviders" class="card-tab active" type="button" role="tab" aria-selected="true" aria-controls="cbPanelProviders" data-card-tab="providers" title="Provider OAuth + S3 credential setup (OneDrive / Google Drive / S3-compatible).">
@@ -2838,7 +2838,7 @@
             </div><!-- /#cbPanelActivity -->
           </div>
 
-          <div class="sgroup settings-card" id="localBackupSection" hidden>
+          <div class="sgroup settings-card" id="localBackupSection" data-role-min="devClard" hidden>
             <div class="sgroup-title" title="Portable .adsibak backup of all dashboard data (DB, archive, license, tokens, forecast models, config). Migration note: ipconfig.json stores inverter IPs for this gateway's network — after restoring on a different network, open IP Config and update addresses if they changed."><span class="mdi mdi-archive-arrow-down-outline icon-inline" aria-hidden="true"></span> Local Backup &amp; Restore</div>
 
             <!-- v2.8.14: shown when the dashboard is running in Remote operation mode.
@@ -3744,7 +3744,7 @@ Hover any pill in the column for the row-specific explanation.">Anchor</th>
 
     <script src="js/jsmpeg.min.js"></script>
     <script src="/vendor/hls.min.js"></script>
-    <script src="js/app.js?v=2.0.16"></script>
+    <script src="js/app.js?v=2.1.6"></script>
 
     <!-- Cap Schedule Form Modal -->
     <div id="capScheduleModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="capScheduleFormTitle">

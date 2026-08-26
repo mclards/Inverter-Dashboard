@@ -209,7 +209,11 @@ if (
         PORTABLE_ROOT = "/var/lib/inverter-dashboard"
 
 if PORTABLE_ROOT:
-    PROGRAMDATA_DIR = Path(PORTABLE_ROOT) / "programdata"
+    PROGRAMDATA_DIR = Path(PORTABLE_ROOT) / "programdata" if (Path(PORTABLE_ROOT) / "programdata").exists() else Path(PORTABLE_ROOT)
+elif os.getenv("INVERTER_STORAGE_DIR"):
+    PROGRAMDATA_DIR = Path(os.getenv("INVERTER_STORAGE_DIR"))
+elif sys.platform.startswith("linux"):
+    PROGRAMDATA_DIR = Path("/var/lib/inverter-dashboard") if Path("/var/lib/inverter-dashboard").exists() else Path.home() / ".inverter-dashboard"
 else:
     PROGRAMDATA_ROOT = (
         os.getenv("PROGRAMDATA")
@@ -233,15 +237,10 @@ if not DB_PATH.exists() and (DATA_DIR / "adsi.db").exists():
 
 if PORTABLE_ROOT:
     IPCONFIG_PATH = Path(PORTABLE_ROOT) / "config" / "ipconfig.json"
+elif EXPLICIT_DATA_DIR:
+    IPCONFIG_PATH = DATA_DIR / "ipconfig.json"
 else:
-    # Match the Electron/gateway canonical configuration path. DATA_DIR is
-    # normally this exact location; retaining the explicit expression guards
-    # a launcher that did not pass INVERTER_DATA_DIR.
-    IPCONFIG_PATH = (
-        DATA_DIR / "ipconfig.json"
-        if EXPLICIT_DATA_DIR
-        else Path(PROGRAMDATA_ROOT) / "Inverter-Dashboard" / "db" / "ipconfig.json"
-    )
+    IPCONFIG_PATH = PROGRAMDATA_DIR / "db" / "ipconfig.json"
 IPCONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
 LEGACY_IPCONFIG_PATHS = [
     DATA_DIR / "ipconfig.json",

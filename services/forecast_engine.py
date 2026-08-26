@@ -83,24 +83,35 @@ class IdentityFeatureScaler:
 # PATHS
 # ============================================================================
 PORTABLE_ROOT_RAW = str(
-    os.getenv("IM_PORTABLE_DATA_DIR")
+    os.getenv("INVERTER_PORTABLE_DATA_DIR")
+    or os.getenv("IM_PORTABLE_DATA_DIR")
     or os.getenv("ADSI_PORTABLE_DATA_DIR")
     or ""
 ).strip()
-if not PORTABLE_ROOT_RAW and sys.platform.startswith("linux") and Path("/var/lib/adsi-dashboard").exists():
-    PORTABLE_ROOT_RAW = "/var/lib/adsi-dashboard"
+if not PORTABLE_ROOT_RAW:
+    _auto_storage = Path(__file__).resolve().parent.parent / "storage"
+    if _auto_storage.exists():
+        PORTABLE_ROOT_RAW = str(_auto_storage)
+    elif sys.platform.startswith("linux") and Path("/var/lib/inverter-dashboard").exists():
+        PORTABLE_ROOT_RAW = "/var/lib/inverter-dashboard"
 
 PORTABLE_ROOT = Path(PORTABLE_ROOT_RAW) if PORTABLE_ROOT_RAW else None
 EXPLICIT_DATA_DIR = str(
-    os.getenv("IM_DATA_DIR")
+    os.getenv("INVERTER_STORAGE_DIR")
+    or os.getenv("INVERTER_DATA_DIR")
+    or os.getenv("IM_DATA_DIR")
     or os.getenv("ADSI_DATA_DIR")
     or ""
 ).strip()
-if not EXPLICIT_DATA_DIR and sys.platform.startswith("linux") and Path("/var/lib/adsi-dashboard/db").exists():
-    EXPLICIT_DATA_DIR = "/var/lib/adsi-dashboard/db"
+if not EXPLICIT_DATA_DIR and sys.platform.startswith("linux") and Path("/var/lib/inverter-dashboard/db").exists():
+    EXPLICIT_DATA_DIR = "/var/lib/inverter-dashboard/db"
 
 if PORTABLE_ROOT is not None:
-    BASE = PORTABLE_ROOT / "programdata"
+    BASE = PORTABLE_ROOT / "programdata" if (PORTABLE_ROOT / "programdata").exists() else PORTABLE_ROOT
+elif os.getenv("INVERTER_STORAGE_DIR"):
+    BASE = Path(os.getenv("INVERTER_STORAGE_DIR"))
+elif sys.platform.startswith("linux"):
+    BASE = Path("/var/lib/inverter-dashboard") if Path("/var/lib/inverter-dashboard").exists() else Path.home() / ".inverter-dashboard"
 else:
     BASE = Path(os.getenv("PROGRAMDATA") or os.getenv("ALLUSERSPROFILE") or r"C:\ProgramData") / "Inverter-Dashboard"
 

@@ -27,8 +27,19 @@ function resolveDataDir() {
   if (process.env.INVERTER_DATA_DIR) return process.env.INVERTER_DATA_DIR;
   if (process.env.ADSI_DATA_DIR) return process.env.ADSI_DATA_DIR;
   const isPackaged = __dirname.includes("app.asar") || (typeof process.resourcesPath === "string");
-  const programDataRoot = process.env.PROGRAMDATA || process.env.ALLUSERSPROFILE || "C:\\ProgramData";
-  const packagedStorage = path.join(programDataRoot, "Inverter-Dashboard", "db");
+  const programDataRoot =
+    process.env.PROGRAMDATA ||
+    process.env.ALLUSERSPROFILE ||
+    (process.platform === "win32"
+      ? "C:\\ProgramData"
+      : process.env.INVERTER_STORAGE_DIR ||
+        path.join(os.homedir(), ".inverter-dashboard"));
+  const packagedStorage =
+    process.platform === "win32"
+      ? path.join(programDataRoot, "Inverter-Dashboard", "db")
+      : (process.env.INVERTER_STORAGE_DIR
+          ? path.join(process.env.INVERTER_STORAGE_DIR, "db")
+          : path.join(programDataRoot, "db"));
   const repoStorage = path.join(__dirname, "..", "storage", "db");
 
   const dbDir = isPackaged ? packagedStorage : repoStorage;

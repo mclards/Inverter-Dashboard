@@ -26,7 +26,8 @@ function getProgramDataRoot() {
     process.env.ALLUSERSPROFILE ||
     (process.platform === "win32"
       ? "C:\\ProgramData"
-      : process.env.ADSI_PORTABLE_DATA_DIR ||
+      : process.env.INVERTER_STORAGE_DIR ||
+        process.env.ADSI_PORTABLE_DATA_DIR ||
         path.join(os.homedir(), ".inverter-dashboard"))
   );
 }
@@ -37,7 +38,9 @@ function getNewRoot() {
   if (customRoot) return customRoot;
   const isPackaged = __dirname.includes("app.asar") || (typeof process.resourcesPath === "string");
   if (isPackaged) {
-    return path.join(getProgramDataRoot(), "Inverter-Dashboard");
+    return process.platform === "win32"
+      ? path.join(getProgramDataRoot(), "Inverter-Dashboard")
+      : getProgramDataRoot();
   }
   return path.join(__dirname, "..", "storage");
 }

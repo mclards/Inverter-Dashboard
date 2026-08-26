@@ -285,6 +285,24 @@ app.use((req, res, next) => {
 });
 app.use(browserAuth.pageGuard);
 
+// Stand-alone administration pages bypass the role-aware Settings navigator,
+// so enforce the same boundary before static files are served. Electron's
+// loopback shell remains trusted; non-loopback browsers must hold a signed
+// developer session to load these pages at all.
+const DEVELOPER_BROWSER_PAGES = new Set([
+  "/global-config.html",
+  "/topology.html",
+  "/bootstrap-restore.html",
+  "/hikvision-native-viewer.html",
+]);
+app.use((req, res, next) => {
+  const requestPath = String(req.path || req.url || "").split("?")[0].toLowerCase();
+  if (!DEVELOPER_BROWSER_PAGES.has(requestPath)) return next();
+  if (browserAuth.directLoopback(req)) return next();
+  if (browserAuth.isDeveloperSession(browserAuth.sessionFromRequest(req))) return next();
+  return res.status(403).type("text/plain").send("Developer access is required for this page.");
+});
+
 const staticNoCache = {
   etag: false,
   lastModified: false,
@@ -7907,11 +7925,85 @@ function _isPublicUnauthedApiPath(req) {
 
 function remoteApiTokenGate(req, res, next) {
   const auth = browserAuth.authorizeApiRequest(req, getRemoteApiToken());
-  if (auth.ok) return next();
+  if (auth.ok) {
+    // Preserve the signed session claim for the per-route role gate below.
+    // Do not derive authorization from renderer-controlled localStorage.
+    req.dashboardAuth = auth;
+    return next();
+  }
   return res
     .status(Number(auth.status || 401))
     .json({ ok: false, error: String(auth.error || "Unauthorized API request.") });
 }
+
+const OPERATOR_SHARED_SETTINGS_KEYS = new Set([
+  "plantName",
+  "operatorName",
+  "inverterCount",
+  "nodeCount",
+  "invGridLayout",
+  "plantLatitude",
+  "plantLongitude",
+  "exportUiState",
+]);
+
+const DEVELOPER_API_PREFIXES = [
+  "/api/streaming/",
+  "/api/hikvision/",
+  "/api/system/",
+  "/api/health/db-integrity",
+  "/api/counter-",
+  "/api/clock-sync-log",
+  "/api/sync-clock",
+  "/api/comm-proxy/",
+  "/api/stop-reasons/",
+  "/api/igbt/",
+  "/api/contactor/",
+  "/api/compliance/",
+  "/api/grid-control/",
+  "/api/serial/",
+  "/api/firmware/",
+  "/api/replication/",
+  "/api/backup/",
+  "/api/runtime/",
+  "/api/tailscale/",
+  "/api/wireguard/",
+  "/api/ip-config",
+  "/api/substation-meter/",
+];
+
+function isDeveloperOnlyApiRequest(req) {
+  const requestPath = String(req.originalUrl || req.url || "").split("?")[0].toLowerCase();
+  if (DEVELOPER_API_PREFIXES.some((prefix) => requestPath === prefix || requestPath.startsWith(prefix))) {
+    return true;
+  }
+  if (requestPath === "/api/settings/defaults") return true;
+  if (requestPath === "/api/settings" && String(req.method || "GET").toUpperCase() === "POST") {
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    return Object.keys(body).some((key) => !OPERATOR_SHARED_SETTINGS_KEYS.has(key));
+  }
+  if (requestPath === "/api/forecast/solcast/test") return true;
+  return false;
+}
+
+function developerRoleGate(req, res, next) {
+  if (!isDeveloperOnlyApiRequest(req)) return next();
+  const auth = req.dashboardAuth || browserAuth.authorizeApiRequest(req, getRemoteApiToken());
+  // The gateway cannot inspect the browser session of a Remote client. Its
+  // dedicated Remote API token is therefore its trusted machine-to-machine
+  // authority; the client-facing gateway enforces the user's signed role
+  // before proxying this request.
+  if (
+    auth?.mode === "loopback" ||
+    auth?.mode === "remote-token" ||
+    browserAuth.isDeveloperSession(auth?.session)
+  ) {
+    return next();
+  }
+  return res.status(403).json({ ok: false, error: "Developer access is required for this operation." });
+}
+
+app.use("/api", developerRoleGate);
 
 function localDateStr(ts = Date.now()) {
   return localDateStrCore(ts);
@@ -13035,6 +13127,17 @@ function canonicalIpConfigPath() {
       "",
   ).trim();
   if (explicitDataDir) return path.join(explicitDataDir, "ipconfig.json");
+  if (process.env.INVERTER_STORAGE_DIR) {
+    return path.join(process.env.INVERTER_STORAGE_DIR, "db", "ipconfig.json");
+  }
+  if (process.platform !== "win32") {
+    const linuxRoot = "/var/lib/inverter-dashboard";
+    const linuxPath = path.join(linuxRoot, "db", "ipconfig.json");
+    if (fs.existsSync(linuxPath)) return linuxPath;
+    const userPath = path.join(os.homedir(), ".inverter-dashboard", "db", "ipconfig.json");
+    if (fs.existsSync(userPath)) return userPath;
+    return linuxPath;
+  }
   const programDataRoot =
     process.env.PROGRAMDATA || process.env.ALLUSERSPROFILE || "C:\\ProgramData";
   return path.join(programDataRoot, "Inverter-Dashboard", "db", "ipconfig.json");

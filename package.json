@@ -8,7 +8,9 @@
     "start": "node start-electron.js",
     "desktop": "electron desktop/main.js",
     "dev": "set NODE_ENV=development && node start-electron.js",
-    "server": "node backend/server.js",
+    "server": "node server/index.js",
+    "start:server": "node server/index.js",
+    "build:linux": "electron-builder --linux",
     "rebuild:native:node": "npm rebuild better-sqlite3",
     "rebuild:native:electron": "electron-builder install-app-deps",
     "postinstall": "node scripts/postinstall-guard.js",
@@ -156,6 +158,30 @@
           ]
         }
       ]
+    },
+    "linux": {
+      "icon": "icon-256.png",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "tar.gz",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Utility"
     },
     "nsis": {
       "artifactName": "Inverter-Dashboard-Setup-${version}.${ext}",

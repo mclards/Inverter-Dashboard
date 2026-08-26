@@ -949,7 +949,7 @@
               }
               localStorage.setItem("adsi_operator_name", payload.username || username);
               localStorage.setItem("adsi_operator_role", payload.role || "operator");
-              return true;
+              return payload;
             } catch (err) {
               this.lastError = `Cannot reach server at ${targetServer}. Verify host and port.`;
               return false;
@@ -1085,6 +1085,13 @@
 
           localStorage.setItem("adsi_operator_name", name);
           localStorage.setItem("adsi_operator_role", role);
+          // Always reset any leftover settings tab navigation so each login begins clean
+          localStorage.removeItem("adsi_settings_section");
+          localStorage.removeItem("adsi_connectivity_active_tab");
+          localStorage.removeItem("adsi_ops_active_tab");
+          localStorage.removeItem("adsi_forecast_active_tab");
+          localStorage.removeItem("adsi_cloud_backup_active_tab");
+          localStorage.removeItem("adsi_local_backup_active_tab");
 
           if (!isDev && rememberCheck.checked) {
             await api.saveRemembered({ username: user, password: pass, remember: true });

@@ -120,9 +120,13 @@ if not EXPLICIT_DATA_DIR and sys.platform.startswith("linux") and Path("/var/lib
     EXPLICIT_DATA_DIR = "/var/lib/inverter-dashboard/db"
 
 if PORTABLE_ROOT is not None:
-    BASE = PORTABLE_ROOT / "programdata"
+    BASE = PORTABLE_ROOT / "programdata" if (PORTABLE_ROOT / "programdata").exists() else PORTABLE_ROOT
+elif os.getenv("INVERTER_STORAGE_DIR"):
+    BASE = Path(os.getenv("INVERTER_STORAGE_DIR"))
+elif sys.platform.startswith("linux"):
+    BASE = Path("/var/lib/inverter-dashboard") if Path("/var/lib/inverter-dashboard").exists() else Path.home() / ".inverter-dashboard"
 else:
-    BASE = Path(os.getenv("PROGRAMDATA") or os.getenv("ALLUSERSPROFILE") or r"C:\ProgramData") / "InverterDashboard-2.0"
+    BASE = Path(os.getenv("PROGRAMDATA") or os.getenv("ALLUSERSPROFILE") or r"C:\ProgramData") / "Inverter-Dashboard"
 
 HISTORY_CTX   = BASE / "history/context/global/global.json"
 FORECAST_CTX  = BASE / "forecast/context/global/global.json"

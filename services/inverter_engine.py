@@ -162,7 +162,11 @@ EXPLICIT_DATA_DIR = str(
 ).strip()
 
 if PORTABLE_ROOT:
-    PROGRAMDATA_DIR = Path(PORTABLE_ROOT) / "programdata"
+    PROGRAMDATA_DIR = Path(PORTABLE_ROOT) / "programdata" if (Path(PORTABLE_ROOT) / "programdata").exists() else Path(PORTABLE_ROOT)
+elif os.getenv("INVERTER_STORAGE_DIR"):
+    PROGRAMDATA_DIR = Path(os.getenv("INVERTER_STORAGE_DIR"))
+elif sys.platform.startswith("linux"):
+    PROGRAMDATA_DIR = Path("/var/lib/inverter-dashboard") if Path("/var/lib/inverter-dashboard").exists() else Path.home() / ".inverter-dashboard"
 else:
     PROGRAMDATA_ROOT = (
         os.getenv("PROGRAMDATA")
@@ -180,7 +184,7 @@ else:
     # v2.4.43+: prefer consolidated layout under PROGRAMDATA_DIR/db/ when migration is done.
     _new_db_dir = PROGRAMDATA_DIR / "db"
     _sentinel   = PROGRAMDATA_DIR / ".adsi-migration-v2.4.43.json"
-    if _sentinel.exists() or (_new_db_dir / "adsi.db").exists():
+    if _sentinel.exists() or (_new_db_dir / "adsi.db").exists() or sys.platform.startswith("linux") or os.getenv("INVERTER_STORAGE_DIR"):
         DATA_DIR = _new_db_dir
     else:
         APPDATA_ROOT = os.getenv("APPDATA")
@@ -193,12 +197,10 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = DATA_DIR / "adsi.db"
 if PORTABLE_ROOT:
     IPCONFIG_PATH = Path(PORTABLE_ROOT) / "config" / "ipconfig.json"
+elif EXPLICIT_DATA_DIR:
+    IPCONFIG_PATH = DATA_DIR / "ipconfig.json"
 else:
-    IPCONFIG_PATH = (
-        DATA_DIR / "ipconfig.json"
-        if EXPLICIT_DATA_DIR
-        else Path(PROGRAMDATA_ROOT) / "Inverter-Dashboard" / "db" / "ipconfig.json"
-    )
+    IPCONFIG_PATH = PROGRAMDATA_DIR / "db" / "ipconfig.json"
 IPCONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
 LEGACY_IPCONFIG_PATHS = [
     DATA_DIR / "ipconfig.json",

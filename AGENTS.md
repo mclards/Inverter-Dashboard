@@ -113,6 +113,13 @@ Before changing any runtime configuration, confirm the exact target path. Never 
 - The browser gateway must match the desktop developer-login contract: accept the fixed `devClard` username case-insensitively, while requiring the exact rotating `devMM` password for the gateway server's current minute (with the established one-minute clock-tolerance window).
 - Preserve the browser protections around this flow: rate limiting, generic authentication failures, same-origin enforcement, an HttpOnly `SameSite=Strict` session cookie, and canonical `username`/`role` values in a successful login response. Do not expose, persist, or weaken developer credentials to make web access easier.
 
+### Browser per-role authorization
+
+- A browser session must carry the signed canonical role (`operator` or `developer`). Treat an old session without a role claim as `operator`; never grant privileges from `localStorage`, a username string, DOM state, or a renderer-supplied role.
+- On every browser app start, verify `/api/auth/session` before exposing developer controls. Developer-only controls must be hidden by default until a signed developer session is confirmed.
+- Operators may use the shared Plant & Display settings only. Keep their settings POST payload to the explicit shared-field allow-list; require a signed developer session for topology, lifecycle, polling, diagnostics, backup, camera/stream administration, forecast configuration/testing, and other protected administration APIs.
+- Apply the same developer check to standalone administration pages. Remote API tokens authenticate a configured Remote client to its gateway; the client-facing gateway must still enforce the signed browser role before forwarding a developer-only operation.
+
 ### Implementation records
 
 - The `implemented/` directory contains one living implementation record per related feature area. Update the existing record for follow-up work in the same area; do not create a new timestamped record for every incremental change.
@@ -139,4 +146,4 @@ Before changing any runtime configuration, confirm the exact target path. Never 
   - Multi-column settings cards (`grid-template-columns: repeat(auto-fit, ...)`) MUST encapsulate contents inside `<div class="settings-subsection">` (`grid-column: 1 / -1; width: 100%; box-sizing: border-box;`) to prevent direct children from collapsing into narrow grid tracks.
 - **Dynamic Button Lifecycle States:** Action buttons (e.g. Start/Stop Local Server) must dynamically bind `.disabled` states and visual cues based on live status.
 - **Atomic Markup Edit Safety Protocol:** Always run `git diff` after editing HTML to verify that all opening/closing tags (`<label>`, `<div>`, `<button>`) are fully balanced.
-- At minimum, run relevant syntax/compile checks after backend changes (`node --check ...`, `python -m py_compile ...`), verify Node test suite passes via `node scripts/smoke-all.js --skip-python --no-rebuild` (106 / 106 pass), and validate `ipconfig.json` as JSON. Run live Modbus polling only while connected to the inverter network.
+- At minimum, run relevant syntax/compile checks after backend changes (`node --check ...`, `python -m py_compile ...`), verify every discovered Node test passes via `node scripts/smoke-all.js --skip-python --no-rebuild`, and validate `ipconfig.json` as JSON. Run live Modbus polling only while connected to the inverter network.

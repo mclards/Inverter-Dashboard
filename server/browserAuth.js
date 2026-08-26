@@ -11,6 +11,7 @@ const DEFAULT_LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const DEFAULT_LOGIN_MAX_FAILURES = 5;
 const MASKED_SECRET = "********";
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const SESSION_ROLES = new Set(["operator", "developer"]);
 const PUBLIC_BROWSER_PATHS = new Set([
   "/login.html",
   "/manifest.json",
@@ -350,7 +351,12 @@ function createBrowserAuth(options = {}) {
     return crypto.createHmac("sha256", secret).update(body, "utf8").digest("base64url");
   }
 
-  function issueSession(username) {
+  function normalizeSessionRole(value) {
+    const role = String(value || "operator").trim().toLowerCase();
+    return SESSION_ROLES.has(role) ? role : "operator";
+  }
+
+  function issueSession(username, role = "operator") {
     const issuedAt = now();
     const payload = {
       v: 1,
@@ -358,6 +364,9 @@ function createBrowserAuth(options = {}) {
       exp: issuedAt + sessionTtlMs,
       nonce: randomBytes(18).toString("base64url"),
       sub: String(username || "").slice(0, 128),
+      // Role is signed together with the subject. Browser storage is only a
+      // display cache and must never be accepted as an authorization source.
+      role: normalizeSessionRole(role),
     };
     const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
     return { token: `${body}.${signBody(body)}`, payload };
@@ -384,6 +393,7 @@ function createBrowserAuth(options = {}) {
     const issuedAt = Number(payload?.iat);
     const expiresAt = Number(payload?.exp);
     const nonce = String(payload?.nonce || "");
+    const role = normalizeSessionRole(payload?.role);
     if (
       payload?.v !== 1 ||
       !Number.isFinite(issuedAt) ||
@@ -395,6 +405,10 @@ function createBrowserAuth(options = {}) {
     ) {
       return { ok: false, code: expiresAt <= nowMs ? "expired" : "claims" };
     }
+    // Sessions created before role claims existed remain valid as the least
+    // privileged role. Developers simply sign in again to receive a fresh
+    // signed developer session.
+    payload.role = role;
     if (revokedNonces.has(nonce)) return { ok: false, code: "revoked" };
     return { ok: true, payload, expiresAt };
   }
@@ -542,6 +556,13 @@ function createBrowserAuth(options = {}) {
     return { ok: false, status: 401, code: "unauthorized", error: "Unauthorized API request." };
   }
 
+  function isDeveloperSession(session) {
+    return Boolean(
+      session?.ok &&
+      normalizeSessionRole(session.payload?.role) === "developer",
+    );
+  }
+
   function authorizeWebSocket(req, configuredRemoteToken) {
     if (directLoopback(req)) return { ok: true, mode: "loopback", expiresAt: null };
     const configured = String(configuredRemoteToken || "").trim();
@@ -570,6 +591,8 @@ function createBrowserAuth(options = {}) {
         ok: true,
         authenticated: true,
         mode: "session",
+        username: String(session.payload?.sub || ""),
+        role: normalizeSessionRole(session.payload?.role),
         expiresAt: Number(session.expiresAt),
       });
     });
@@ -605,7 +628,7 @@ function createBrowserAuth(options = {}) {
         return res.status(401).json({ ok: false, error: "The sign-in details are not valid." });
       }
       clearLoginFailures(req);
-      const session = issueSession(result.username || username);
+      const session = issueSession(result.username || username, result.role);
       res.setHeader("Cache-Control", "no-store");
       res.setHeader("Set-Cookie", cookieHeader(session.token, req));
       return res.json({
@@ -633,6 +656,7 @@ function createBrowserAuth(options = {}) {
     credentialPath,
     directLoopback,
     isMaskedSecret,
+    isDeveloperSession,
     isSameOriginRequest,
     issueSession,
     maskSecret,

@@ -4575,36 +4575,89 @@ function syncDayAheadGeneratorAvailability() {
   }
 }
 
+const VerifiedRole = {
+  role: "operator",
+  verified: false,
+};
+
+const OPERATOR_SHARED_SETTING_KEYS_CLIENT = new Set([
+  "plantName",
+  "operatorName",
+  "inverterCount",
+  "nodeCount",
+  "invGridLayout",
+  "plantLatitude",
+  "plantLongitude",
+  "exportUiState",
+]);
+
 async function syncAuthSession() {
+  let identity = null;
   if (typeof window !== "undefined" && window.electronAPI?.getAuthSession) {
     try {
       const sess = await window.electronAPI.getAuthSession();
       if (sess && sess.role) {
-        localStorage.setItem("adsi_operator_role", sess.role);
-        localStorage.setItem("adsi_operator_name", sess.username);
-        if (!getDeviceOperatorName()) setDeviceOperatorName(sess.username);
+        identity = sess;
+      }
+    } catch (_) {}
+  } else {
+    try {
+      const response = await fetch("/api/auth/session", {
+        credentials: "include",
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+      });
+      const session = await response.json().catch(() => ({}));
+      if (response.ok && session?.authenticated && session?.role) {
+        identity = session;
       }
     } catch (_) {}
   }
+
+  const role = String(identity?.role || "operator").trim().toLowerCase();
+  VerifiedRole.role = role === "developer" ? "developer" : "operator";
+  VerifiedRole.verified = Boolean(identity?.role);
+  try {
+    // This remains a convenience/display cache only. Role enforcement uses
+    // the signed browser session (or Electron's authenticated session), not
+    // mutable browser storage.
+    localStorage.setItem("adsi_operator_role", VerifiedRole.role);
+    if (identity?.username) {
+      localStorage.setItem("adsi_operator_name", identity.username);
+      if (!getDeviceOperatorName()) setDeviceOperatorName(identity.username);
+    }
+    if (VerifiedRole.role !== "developer") {
+      const activeSec = String(localStorage.getItem("adsi_settings_section") || "").trim();
+      const secEl = $(activeSec);
+      if (!secEl || secEl.getAttribute("data-role-min") === "devClard") {
+        localStorage.setItem("adsi_settings_section", "plantConfigSection");
+      }
+    }
+  } catch (_) {}
   applyRolePermissions();
 }
 
 function isDevClardUser() {
-  const role = String(localStorage.getItem("adsi_operator_role") || "").trim().toLowerCase();
-  const name = String(localStorage.getItem("adsi_operator_name") || "").trim().toLowerCase();
-  return role === "developer" || role === "devclard" || name === "devclard";
+  return VerifiedRole.verified && VerifiedRole.role === "developer";
 }
 
 function applyRolePermissions() {
   const isDev = isDevClardUser();
+  document.documentElement.classList.toggle("role-developer", isDev);
   document.querySelectorAll('[data-role-min="devClard"]').forEach((el) => {
     el.style.display = isDev ? "" : "none";
+    el.setAttribute("aria-hidden", isDev ? "false" : "true");
+    if (el.tagName === "OPTION" || el.tagName === "OPTGROUP") {
+      el.hidden = !isDev;
+      el.disabled = !isDev;
+    }
   });
 
   // If active settings section is restricted to devClard and user is operator, reset to plantConfigSection
   const activeSec = String(localStorage.getItem("adsi_settings_section") || "").trim();
   const secEl = $(activeSec);
-  if (!isDev && secEl && secEl.getAttribute("data-role-min") === "devClard") {
+  if (!isDev && (activeSec !== "plantConfigSection" && (!secEl || secEl.getAttribute("data-role-min") === "devClard"))) {
+    localStorage.setItem("adsi_settings_section", "plantConfigSection");
     setActiveSettingsSection("plantConfigSection", false);
   }
 
@@ -4622,6 +4675,13 @@ function applyRolePermissions() {
         storageKey: "adsi_connectivity_active_tab",
       });
     }
+  }
+
+  // Toggle Remote Sign Out button visibility on web browser
+  const signOutBtn = $("remoteSignOutBtn");
+  if (signOutBtn) {
+    const isElectron = typeof window !== "undefined" && Boolean(window.electronAPI?.getAuthSession);
+    signOutBtn.style.display = isElectron ? "none" : "";
   }
 }
 
@@ -5638,7 +5698,14 @@ async function openCredentialsReference() {
 
 function normalizeSettingsSectionId(value) {
   const v = String(value || "").trim();
-  return SETTINGS_SECTION_IDS.includes(v) ? v : DEFAULT_SETTINGS_SECTION_ID;
+  const valid = SETTINGS_SECTION_IDS.includes(v) ? v : DEFAULT_SETTINGS_SECTION_ID;
+  if (!isDevClardUser()) {
+    const el = $(valid);
+    if (el && el.getAttribute("data-role-min") === "devClard") {
+      return DEFAULT_SETTINGS_SECTION_ID;
+    }
+  }
+  return valid;
 }
 
 function renderActiveSettingsMeta(sectionId) {
@@ -5650,12 +5717,21 @@ function renderActiveSettingsMeta(sectionId) {
 
 function setActiveSettingsSection(sectionId, persist = true) {
   const activeId = normalizeSettingsSectionId(sectionId);
+  const isDev = isDevClardUser();
   SETTINGS_SECTION_IDS.forEach((id) => {
     const node = $(id);
     if (!node) return;
+    const isRestricted = node.getAttribute("data-role-min") === "devClard";
+    if (!isDev && isRestricted) {
+      node.classList.remove("settings-section-active");
+      node.hidden = true;
+      node.style.display = "none";
+      return;
+    }
     const isActive = id === activeId;
     node.classList.toggle("settings-section-active", isActive);
     node.hidden = !isActive;
+    if (isActive) node.style.display = "";
   });
 
   renderActiveSettingsMeta(activeId);
@@ -5840,7 +5916,8 @@ function initSettingsSectionNav() {
   try {
     saved = String(localStorage.getItem("adsi_settings_section") || "").trim();
   } catch (_) {}
-  setActiveSettingsSection(saved || DEFAULT_SETTINGS_SECTION_ID, false);
+  const targetSec = normalizeSettingsSectionId(saved || DEFAULT_SETTINGS_SECTION_ID);
+  setActiveSettingsSection(targetSec, false);
 }
 
 function mountForecastSection() {
@@ -8445,7 +8522,15 @@ async function saveSettings() {
   if (remoteAutoSyncCtrl) {
     body.remoteAutoSync = Boolean(remoteAutoSyncCtrl.checked);
   }
-  const nextMode = body.remoteGatewayUrl ? "remote" : "gateway";
+  if (!isDevClardUser()) {
+    // Keep the operator Save Settings action usable without allowing the
+    // hidden developer fields to be submitted through the same broad form.
+    // The server repeats this allow-list before persisting anything.
+    Object.keys(body).forEach((key) => {
+      if (!OPERATOR_SHARED_SETTING_KEYS_CLIENT.has(key)) delete body[key];
+    });
+  }
+  const nextMode = requestedRemoteGatewayUrl ? "remote" : "gateway";
   const gatewayRestartPreferred =
     normalizeOperationModeValue(prevMode) === "remote" &&
     nextMode === "gateway";
@@ -36306,5 +36391,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     await syncAuthSession();
     initControllerIdentityAndNetwork();
     refreshConnectUrls();
+    const signOutBtn = document.getElementById("remoteSignOutBtn");
+    if (signOutBtn && signOutBtn.dataset.bound !== "1") {
+      signOutBtn.dataset.bound = "1";
+      signOutBtn.addEventListener("click", async () => {
+        try {
+          await fetch("/api/auth/logout", {
+            method: "POST",
+            credentials: "include",
+            cache: "no-store",
+            headers: { "Content-Type": "application/json" },
+          });
+        } catch (_) {}
+        try {
+          localStorage.removeItem("adsi_operator_role");
+          localStorage.removeItem("adsi_operator_name");
+          localStorage.removeItem("adsi_settings_section");
+          localStorage.removeItem("adsi_connectivity_active_tab");
+          localStorage.removeItem("adsi_ops_active_tab");
+          localStorage.removeItem("adsi_forecast_active_tab");
+          localStorage.removeItem("adsi_cloud_backup_active_tab");
+          localStorage.removeItem("adsi_local_backup_active_tab");
+        } catch (_) {}
+        window.location.replace("/login.html");
+      });
+    }
   } catch (_) {}
 });

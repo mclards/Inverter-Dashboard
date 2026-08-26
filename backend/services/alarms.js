@@ -857,7 +857,7 @@ const SERVICE_DOCS = {
   sunManager:   "INGECON-SUN-Manager-User-Manual.pdf",
 };
 const SERVICE_DOCS_GITHUB_BASE =
-  "https://raw.githubusercontent.com/mclards/ADSI-Dashboard/main/docs";
+  "https://raw.githubusercontent.com/mclards/Inverter-Dashboard/main/docs";
 
 const STOP_REASONS = {
   FREC: "Grid Frequency Out of Range",

@@ -1428,7 +1428,7 @@ function showUpdateAvailableModal() {
   // Releases / previous-versions link (rollback path)
   const linkEl = $("updateModalReleasesLink");
   if (linkEl) {
-    const releasesUrl = String(update.releasesUrl || "https://github.com/mclards/ADSI-Dashboard/releases");
+    const releasesUrl = String(update.releasesUrl || "https://github.com/mclards/Inverter-Dashboard/releases");
     linkEl.setAttribute("href", releasesUrl);
   }
   modal.classList.remove("hidden");
@@ -18686,7 +18686,7 @@ function decodeAlarmValueWithMeta(alarmValue) {
 async function downloadServiceDoc(filename, btnEl) {
   if (!filename) return;
   const ref = State.alarmReference || {};
-  const base = ref.githubBase || "https://raw.githubusercontent.com/mclards/ADSI-Dashboard/main/docs";
+  const base = ref.githubBase || "https://raw.githubusercontent.com/mclards/Inverter-Dashboard/main/docs";
   const primary = `${base}/${filename}`;
   const fallback = `/docs/${filename}`;
   const attempt = async (url) => {

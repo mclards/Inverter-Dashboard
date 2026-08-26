@@ -83,9 +83,12 @@ def _call_modbus(fn, *args, **kwargs):
     unit = kwargs.pop("unit", None)
     if unit is not None:
         try:
-            return fn(*args, slave=unit, **kwargs)
+            return fn(*args, device_id=unit, **kwargs)
         except TypeError:
-            return fn(*args, unit=unit, **kwargs)
+            try:
+                return fn(*args, slave=unit, **kwargs)
+            except TypeError:
+                return fn(*args, unit=unit, **kwargs)
     return fn(*args, **kwargs)
 
 def read_input(client, address, count, unit):

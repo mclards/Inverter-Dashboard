@@ -7948,6 +7948,9 @@ const OPERATOR_SHARED_SETTINGS_KEYS = new Set([
 ]);
 
 const DEVELOPER_API_PREFIXES = [
+  "/api/server/start",
+  "/api/server/stop",
+  "/api/server/config",
   "/api/streaming/",
   "/api/hikvision/",
   "/api/system/",
@@ -19171,6 +19174,164 @@ app.get("/api/health", (req, res) => {
     pollerRunning: mode !== "remote",
     lastLiveFrameTs: Number(perf.lastLiveFrameTs || perf.last_live_frame_ts || 0),
   });
+});
+
+function probeTelemetryEngineLoopback() {
+  return new Promise((resolve) => {
+    const httpModule = require("http");
+    const req = httpModule.get(
+      { host: "127.0.0.1", port: 9100, path: "/health", timeout: 1500 },
+      (res) => {
+        let body = "";
+        res.setEncoding("utf8");
+        res.on("data", (chunk) => { body += chunk; });
+        res.on("end", () => {
+          let payload = null;
+          try { payload = JSON.parse(body); } catch (_) {}
+          const reachable = res.statusCode >= 200 && res.statusCode < 300;
+          resolve({
+            reachable,
+            healthy: reachable && payload?.status === "ok" && payload?.stale !== true,
+            stale: payload?.stale === true,
+            connectedInverters: Number(payload?.connected_inverter_count || 0),
+            configuredInverters: Number(payload?.configured_inverter_count || 0),
+            newestFrameAgeMs: Number(payload?.newest_frame_age_ms || 0),
+          });
+        });
+      }
+    );
+    req.once("error", () => resolve({ reachable: false, healthy: false, stale: true, connectedInverters: 0, configuredInverters: 27, newestFrameAgeMs: -1 }));
+    req.once("timeout", () => {
+      req.destroy();
+      resolve({ reachable: false, healthy: false, stale: true, connectedInverters: 0, configuredInverters: 27, newestFrameAgeMs: -1 });
+    });
+  });
+}
+
+function probeForecastWorkerLoopback() {
+  return new Promise((resolve) => {
+    const cp = require("child_process");
+    if (process.platform === "linux") {
+      cp.exec("systemctl is-active inverter-forecast.service 2>/dev/null || pgrep -f forecast_engine.py", (err, stdout) => {
+        if (!err && (stdout.includes("active") || stdout.trim().length > 0)) {
+          return resolve(true);
+        }
+        resolve(false);
+      });
+    } else {
+      cp.exec('tasklist /FI "IMAGENAME eq ForecastCoreService.exe" 2>NUL', (err, stdout) => {
+        if (!err && stdout && stdout.includes("ForecastCoreService.exe")) {
+          return resolve(true);
+        }
+        resolve(false);
+      });
+    }
+  });
+}
+
+function getServerServiceConfigPath() {
+  const root = storagePaths.getNewRoot();
+  return path.join(root, "server-service-config.json");
+}
+
+function loadServerServiceConfig() {
+  try {
+    const p = getServerServiceConfigPath();
+    if (fs.existsSync(p)) {
+      const raw = JSON.parse(fs.readFileSync(p, "utf8"));
+      return {
+        keepInBackground: raw?.keepInBackground === true,
+        autoStart: raw?.autoStart === true,
+      };
+    }
+  } catch (_) {}
+  return { keepInBackground: false, autoStart: false };
+}
+
+function saveServerServiceConfig(cfg) {
+  try {
+    const p = getServerServiceConfigPath();
+    const current = loadServerServiceConfig();
+    const next = {
+      keepInBackground: cfg?.keepInBackground !== undefined ? cfg.keepInBackground === true : current.keepInBackground,
+      autoStart: cfg?.autoStart !== undefined ? cfg.autoStart === true : current.autoStart,
+    };
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    const tmp = `${p}.${Date.now()}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(next, null, 2), "utf8");
+    fs.renameSync(tmp, p);
+    return { ok: true, config: next };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
+app.get("/api/server/status", async (req, res) => {
+  const mode = readOperationMode();
+  const [telemetry, forecastActive] = await Promise.all([
+    probeTelemetryEngineLoopback(),
+    probeForecastWorkerLoopback(),
+  ]);
+  const config = loadServerServiceConfig();
+  const isRunning = mode !== "remote";
+  res.json({
+    ok: true,
+    running: isRunning,
+    state: mode === "remote" ? "remote" : (telemetry.healthy ? "running" : "degraded"),
+    port: 3500,
+    operationMode: mode,
+    serverStartBlocked: mode === "remote",
+    services: {
+      web: true,
+      telemetry: telemetry.healthy,
+      forecast: forecastActive,
+    },
+    telemetry,
+    keepInBackground: config.keepInBackground,
+    autoStart: config.autoStart,
+  });
+});
+
+app.post("/api/server/start", async (req, res) => {
+  const auth = req.dashboardAuth || browserAuth.authorizeApiRequest(req, getRemoteApiToken());
+  if (!browserAuth.isDeveloperSession(auth?.session) && auth?.mode !== "loopback" && auth?.mode !== "remote-token") {
+    return res.status(403).json({ ok: false, error: "Developer access is required to start server services." });
+  }
+  const cp = require("child_process");
+  if (process.platform === "linux") {
+    cp.exec("echo sacups | sudo -S systemctl start inverter-telemetry inverter-forecast 2>/dev/null || systemctl start inverter-telemetry inverter-forecast 2>/dev/null", () => {
+      res.json({ ok: true, message: "Local services started." });
+    });
+  } else {
+    res.json({ ok: true, message: "Local services started." });
+  }
+});
+
+app.post("/api/server/stop", async (req, res) => {
+  const auth = req.dashboardAuth || browserAuth.authorizeApiRequest(req, getRemoteApiToken());
+  if (!browserAuth.isDeveloperSession(auth?.session) && auth?.mode !== "loopback" && auth?.mode !== "remote-token") {
+    return res.status(403).json({ ok: false, error: "Developer access is required to stop server services." });
+  }
+  const cp = require("child_process");
+  if (process.platform === "linux") {
+    cp.exec("echo sacups | sudo -S systemctl stop inverter-telemetry inverter-forecast 2>/dev/null || systemctl stop inverter-telemetry inverter-forecast 2>/dev/null", () => {
+      res.json({ ok: true, message: "Local services stopped." });
+    });
+  } else {
+    res.json({ ok: true, message: "Local services stopped." });
+  }
+});
+
+app.post("/api/server/config", async (req, res) => {
+  const auth = req.dashboardAuth || browserAuth.authorizeApiRequest(req, getRemoteApiToken());
+  if (!browserAuth.isDeveloperSession(auth?.session) && auth?.mode !== "loopback" && auth?.mode !== "remote-token") {
+    return res.status(403).json({ ok: false, error: "Developer access is required to update lifecycle config." });
+  }
+  const result = saveServerServiceConfig(req.body);
+  if (!result.ok) {
+    return res.status(500).json({ ok: false, error: result.error });
+  }
+  res.json({ ok: true, config: result.config });
 });
 
 app.get("/api/live", (req, res) => {

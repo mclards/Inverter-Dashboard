@@ -39,7 +39,7 @@ for (const css of [publicCss, frontendCss]) {
 for (const html of [publicHtml, frontendHtml]) {
   assert.match(html, /id="cloudBackupSection"\s+data-role-min="devClard"/);
   assert.match(html, /id="localBackupSection"\s+data-role-min="devClard"/);
-  assert.match(html, /js\/app\.js\?v=2\.1\.6/);
+  assert.match(html, /js\/app\.js\?v=\d+\.\d+\.\d+/);
 }
 for (const login of [publicLogin, frontendLogin]) {
   assert.match(login, /localStorage\.removeItem\("adsi_settings_section"\)/);

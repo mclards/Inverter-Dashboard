@@ -4741,7 +4741,7 @@ async function refreshServerLifecycleStatus() {
         if (webVal) webVal.textContent = res.services?.web ? "Active (Port 3500)" : "Offline";
         if (telemVal) telemVal.textContent = res.services?.telemetry
           ? `Healthy (${telemetry.connectedInverters || 0}/${telemetry.configuredInverters || 0} inverters; ${Math.max(0, Math.round(Number(telemetry.newestFrameAgeMs || 0)))} ms)`
-          : telemetry.reachable ? "Degraded (telemetry stale)" : "Offline";
+          : telemetry.reachable ? `Online (${telemetry.connectedInverters || 0}/${telemetry.configuredInverters || 0} connected; off-network)` : "Offline";
         if (fcastVal) fcastVal.textContent = res.services?.forecast ? "Active (background worker)" : "Offline";
         if (keepChk) keepChk.checked = Boolean(res.keepInBackground);
         if (autoChk) autoChk.checked = Boolean(res.autoStart);
@@ -4749,6 +4749,42 @@ async function refreshServerLifecycleStatus() {
       }
     } catch (_) {}
   }
+
+  try {
+    const res = await fetch("/api/server/status", { cache: "no-store" }).catch(() => null);
+    if (res && res.ok) {
+      const data = await res.json().catch(() => null);
+      if (data?.ok) {
+        const telemetry = data.telemetry || {};
+        const isHealthy = Boolean(data.services?.telemetry);
+        const isReachable = Boolean(telemetry.reachable);
+        if (isHealthy) {
+          badge.textContent = "● RUNNING (Port 3500)";
+          badge.style.color = "var(--green, #10b981)";
+        } else if (data.services?.web) {
+          badge.textContent = isReachable ? "● RUNNING (Web Server; Polling Ready)" : "● RUNNING (Web Server)";
+          badge.style.color = "var(--green, #10b981)";
+        } else {
+          badge.textContent = "○ STOPPED (Gateway services offline)";
+          badge.style.color = "var(--text2, #64748b)";
+        }
+        if (webVal) webVal.textContent = data.services?.web ? "Active (Port 3500)" : "Offline";
+        if (telemVal) {
+          telemVal.textContent = isHealthy
+            ? `Healthy (${telemetry.connectedInverters || 0}/${telemetry.configuredInverters || 0} inverters; ${Math.max(0, Math.round(Number(telemetry.newestFrameAgeMs || 0)))} ms)`
+            : isReachable
+              ? `Online (${telemetry.connectedInverters || 0}/${telemetry.configuredInverters || 0} connected; off-network)`
+              : "Offline";
+        }
+        if (fcastVal) fcastVal.textContent = data.services?.forecast ? "Active (background worker)" : "Offline";
+        if (startBtn) startBtn.disabled = Boolean(isHealthy || (data.services?.web && isReachable));
+        if (stopBtn) stopBtn.disabled = false;
+        if (keepChk) keepChk.checked = Boolean(data.keepInBackground);
+        if (autoChk) autoChk.checked = Boolean(data.autoStart);
+        return;
+      }
+    }
+  } catch (_) {}
 
   try {
     const res = await fetch("/api/health", { cache: "no-store" }).catch(() => null);
@@ -4790,7 +4826,18 @@ async function startLocalServerFromUi() {
       if (msg) msg.textContent = "Error: " + err.message;
     }
   } else {
-    if (msg) msg.textContent = "Server control requires the Desktop application.";
+    try {
+      const res = await fetch("/api/server/start", { method: "POST", headers: { "Content-Type": "application/json" } });
+      const data = await res.json().catch(() => null);
+      if (data?.ok) {
+        if (msg) msg.textContent = data.message || "Local server services started.";
+        await refreshServerLifecycleStatus();
+        return;
+      }
+      if (msg) msg.textContent = data?.error || "Failed to start server services.";
+    } catch (err) {
+      if (msg) msg.textContent = "Error: " + err.message;
+    }
   }
 }
 
@@ -4810,7 +4857,18 @@ async function stopLocalServerFromUi() {
       if (msg) msg.textContent = "Error: " + err.message;
     }
   } else {
-    if (msg) msg.textContent = "Server control requires the Desktop application.";
+    try {
+      const res = await fetch("/api/server/stop", { method: "POST", headers: { "Content-Type": "application/json" } });
+      const data = await res.json().catch(() => null);
+      if (data?.ok) {
+        if (msg) msg.textContent = data.message || "Local server stopped.";
+        await refreshServerLifecycleStatus();
+        return;
+      }
+      if (msg) msg.textContent = data?.error || "Failed to stop server services.";
+    } catch (err) {
+      if (msg) msg.textContent = "Error: " + err.message;
+    }
   }
 }
 
@@ -4826,6 +4884,23 @@ function initServerLifecycleController() {
         const msg = $("srvActionMsg");
         if (msg) msg.textContent = result?.error || "Could not save the background-service setting.";
       }
+    } else {
+      try {
+        const res = await fetch("/api/server/config", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ keepInBackground: e.target.checked }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!data?.ok) {
+          await refreshServerLifecycleStatus();
+          const msg = $("srvActionMsg");
+          if (msg) msg.textContent = data?.error || "Could not save the background-service setting.";
+        }
+      } catch (err) {
+        const msg = $("srvActionMsg");
+        if (msg) msg.textContent = "Error: " + err.message;
+      }
     }
   });
   $("chkAutoStartServer")?.addEventListener("change", async (e) => {
@@ -4835,6 +4910,23 @@ function initServerLifecycleController() {
         await refreshServerLifecycleStatus();
         const msg = $("srvActionMsg");
         if (msg) msg.textContent = result?.error || "Could not save the auto-start setting.";
+      }
+    } else {
+      try {
+        const res = await fetch("/api/server/config", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ autoStart: e.target.checked }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!data?.ok) {
+          await refreshServerLifecycleStatus();
+          const msg = $("srvActionMsg");
+          if (msg) msg.textContent = data?.error || "Could not save the auto-start setting.";
+        }
+      } catch (err) {
+        const msg = $("srvActionMsg");
+        if (msg) msg.textContent = "Error: " + err.message;
       }
     }
   });

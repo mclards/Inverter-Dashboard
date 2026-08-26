@@ -4777,7 +4777,7 @@ async function refreshServerLifecycleStatus() {
               : "Offline";
         }
         if (fcastVal) fcastVal.textContent = data.services?.forecast ? "Active (background worker)" : "Offline";
-        if (startBtn) startBtn.disabled = Boolean(isHealthy || (data.services?.web && isReachable));
+        if (startBtn) startBtn.disabled = Boolean(isHealthy);
         if (stopBtn) stopBtn.disabled = false;
         if (keepChk) keepChk.checked = Boolean(data.keepInBackground);
         if (autoChk) autoChk.checked = Boolean(data.autoStart);
@@ -4792,7 +4792,7 @@ async function refreshServerLifecycleStatus() {
       badge.textContent = "● RUNNING (Web Server)";
       badge.style.color = "var(--green, #10b981)";
       if (webVal) webVal.textContent = "Active (Port 3500)";
-      if (startBtn) startBtn.disabled = true;
+      if (startBtn) startBtn.disabled = false;
       if (stopBtn) stopBtn.disabled = false;
     } else {
       badge.textContent = "○ STOPPED (Gateway services offline)";
@@ -4892,10 +4892,15 @@ function initServerLifecycleController() {
           body: JSON.stringify({ keepInBackground: e.target.checked }),
         });
         const data = await res.json().catch(() => null);
+        const msg = $("srvActionMsg");
         if (!data?.ok) {
           await refreshServerLifecycleStatus();
-          const msg = $("srvActionMsg");
           if (msg) msg.textContent = data?.error || "Could not save the background-service setting.";
+        } else {
+          if (msg) {
+            msg.textContent = "Configuration saved.";
+            setTimeout(() => { if (msg.textContent === "Configuration saved.") msg.textContent = ""; }, 3000);
+          }
         }
       } catch (err) {
         const msg = $("srvActionMsg");
@@ -4919,10 +4924,15 @@ function initServerLifecycleController() {
           body: JSON.stringify({ autoStart: e.target.checked }),
         });
         const data = await res.json().catch(() => null);
+        const msg = $("srvActionMsg");
         if (!data?.ok) {
           await refreshServerLifecycleStatus();
-          const msg = $("srvActionMsg");
           if (msg) msg.textContent = data?.error || "Could not save the auto-start setting.";
+        } else {
+          if (msg) {
+            msg.textContent = "Configuration saved.";
+            setTimeout(() => { if (msg.textContent === "Configuration saved.") msg.textContent = ""; }, 3000);
+          }
         }
       } catch (err) {
         const msg = $("srvActionMsg");

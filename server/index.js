@@ -22,6 +22,7 @@ const go2rtcManager = require("./go2rtcManager");
 const hikvisionManager = require("./hikvisionManager");
 const forecastGenLock = require("./forecastGenLock");
 const { createBrowserAuth } = require("./browserAuth");
+const storagePaths = require("./storagePaths");
 
 const {
   getSetting,

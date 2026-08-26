@@ -25,6 +25,10 @@ server/ffmpeg/
 server/go2rtc/
 *.zip
 *.exe
+*.pcapng
+*.tar
+*.dav
+docs/hik-cctv-camera/
 
 # Database and storage files (active runtime data should never be in git)
 storage/

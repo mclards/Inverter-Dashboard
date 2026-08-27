@@ -134,21 +134,57 @@ function buildRtspUrl(cfgRaw) {
 }
 
 function resolveGo2rtcPath() {
+  const binaryNames =
+    process.platform === "win32"
+      ? ["go2rtc.exe"]
+      : ["go2rtc", "go2rtc_linux_amd64", "go2rtc_linux_arm64", "go2rtc.exe"];
+
   if (process.resourcesPath) {
-    const packaged = path.join(process.resourcesPath, "backend", "go2rtc", "go2rtc.exe");
-    if (fs.existsSync(packaged)) return packaged;
+    for (const name of binaryNames) {
+      const packaged = path.join(process.resourcesPath, "backend", "go2rtc", name);
+      if (fs.existsSync(packaged)) return packaged;
+    }
   }
-  const dev = path.join(__dirname, "go2rtc", "go2rtc.exe");
-  return fs.existsSync(dev) ? dev : "";
+
+  for (const name of binaryNames) {
+    const dev = path.join(__dirname, "go2rtc", name);
+    if (fs.existsSync(dev)) return dev;
+    const backendDev = path.join(__dirname, "..", "server", "go2rtc", name);
+    if (fs.existsSync(backendDev)) return backendDev;
+  }
+
+  if (process.platform !== "win32") {
+    const systemPaths = [
+      "/usr/local/bin/go2rtc",
+      "/usr/bin/go2rtc",
+      "/opt/inverter-dashboard/go2rtc",
+      "/opt/inverter-dashboard/backend/engines/go2rtc/go2rtc",
+      "/opt/inverter-dashboard/server/go2rtc/go2rtc",
+    ];
+    for (const p of systemPaths) {
+      if (fs.existsSync(p)) return p;
+    }
+  }
+  return "";
 }
 
 function resolveFfmpegDir() {
-  if (process.resourcesPath) {
-    const packaged = path.join(process.resourcesPath, "backend", "ffmpeg");
-    if (fs.existsSync(path.join(packaged, "ffmpeg.exe"))) return packaged;
+  if (process.platform === "win32") {
+    if (process.resourcesPath) {
+      const packaged = path.join(process.resourcesPath, "backend", "ffmpeg");
+      if (fs.existsSync(path.join(packaged, "ffmpeg.exe"))) return packaged;
+    }
+    const dev = path.join(__dirname, "ffmpeg");
+    if (fs.existsSync(path.join(dev, "ffmpeg.exe"))) return dev;
+    const rootDev = path.join(__dirname, "..", "ffmpeg");
+    if (fs.existsSync(path.join(rootDev, "ffmpeg.exe"))) return rootDev;
+    return "";
   }
-  const dev = path.join(__dirname, "ffmpeg");
-  return fs.existsSync(path.join(dev, "ffmpeg.exe")) ? dev : "";
+  const linuxDirs = ["/usr/bin", "/usr/local/bin"];
+  for (const dir of linuxDirs) {
+    if (fs.existsSync(path.join(dir, "ffmpeg"))) return dir;
+  }
+  return "";
 }
 
 function runtimeConfigPath() {

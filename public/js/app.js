@@ -16591,7 +16591,12 @@ class CameraPlayer {
     video.style.display = "block";
     video.muted = true;
 
-    const url = `http://${s.go2rtcIp}:${s.go2rtcPort}/api/stream.m3u8?src=${encodeURIComponent(s.streamKey)}`;
+    const host = (!s.go2rtcIp || s.go2rtcIp === "127.0.0.1" || s.go2rtcIp === "localhost")
+      ? (window.location.hostname || "127.0.0.1")
+      : s.go2rtcIp;
+    const port = s.go2rtcPort || "1984";
+    const proto = window.location.protocol === "https:" ? "https:" : "http:";
+    const url = `${proto}//${host}:${port}/api/stream.m3u8?src=${encodeURIComponent(s.streamKey)}`;
 
     if (typeof Hls !== "undefined" && Hls.isSupported()) {
       const hls = new Hls({
@@ -16643,7 +16648,12 @@ class CameraPlayer {
     video.style.display = "block";
     video.muted = true;
 
-    const apiBase = `http://${s.go2rtcIp}:${s.go2rtcPort}`;
+    const host = (!s.go2rtcIp || s.go2rtcIp === "127.0.0.1" || s.go2rtcIp === "localhost")
+      ? (window.location.hostname || "127.0.0.1")
+      : s.go2rtcIp;
+    const port = s.go2rtcPort || "1984";
+    const proto = window.location.protocol === "https:" ? "https:" : "http:";
+    const apiBase = `${proto}//${host}:${port}`;
     const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
     this.rtcPeer = pc;
 

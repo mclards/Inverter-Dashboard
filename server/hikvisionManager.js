@@ -5,13 +5,29 @@ const crypto = require("crypto");
 const fs = require("fs");
 const http = require("http");
 const net = require("net");
+const os = require("os");
 const path = require("path");
 
-const PROGRAMDATA_ROOT = path.join(
-  process.env.PROGRAMDATA || "C:\\ProgramData",
-  "Inverter-Dashboard",
-  "hikvision",
-);
+function resolveRuntimeRoot() {
+  if (process.platform === "win32") {
+    return path.join(process.env.PROGRAMDATA || "C:\\ProgramData", "Inverter-Dashboard", "hikvision");
+  }
+  if (String(process.env.INVERTER_STORAGE_DIR || "").trim()) {
+    return path.join(path.resolve(String(process.env.INVERTER_STORAGE_DIR).trim()), "hikvision");
+  }
+  const explicitDbDir = String(process.env.INVERTER_DATA_DIR || "").trim();
+  if (explicitDbDir) {
+    const resolved = path.resolve(explicitDbDir);
+    const base = path.basename(resolved) === "db" ? path.dirname(resolved) : resolved;
+    return path.join(base, "hikvision");
+  }
+  return path.resolve(
+    String(process.env.ADSI_PORTABLE_DATA_DIR || "").trim() ||
+      path.join(os.homedir(), ".inverter-dashboard", "hikvision"),
+  );
+}
+
+const PROGRAMDATA_ROOT = resolveRuntimeRoot();
 const API_HOST = "127.0.0.1";
 const API_PORT = 1994;
 // go2rtc's FFmpeg source publishes its transcoded output back through the
@@ -220,10 +236,10 @@ function writeRuntimeConfig(cfg) {
       [STREAM_COMPAT]: [compatibleUrl],
     },
     // The dashboard is served from localhost:3500 while this isolated player
-    // listens only on loopback:1994. Allow that cross-origin WebSocket handshake.
-    api: { listen: `${API_HOST}:${API_PORT}`, origin: "*" },
-    rtsp: { listen: `${API_HOST}:${RTSP_PORT}` },
-    webrtc: { listen: `${API_HOST}:${WEBRTC_PORT}` },
+    // listens on port 1994. Allow cross-origin WebSocket and remote client handshakes.
+    api: { listen: `:${API_PORT}`, origin: "*" },
+    rtsp: { listen: `:${RTSP_PORT}` },
+    webrtc: { listen: `:${WEBRTC_PORT}` },
     ffmpeg: {
       // The DVR's HEVC stream does not tolerate go2rtc's default
       // `-fflags nobuffer` RTSP input template. TCP without that flag is stable.

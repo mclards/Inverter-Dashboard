@@ -5,13 +5,29 @@ const crypto = require("crypto");
 const fs = require("fs");
 const http = require("http");
 const net = require("net");
+const os = require("os");
 const path = require("path");
 
-const PROGRAMDATA_ROOT = path.join(
-  process.env.PROGRAMDATA || "C:\\ProgramData",
-  "Inverter-Dashboard",
-  "hikvision",
-);
+function resolveRuntimeRoot() {
+  if (process.platform === "win32") {
+    return path.join(process.env.PROGRAMDATA || "C:\\ProgramData", "Inverter-Dashboard", "hikvision");
+  }
+  if (String(process.env.INVERTER_STORAGE_DIR || "").trim()) {
+    return path.join(path.resolve(String(process.env.INVERTER_STORAGE_DIR).trim()), "hikvision");
+  }
+  const explicitDbDir = String(process.env.INVERTER_DATA_DIR || "").trim();
+  if (explicitDbDir) {
+    const resolved = path.resolve(explicitDbDir);
+    const base = path.basename(resolved) === "db" ? path.dirname(resolved) : resolved;
+    return path.join(base, "hikvision");
+  }
+  return path.resolve(
+    String(process.env.ADSI_PORTABLE_DATA_DIR || "").trim() ||
+      path.join(os.homedir(), ".inverter-dashboard", "hikvision"),
+  );
+}
+
+const PROGRAMDATA_ROOT = resolveRuntimeRoot();
 const API_HOST = "127.0.0.1";
 const API_PORT = 1994;
 // go2rtc's FFmpeg source publishes its transcoded output back through the
@@ -134,66 +150,21 @@ function buildRtspUrl(cfgRaw) {
 }
 
 function resolveGo2rtcPath() {
-  const binaryNames =
-    process.platform === "win32"
-      ? ["go2rtc.exe"]
-      : ["go2rtc", "go2rtc_linux_amd64", "go2rtc_linux_arm64", "go2rtc.exe"];
-
   if (process.resourcesPath) {
     for (const name of binaryNames) {
       const packaged = path.join(process.resourcesPath, "backend", "go2rtc", name);
-      if (fs.existsSync(packaged)) return packaged;
-    }
-  }
-
   for (const name of binaryNames) {
     const dev = path.join(__dirname, "go2rtc", name);
     if (fs.existsSync(dev)) return dev;
-    const backendDev = path.join(__dirname, "..", "server", "go2rtc", name);
-    if (fs.existsSync(backendDev)) return backendDev;
-  }
-
-  if (process.platform !== "win32") {
-    const systemPaths = [
-      "/usr/local/bin/go2rtc",
-      "/usr/bin/go2rtc",
-      "/opt/inverter-dashboard/go2rtc",
-      "/opt/inverter-dashboard/backend/engines/go2rtc/go2rtc",
-      "/opt/inverter-dashboard/server/go2rtc/go2rtc",
-    ];
-    for (const p of systemPaths) {
-      if (fs.existsSync(p)) return p;
-    }
-  }
-  return "";
-}
-
-function resolveFfmpegDir() {
-  if (process.platform === "win32") {
     if (process.resourcesPath) {
       const packaged = path.join(process.resourcesPath, "backend", "ffmpeg");
       if (fs.existsSync(path.join(packaged, "ffmpeg.exe"))) return packaged;
     }
     const dev = path.join(__dirname, "ffmpeg");
     if (fs.existsSync(path.join(dev, "ffmpeg.exe"))) return dev;
-    const rootDev = path.join(__dirname, "..", "ffmpeg");
-    if (fs.existsSync(path.join(rootDev, "ffmpeg.exe"))) return rootDev;
-    return "";
-  }
-  const linuxDirs = ["/usr/bin", "/usr/local/bin"];
-  for (const dir of linuxDirs) {
-    if (fs.existsSync(path.join(dir, "ffmpeg"))) return dir;
-  }
-  return "";
-}
 
 function runtimeConfigPath() {
   return path.join(PROGRAMDATA_ROOT, "go2rtc.runtime.json");
-}
-
-function writeRuntimeConfig(cfg) {
-  fs.mkdirSync(PROGRAMDATA_ROOT, { recursive: true });
-  const rtspUrl = buildRtspUrl(cfg);
   // Hikvision compatibility is a DVR-native secondary profile, not a decode /
   // re-encode of the malformed HEVC source. Channel xx02 can be prepared as
   // H.264 while xx01 remains the recorder-quality H.265 stream.
@@ -220,10 +191,10 @@ function writeRuntimeConfig(cfg) {
       [STREAM_COMPAT]: [compatibleUrl],
     },
     // The dashboard is served from localhost:3500 while this isolated player
-    // listens only on loopback:1994. Allow that cross-origin WebSocket handshake.
-    api: { listen: `${API_HOST}:${API_PORT}`, origin: "*" },
-    rtsp: { listen: `${API_HOST}:${RTSP_PORT}` },
-    webrtc: { listen: `${API_HOST}:${WEBRTC_PORT}` },
+    // listens on port 1994. Allow cross-origin WebSocket and remote client handshakes.
+    api: { listen: `:${API_PORT}`, origin: "*" },
+    rtsp: { listen: `:${RTSP_PORT}` },
+    webrtc: { listen: `:${WEBRTC_PORT}` },
     ffmpeg: {
       // The DVR's HEVC stream does not tolerate go2rtc's default
       // `-fflags nobuffer` RTSP input template. TCP without that flag is stable.

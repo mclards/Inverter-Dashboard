@@ -16,7 +16,7 @@ log_line() {
 
 [ -f "${DB_PATH}" ] || exit 0
 
-CHECK_OUTPUT="$(sqlite3 "${DB_PATH}" 'PRAGMA quick_check;' 2>&1 || true)"
+CHECK_OUTPUT="$(sqlite3 "${DB_PATH}" 'PRAGMA quick_check(1);' 2>&1 || true)"
 [ "${CHECK_OUTPUT}" = "ok" ] && exit 0
 
 REPAIRED_PATH="${DB_PATH}.repaired.$$"
@@ -25,7 +25,7 @@ log_line "WARNING: database quick_check failed (${CHECK_OUTPUT}). Attempting val
 
 if sqlite3 "${DB_PATH}" '.dump' 2>>"${LOG_PATH}" \
     | sqlite3 "${REPAIRED_PATH}" 2>>"${LOG_PATH}"; then
-    REPAIRED_CHECK="$(sqlite3 "${REPAIRED_PATH}" 'PRAGMA quick_check;' 2>&1 || true)"
+    REPAIRED_CHECK="$(sqlite3 "${REPAIRED_PATH}" 'PRAGMA quick_check(1);' 2>&1 || true)"
 else
     REPAIRED_CHECK="dump/import failed"
 fi

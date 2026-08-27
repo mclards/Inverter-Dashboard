@@ -23,6 +23,7 @@ ProtectHome=true
 LimitNOFILE=65536
 KillMode=mixed
 TimeoutStopSec=15
+TimeoutStartSec=300
 
 [Install]
 WantedBy=inverter.target

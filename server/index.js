@@ -25017,10 +25017,16 @@ function exportTouchesCurrentDay(payload = {}) {
 }
 
 function getConfiguredExportRoot() {
+  const isWin = process.platform === "win32";
+  const defaultBase = isWin ? "C:\\Logs\\InverterDashboard" : path.join(path.dirname(DATA_DIR), "exports");
   const configured = String(
-    getSetting("csvSavePath", "C:\\Logs\\InverterDashboard") || "",
+    getSetting("csvSavePath", defaultBase) || "",
   ).trim();
-  return path.resolve(configured || "C:\\Logs\\InverterDashboard");
+
+  if (!isWin && (/^[A-Za-z]:[\\/]/.test(configured) || configured.includes("\\"))) {
+    return path.resolve(defaultBase);
+  }
+  return path.resolve(configured || defaultBase);
 }
 
 function isPathInsideBase(baseDir, targetPath) {

@@ -68,6 +68,10 @@ Inverter-Dashboard/
 
 ### Linux production appliance
 
+The complete installation, Git release, production update, verification, and
+failure-evidence workflow is maintained in
+[`LINUX-INSTALL-UPDATE-GUIDE.md`](LINUX-INSTALL-UPDATE-GUIDE.md).
+
 On a fresh Ubuntu or Debian installation, the complete dashboard installation
 is one command:
 

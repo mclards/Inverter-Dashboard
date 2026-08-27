@@ -35,6 +35,11 @@
 
 ## Operator workflow
 
+The durable cross-vendor installation, commit/push, production update,
+verification, and failure-evidence workflow is maintained in
+`LINUX-INSTALL-UPDATE-GUIDE.md`. AI vendor entry points resolve back to that
+guide and `AGENTS.md` so deployment instructions do not diverge.
+
 Fresh install:
 
 ```bash

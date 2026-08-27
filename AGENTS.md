@@ -127,6 +127,10 @@ Before changing any runtime configuration, confirm the exact target path. Never 
 
 ### Canonical Linux appliance installation
 
+- `LINUX-INSTALL-UPDATE-GUIDE.md` is the vendor-neutral source of truth for
+  installation, commit/push, production update, verification, and failure
+  evidence. Keep vendor entry points (`CLAUDE.md`, `GEMINI.md`, and
+  `.github/copilot-instructions.md`) directed to this file and `AGENTS.md`.
 - The supported fresh Debian/Ubuntu installation is one pasted command:
   `sudo bash -c 'command -v curl >/dev/null || { apt-get update -qq && apt-get install -y -qq ca-certificates curl; }; curl -fsSL https://raw.githubusercontent.com/mclards/Inverter-Dashboard/main/deploy/linux/install.sh | bash'`.
 - Preserve `deploy/linux/install.sh` as the minimal bootstrap and
@@ -152,7 +156,8 @@ Before changing any runtime configuration, confirm the exact target path. Never 
   configuration. Subsequent enrollment state persists across connections and
   reboots, subject to the administrator's tailnet expiry and SSH policy.
 - Keep the one-command workflow synchronized in `README.md`, this file, the
-  Linux deployment tests, and `implemented/linux-production-appliance.md`.
+  shared Linux guide, the Linux deployment tests, and
+  `implemented/linux-production-appliance.md`.
 
 ### Release and handoff checks
 

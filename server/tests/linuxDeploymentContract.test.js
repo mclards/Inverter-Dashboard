@@ -47,6 +47,21 @@ const attrs = read(".gitattributes");
 assert.match(attrs, /\*\.sh text eol=lf/);
 assert.match(attrs, /deploy\/linux\/\*\* text eol=lf/);
 
+const canonicalInstallCommand = "sudo bash -c 'command -v curl >/dev/null || { apt-get update -qq && apt-get install -y -qq ca-certificates curl; }; curl -fsSL https://raw.githubusercontent.com/mclards/Inverter-Dashboard/main/deploy/linux/install.sh | bash'";
+for (const rel of [
+  "AGENTS.md",
+  "README.md",
+  "LINUX-INSTALL-UPDATE-GUIDE.md",
+  "implemented/linux-production-appliance.md",
+]) {
+  assert.ok(read(rel).includes(canonicalInstallCommand), `${rel} must retain the canonical Linux command`);
+}
+for (const rel of ["CLAUDE.md", "GEMINI.md", ".github/copilot-instructions.md"]) {
+  const instructions = read(rel);
+  assert.match(instructions, /AGENTS\.md/);
+  assert.match(instructions, /LINUX-INSTALL-UPDATE-GUIDE\.md/);
+}
+
 const environment = read("deploy/linux/default/inverter-dashboard");
 assert.match(environment, /^ADSI_SERVER_PORT=3500$/m);
 assert.match(environment, /^INVERTER_DATA_DIR=\/var\/lib\/inverter-dashboard\/db$/m);

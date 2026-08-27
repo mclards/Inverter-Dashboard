@@ -983,7 +983,18 @@
             window.location.replace(`${targetServer}/index.html`);
           },
           async hasSession() {
-            return false;
+            try {
+              const targetServer = defaultServer.replace(/\/$/, "");
+              const response = await fetch(`${targetServer}/api/auth/session`, {
+                credentials: "include",
+                cache: "no-store",
+                headers: { Accept: "application/json" },
+              });
+              const data = await response.json().catch(() => ({}));
+              return Boolean(response.ok && data?.authenticated && data?.role);
+            } catch (_) {
+              return false;
+            }
           },
         };
 

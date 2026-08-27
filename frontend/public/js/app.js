@@ -3919,6 +3919,9 @@ async function api(url, method = "GET", body, options = {}) {
       parsed = null;
     }
     if (!r.ok) {
+      if (r.status === 401 && typeof window !== "undefined" && !window.electronAPI?.getAuthSession && !window.location.pathname.endsWith("/login.html")) {
+        window.location.replace("/login.html");
+      }
       const rawMsg =
         parsed?.error ||
         parsed?.message ||
@@ -4593,7 +4596,8 @@ const OPERATOR_SHARED_SETTING_KEYS_CLIENT = new Set([
 
 async function syncAuthSession() {
   let identity = null;
-  if (typeof window !== "undefined" && window.electronAPI?.getAuthSession) {
+  const isElectron = typeof window !== "undefined" && Boolean(window.electronAPI?.getAuthSession);
+  if (isElectron) {
     try {
       const sess = await window.electronAPI.getAuthSession();
       if (sess && sess.role) {
@@ -4612,6 +4616,12 @@ async function syncAuthSession() {
         identity = session;
       }
     } catch (_) {}
+    if (!identity?.authenticated || !identity?.role) {
+      if (typeof window !== "undefined" && !window.location.pathname.endsWith("/login.html")) {
+        window.location.replace("/login.html");
+      }
+      return false;
+    }
   }
 
   const role = String(identity?.role || "operator").trim().toLowerCase();

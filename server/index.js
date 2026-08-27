@@ -299,7 +299,7 @@ const DEVELOPER_BROWSER_PAGES = new Set([
 app.use((req, res, next) => {
   const requestPath = String(req.path || req.url || "").split("?")[0].toLowerCase();
   if (!DEVELOPER_BROWSER_PAGES.has(requestPath)) return next();
-  if (browserAuth.directLoopback(req)) return next();
+  if (browserAuth.isElectronLoopback(req)) return next();
   if (browserAuth.isDeveloperSession(browserAuth.sessionFromRequest(req))) return next();
   return res.status(403).type("text/plain").send("Developer access is required for this page.");
 });
@@ -20985,11 +20985,13 @@ app.get("/api/plant-cap/setpoint/jobs/:job_id", async (req, res) => {
   }
 });
 
-/* Auth-gated credentials reference — requires authKey=admin */
+/* Auth-gated credentials reference — requires developer role or desktop loopback */
 app.get("/api/credentials-reference", (req, res) => {
-  const key = String(req.query.authKey || "").trim();
-  if (key !== "admin") {
-    return res.status(403).json({ ok: false, error: "Invalid authorization key." });
+  const isElectron = browserAuth.isElectronLoopback(req);
+  const session = browserAuth.sessionFromRequest(req);
+  const isDev = browserAuth.isDeveloperSession(session);
+  if (!isElectron && !isDev) {
+    return res.status(403).json({ ok: false, error: "Developer access is required for credentials reference." });
   }
   const filePath = path.join(__dirname, "../public/credentials-reference.html");
   res.sendFile(filePath, (err) => {

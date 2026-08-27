@@ -190,6 +190,22 @@ function isDirectLoopbackRequest(req) {
   return Boolean(parsedHost && classifyDashboardHost(parsedHost.hostname) === "loopback");
 }
 
+function isElectronLoopbackRequest(req) {
+  if (!isLoopbackIp(requestPeerIp(req))) return false;
+  if (headerValue(req, "x-forwarded-for") || headerValue(req, "tailscale-user-login")) {
+    return false;
+  }
+  const ua = headerValue(req, "user-agent");
+  return ua.includes("Electron/");
+}
+
+function isBrowserUserAgent(value) {
+  const ua = String(value || "").trim();
+  if (!ua) return false;
+  if (ua.includes("Electron/")) return false;
+  return /^Mozilla\/5\.0\b/i.test(ua) && /(?:Chrome|Firefox|Safari|Edg|Version)\//i.test(ua);
+}
+
 function trustedRequestOrigin(req) {
   const peerIsLoopback = isLoopbackIp(requestPeerIp(req));
   const forwardedProto = peerIsLoopback
@@ -299,6 +315,10 @@ function createBrowserAuth(options = {}) {
     typeof options.isDirectLoopbackRequest === "function"
       ? options.isDirectLoopbackRequest
       : isDirectLoopbackRequest;
+  const isElectronLoopback =
+    typeof options.isElectronLoopbackRequest === "function"
+      ? options.isElectronLoopbackRequest
+      : isElectronLoopbackRequest;
   const loginFailures = new Map();
   const revokedNonces = new Map();
 
@@ -512,12 +532,19 @@ function createBrowserAuth(options = {}) {
     const requestPath = String(req?.path || req?.url || "").split("?")[0];
     return (
       PUBLIC_BROWSER_PATHS.has(requestPath) ||
-      /^\/assets\/(?:icon(?:-[0-9]+)?\.(?:png|ico)|logo\.png)$/i.test(requestPath)
+      requestPath.startsWith("/css/") ||
+      requestPath.startsWith("/js/") ||
+      requestPath.startsWith("/vendor/") ||
+      requestPath.startsWith("/fonts/") ||
+      requestPath.startsWith("/assets/")
     );
   }
 
   function pageGuard(req, res, next) {
-    if (directLoopback(req) || isPublicBrowserPath(req)) return next();
+    if (isPublicBrowserPath(req)) return next();
+    // Only the Electron desktop renderer shell is exempt from the page login guard on loopback.
+    // Standard web browsers (including localhost / 127.0.0.1) MUST sign in.
+    if (isElectronLoopback(req)) return next();
     const requestPath = String(req?.path || req?.url || "").split("?")[0];
     if (requestPath === "/api" || requestPath.startsWith("/api/")) return next();
     if (sessionFromRequest(req).ok) return next();
@@ -539,7 +566,7 @@ function createBrowserAuth(options = {}) {
   }
 
   function authorizeApiRequest(req, configuredRemoteToken) {
-    if (directLoopback(req)) return { ok: true, mode: "loopback" };
+    if (isElectronLoopback(req)) return { ok: true, mode: "loopback" };
     const session = sessionFromRequest(req);
     if (session.ok) {
       const method = String(req?.method || "GET").toUpperCase();
@@ -553,6 +580,10 @@ function createBrowserAuth(options = {}) {
     if (configured && provided && timingSafeStringEqual(provided, configured)) {
       return { ok: true, mode: "remote-token" };
     }
+    // Loopback machine-to-machine callers (e.g. python-requests, node scripts, curl) that are NOT web browsers:
+    if (directLoopback(req) && !isBrowserUserAgent(headerValue(req, "user-agent"))) {
+      return { ok: true, mode: "loopback" };
+    }
     return { ok: false, status: 401, code: "unauthorized", error: "Unauthorized API request." };
   }
 
@@ -564,7 +595,7 @@ function createBrowserAuth(options = {}) {
   }
 
   function authorizeWebSocket(req, configuredRemoteToken) {
-    if (directLoopback(req)) return { ok: true, mode: "loopback", expiresAt: null };
+    if (isElectronLoopback(req)) return { ok: true, mode: "loopback", expiresAt: null };
     const configured = String(configuredRemoteToken || "").trim();
     const provided = resolveRemoteToken(req);
     if (configured && provided && timingSafeStringEqual(provided, configured)) {
@@ -580,8 +611,8 @@ function createBrowserAuth(options = {}) {
 
   function registerRoutes(app) {
     app.get("/api/auth/session", (req, res) => {
-      if (directLoopback(req)) {
-        return res.json({ ok: true, authenticated: true, mode: "loopback" });
+      if (isElectronLoopback(req)) {
+        return res.json({ ok: true, authenticated: true, mode: "loopback", role: "developer", username: "Desktop" });
       }
       const session = sessionFromRequest(req);
       if (!session.ok) {
@@ -655,6 +686,7 @@ function createBrowserAuth(options = {}) {
     authorizeWebSocket,
     credentialPath,
     directLoopback,
+    isElectronLoopback,
     isMaskedSecret,
     isDeveloperSession,
     isSameOriginRequest,
@@ -683,7 +715,9 @@ module.exports = {
   createBrowserAuth,
   expandIpv6,
   ipv4InCidr,
+  isBrowserUserAgent,
   isDirectLoopbackRequest,
+  isElectronLoopbackRequest,
   isLoopbackIp,
   isMaskedSecret,
   isSameOriginRequest,

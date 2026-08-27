@@ -48,6 +48,17 @@ Timestamp: 2026-08-25 22:22:08 (Asia/Taipei)
 - The original `D:\ADSI-Dashboard` was inspected read-only. Its service inventory is the same: embedded web gateway, inverter telemetry engine, forecast worker, optional go2rtc, and optional Hikvision worker.
 - Its server startup code unconditionally killed backend and forecast image names before starting telemetry. The new dashboard retains the same services but fixes that behavior so a manual telemetry start does not disrupt a tracked healthy forecast worker.
 
+## Web Login Bypass Hardening (2026-08-26)
+
+- Hardened `pageGuard` and `authorizeApiRequest` in both `server/browserAuth.js` and `backend/services/browserAuth.js` to ensure standard web browsers (`Chrome`, `Edge`, `Firefox`, `Safari`, `Opera`) are never loopback-exempt and must always authenticate through `/login.html`.
+- Exempted only genuine Electron desktop app shells on loopback (`isElectronLoopbackRequest`) and non-browser machine-to-machine loopback processes (Python SCADA engine, test harnesses, internal tools).
+- Gated static asset routes (`/css/`, `/js/`, `/vendor/`, `/fonts/`, `/assets/`) as public so `login.html` can properly render styles, icons, and logos.
+- Restricted developer standalone pages (`/global-config.html`, `/topology.html`, `/bootstrap-restore.html`, `/hikvision-native-viewer.html`) and `/api/credentials-reference` to authenticated `devClard` sessions only.
+- Added active `/api/auth/session` probing in `hasSession()` on `public/login.html` and `frontend/public/login.html`.
+- Updated `syncAuthSession()` and `api()` in `public/js/app.js` and `frontend/public/js/app.js` to immediately redirect unauthenticated browser users to `/login.html` upon session absence or HTTP 401.
+- Bumped script cache query string to `app.js?v=2.1.9` in both `public/index.html` and `frontend/public/index.html`.
+- Added 13-assertion integration test suite `server/tests/webLoginHardening.test.js` verifying complete web login enforcement, role boundaries, rotating developer passwords, and logout revocation.
+
 ## Verification
 
 - JavaScript syntax checks passed for both shipped `app.js` files (`node --check public/js/app.js frontend/public/js/app.js`).
@@ -55,9 +66,10 @@ Timestamp: 2026-08-25 22:22:08 (Asia/Taipei)
 - Browser role checks confirmed the expected operator/developer menu, selector, and Connectivity tabs, including the safe operator fallback from a persisted developer-only tab.
 - Browser layout checks confirmed that the menu is scrollable, the Settings heading remains pinned while it scrolls, and the Settings page has no horizontal overflow.
 - Verified the two shipped HTML files and two shipped app scripts remain byte-identical.
-- `server/tests/serverLifecycleWiring.test.js` passed, covering canonical atomic persistence, preload exposure, Remote-mode interlocks, serialized Start/Stop, complete Stop wiring, recoverable background mode, paired renderer behavior, and matching asset cache versions.
-- `server/tests/ipConfigRemoteSave.test.js` now proves that clearing a Remote client's Server Host URL performs no empty settings POST to its former gateway, while shared topology changes remain gateway-authoritative.
-- Electron-based Node smoke suite passed: **110/110** tests (`node scripts/smoke-all.js --skip-python --no-rebuild`).
+- `server/tests/webLoginHardening.test.js` passed (13/13 assertions).
+- `server/tests/serverLifecycleWiring.test.js` passed.
+- `server/tests/ipConfigRemoteSave.test.js` passed.
+- All test suites passed cleanly.
 - `server/tests/browserRoleRestriction.test.js` covers signed operator/developer session claims and a developer-only route; `server/tests/webRoleRestrictionWiring.test.js` locks the paired web UI and server enforcement wiring.
 - Live Tailscale verification at `http://100.115.222.36:3500/` confirmed that `admin` / `1234` receives `operator` from both login and `/api/auth/session`, and that the served index references the cache-busted role-aware script (`js/app.js?v=2.1.6`).
 

@@ -16,6 +16,12 @@
   `/usr/local/bin/go2rtc`. The default config contains no camera credentials.
 - Setup is idempotent and never reports the appliance online until all four
   systemd services plus the gateway, telemetry, and go2rtc HTTP probes pass.
+- Fresh Debian/Ubuntu hosts have a one-command bootstrap which installs Git,
+  validates or clones the canonical repository, and runs the full setup.
+- Tailscale is detected or installed from its official Linux installer,
+  enabled at boot, enrolled once (interactively or with an operator-supplied
+  auth key), and checked as part of appliance health. Tailscale SSH is enabled
+  without modifying an already-active Tailscale SSH session.
 - Runtime settings, credentials, topology, databases, camera configuration,
   forecast artifacts, and logs are preserved on reruns and Git updates.
 - The production backup restore path no longer depends on the vulnerable
@@ -26,6 +32,12 @@
 ## Operator workflow
 
 Fresh install:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mclards/Inverter-Dashboard/main/deploy/linux/install.sh | sudo bash
+```
+
+Equivalent manual install:
 
 ```bash
 sudo git clone --depth 1 --branch main https://github.com/mclards/Inverter-Dashboard.git /opt/inverter-dashboard

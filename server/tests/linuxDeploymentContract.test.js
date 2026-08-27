@@ -11,10 +11,12 @@ function read(rel) {
 }
 
 const linuxFiles = [
+  "deploy/linux/install.sh",
   "deploy/linux/setup.sh",
   "deploy/linux/update.sh",
   "deploy/linux/scripts/inverter-db-check.sh",
   "deploy/linux/scripts/inverter-health-check.sh",
+  "deploy/linux/scripts/tailscale-setup.sh",
   "deploy/linux/default/inverter-dashboard",
   "deploy/linux/default/go2rtc.yaml",
   "deploy/linux/systemd/inverter.target",
@@ -31,10 +33,12 @@ for (const rel of linuxFiles) {
 }
 
 for (const rel of [
+  "deploy/linux/install.sh",
   "deploy/linux/setup.sh",
   "deploy/linux/update.sh",
   "deploy/linux/scripts/inverter-db-check.sh",
   "deploy/linux/scripts/inverter-health-check.sh",
+  "deploy/linux/scripts/tailscale-setup.sh",
 ]) {
   assert.match(read(rel), /^#!\/usr\/bin\/env bash\n/, `${rel} must have an executable Linux shebang`);
 }
@@ -58,6 +62,25 @@ assert.match(setup, /inverter-health-check\.sh" --wait 30/);
 assert.match(setup, /error "Installation completed, but one or more services are not healthy\."/);
 assert.match(setup, /cp -a "\$\{ENV_FILE\}" "\$\{ENV_FILE\}\.pre-db-layout"/);
 assert.match(setup, /sed -i[\s\S]*INVERTER_PORTABLE_DATA_DIR/);
+
+const bootstrap = read("deploy/linux/install.sh");
+assert.match(bootstrap, /apt-get install -y -qq ca-certificates git/);
+assert.match(bootstrap, /git clone --depth 1 --branch main/);
+assert.match(bootstrap, /status --porcelain/);
+assert.match(bootstrap, /merge --ff-only origin\/main/);
+assert.match(bootstrap, /exec "\$\{APP_DIR\}\/deploy\/linux\/setup\.sh"/);
+
+const tailscaleSetup = read("deploy/linux/scripts/tailscale-setup.sh");
+assert.match(tailscaleSetup, /command -v tailscale/);
+assert.match(tailscaleSetup, /https:\/\/tailscale\.com\/install\.sh/);
+assert.match(tailscaleSetup, /systemctl enable --now tailscaled\.service/);
+assert.match(tailscaleSetup, /TAILSCALE_AUTH_KEY/);
+assert.match(tailscaleSetup, /tailscale up[\s\S]*--ssh/);
+assert.match(tailscaleSetup, /Active Tailscale SSH session detected/);
+
+const healthCheck = read("deploy/linux/scripts/inverter-health-check.sh");
+assert.match(healthCheck, /tailscaled\.service/);
+assert.match(healthCheck, /"BackendState"/);
 
 const dbCheck = read("deploy/linux/scripts/inverter-db-check.sh");
 assert.match(dbCheck, /DB_PATH="\$\{DB_DIR\}\/adsi\.db"/);

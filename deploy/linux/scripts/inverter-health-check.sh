@@ -17,6 +17,7 @@ SERVICES=(
     inverter-server.service
     inverter-forecast.service
     inverter-go2rtc.service
+    tailscaled.service
 )
 
 services_active() {
@@ -44,6 +45,14 @@ for service in "${SERVICES[@]}"; do
     printf '%-34s %s\n' "${service}" "${state:-unknown}"
     [ "${state}" = "active" ] || FAILED=1
 done
+
+if tailscale status --json 2>/dev/null \
+    | grep -Eq '"BackendState"[[:space:]]*:[[:space:]]*"Running"'; then
+    printf '%-34s %s\n' "Tailscale network" "connected ($(tailscale ip -4 2>/dev/null || echo unknown))"
+else
+    printf '%-34s %s\n' "Tailscale network" "not connected"
+    FAILED=1
+fi
 
 for probe in \
     'gateway|http://127.0.0.1:3500/api/health' \

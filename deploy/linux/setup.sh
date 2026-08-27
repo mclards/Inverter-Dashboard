@@ -53,6 +53,9 @@ if [ "${INVERTER_SKIP_SYSTEM_PACKAGES:-0}" != "1" ]; then
 fi
 ok "Operating-system prerequisites are ready."
 
+/usr/bin/bash "${REPO_ROOT}/deploy/linux/scripts/tailscale-setup.sh"
+ok "Persistent Tailscale remote access is ready."
+
 log "[3/18] Checking the Node.js runtime..."
 NODE_MAJOR=0
 if command -v node >/dev/null 2>&1; then
@@ -206,9 +209,11 @@ ok "go2rtc ${GO2RTC_VERSION} is installed with a verified checksum."
 
 log "[12/18] Validating executable scripts and application syntax..."
 chmod 755 "${APP_DIR}/deploy/linux/setup.sh" \
+    "${APP_DIR}/deploy/linux/install.sh" \
     "${APP_DIR}/deploy/linux/update.sh" \
     "${APP_DIR}/deploy/linux/scripts/inverter-db-check.sh" \
-    "${APP_DIR}/deploy/linux/scripts/inverter-health-check.sh"
+    "${APP_DIR}/deploy/linux/scripts/inverter-health-check.sh" \
+    "${APP_DIR}/deploy/linux/scripts/tailscale-setup.sh"
 runuser -u "${APP_USER}" -- /usr/bin/node --check "${APP_DIR}/server/index.js"
 runuser -u "${APP_USER}" -- "${APP_DIR}/venv/bin/python" -m py_compile \
     "${APP_DIR}/backend/engines/inverter/InverterCoreService.py" \

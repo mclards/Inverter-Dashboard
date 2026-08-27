@@ -68,6 +68,28 @@ Inverter-Dashboard/
 
 ### Linux production appliance
 
+On a fresh Ubuntu or Debian installation, the complete dashboard installation
+is one command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mclards/Inverter-Dashboard/main/deploy/linux/install.sh | sudo bash
+```
+
+This bootstrap installs Git, downloads the dashboard, and runs the complete
+service, dependency, firewall, database, camera-streaming, and health setup.
+It also detects or installs Tailscale, enables it at boot, and enables
+Tailscale SSH. On a new tailnet device, open the one-time authorization URL
+printed during installation; normal reconnects do not repeat enrollment.
+
+For unattended enrollment, supply a pre-authorized Tailscale auth key without
+storing it in the repository:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mclards/Inverter-Dashboard/main/deploy/linux/install.sh | sudo TAILSCALE_AUTH_KEY='tskey-auth-REPLACE' bash
+```
+
+The equivalent manual workflow is:
+
 ```bash
 sudo git clone --depth 1 --branch main https://github.com/mclards/Inverter-Dashboard.git /opt/inverter-dashboard
 cd /opt/inverter-dashboard

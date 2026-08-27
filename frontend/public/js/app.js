@@ -16660,8 +16660,10 @@ class CameraPlayer {
     pc.addTransceiver("video", { direction: "recvonly" });
     pc.addTransceiver("audio", { direction: "recvonly" });
 
+    let connected = false;
     pc.ontrack = (ev) => {
       if (ev.streams && ev.streams[0]) {
+        connected = true;
         video.srcObject = ev.streams[0];
         video.play().catch(() => {});
         this._hideOverlay();
@@ -16671,18 +16673,49 @@ class CameraPlayer {
 
     pc.oniceconnectionstatechange = () => {
       if (pc.iceConnectionState === "failed" || pc.iceConnectionState === "disconnected") {
-        this._onStreamError("WebRTC connection lost");
+        if (!connected) {
+          console.warn("[camera] WebRTC ICE failed, falling back to HLS...");
+          if (this.rtcPeer) {
+            try { this.rtcPeer.close(); } catch (_) {}
+            this.rtcPeer = null;
+          }
+          this._startHls(s);
+        } else {
+          this._onStreamError("WebRTC connection lost");
+        }
       }
     };
 
+    const waitIceGathering = (peer) => new Promise((resolve) => {
+      if (peer.iceGatheringState === "complete") {
+        resolve();
+        return;
+      }
+      const checkState = () => {
+        if (peer.iceGatheringState === "complete") {
+          peer.removeEventListener("icegatheringstatechange", checkState);
+          resolve();
+        }
+      };
+      peer.addEventListener("icegatheringstatechange", checkState);
+      setTimeout(() => {
+        peer.removeEventListener("icegatheringstatechange", checkState);
+        resolve();
+      }, 800);
+    });
+
     pc.createOffer().then((offer) => {
-      pc.setLocalDescription(offer);
+      return pc.setLocalDescription(offer);
+    }).then(() => {
+      return waitIceGathering(pc);
+    }).then(() => {
+      const sdp = pc.localDescription?.sdp || "";
       return fetch(`${apiBase}/api/webrtc?src=${encodeURIComponent(s.streamKey)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "offer",
-          sdp: offer.sdp,
+          sdp: sdp,
         }),
       });
     }).then((r) => {
@@ -16691,8 +16724,12 @@ class CameraPlayer {
     }).then((answer) => {
       pc.setRemoteDescription(new RTCSessionDescription(answer));
     }).catch((err) => {
-      console.warn("[camera] WebRTC error:", err.message);
-      this._onStreamError("WebRTC connection failed");
+      console.warn("[camera] WebRTC error:", err.message, "— falling back to HLS");
+      if (this.rtcPeer) {
+        try { this.rtcPeer.close(); } catch (_) {}
+        this.rtcPeer = null;
+      }
+      this._startHls(s);
     });
   }
 
@@ -17229,10 +17266,17 @@ class HikVisionPlayer {
     if (!video) return;
     video.style.display = "block";
     video.muted = true;
-    const url = `/api/hikvision/hls/master.m3u8?mode=${encodeURIComponent(this.effectiveMode)}&_=${Date.now()}`;
+    let url = `/api/hikvision/hls/master.m3u8?mode=${encodeURIComponent(this.effectiveMode)}&_=${Date.now()}`;
     try {
-      const manifestResponse = await fetch(url, { cache: "no-store" });
-      const manifestText = await manifestResponse.text();
+      let manifestResponse = await fetch(url, { cache: "no-store" });
+      let manifestText = await manifestResponse.text();
+      if ((!manifestResponse.ok || !/^\uFEFF?\s*#EXTM3U(?:\r?\n|$)/i.test(manifestText)) && this.effectiveMode === "browser") {
+        console.warn("[hikvision] Primary browser manifest failed, trying compatible stream...");
+        this.effectiveMode = "compatible";
+        url = `/api/hikvision/hls/master.m3u8?mode=compatible&_=${Date.now()}`;
+        manifestResponse = await fetch(url, { cache: "no-store" });
+        manifestText = await manifestResponse.text();
+      }
       if (!manifestResponse.ok || !/^\uFEFF?\s*#EXTM3U(?:\r?\n|$)/i.test(manifestText)) {
         let serverMessage = "";
         try { serverMessage = JSON.parse(manifestText)?.error || ""; } catch (_) {}

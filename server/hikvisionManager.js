@@ -221,7 +221,7 @@ function writeRuntimeConfig(cfg) {
   // The configured DVR main profile is 12 fps. A one-second GOP reduces
   // WebRTC join/recovery delay without inventing duplicate frames.
   const commonEncode = "-r:v 12 -fps_mode cfr -g:v 12 -forced-idr 1 -bf 0 -b:v 5M -maxrate:v 6M -bufsize:v 8M";
-  const h264Template = cfg.transcodeHardware === "software"
+  const h264Template = cfg.transcodeHardware === "software" || (process.platform !== "win32" && (cfg.transcodeHardware === "auto" || cfg.transcodeHardware === "cuda"))
     ? `-c:v libx264 ${commonEncode} -profile:v high -level:v 5.1 -preset:v veryfast -tune:v zerolatency -pix_fmt:v yuv420p`
     : cfg.transcodeHardware === "dxva2"
       ? `-c:v h264_qsv ${commonEncode} -profile:v high -level:v 5.1 -preset:v veryfast -async_depth:v 1`
@@ -237,9 +237,9 @@ function writeRuntimeConfig(cfg) {
     },
     // The dashboard is served from localhost:3500 while this isolated player
     // listens on port 1994. Allow cross-origin WebSocket and remote client handshakes.
-    api: { listen: `:${API_PORT}`, origin: "*" },
-    rtsp: { listen: `:${RTSP_PORT}` },
-    webrtc: { listen: `:${WEBRTC_PORT}` },
+    api: { listen: `${API_HOST}:${API_PORT}`, origin: "*" },
+    rtsp: { listen: `${API_HOST}:${RTSP_PORT}` },
+    webrtc: { listen: `${API_HOST}:${WEBRTC_PORT}` },
     ffmpeg: {
       // The DVR's HEVC stream does not tolerate go2rtc's default
       // `-fflags nobuffer` RTSP input template. TCP without that flag is stable.
@@ -520,7 +520,8 @@ async function performStart(cfg) {
   const configPath = writeRuntimeConfig(cfg);
   const ffmpegDir = resolveFfmpegDir();
   const env = { ...process.env };
-  if (ffmpegDir) env.PATH = `${ffmpegDir};${env.PATH || ""}`;
+  const pathSep = process.platform === "win32" ? ";" : ":";
+  if (ffmpegDir) env.PATH = `${ffmpegDir}${pathSep}${env.PATH || ""}`;
   status = "starting";
   stopping = false;
   activeConfig = cfg;
@@ -721,11 +722,35 @@ function proxyMedia(req, res, configRaw) {
       const chunks = [];
       mediaRes.on("data", (chunk) => chunks.push(chunk));
       mediaRes.on("end", () => {
+        const rawBody = Buffer.concat(chunks).toString("utf8");
+        if ((!rawBody.includes("#EXTM3U") || rawBody.trim() === "") && selectedStream(cfg) === STREAM_BROWSER) {
+          const fallbackPath = `/api/stream.m3u8?src=${encodeURIComponent(STREAM_COMPAT)}&mp4`;
+          const fbReq = http.get(
+            { host: API_HOST, port: API_PORT, path: fallbackPath, timeout: 8000 },
+            (fbRes) => {
+              const fbChunks = [];
+              fbRes.on("data", (c) => fbChunks.push(c));
+              fbRes.on("end", () => {
+                const fbBody = rewriteHikvisionPlaylist(Buffer.concat(fbChunks).toString("utf8"));
+                res.status(fbRes.statusCode || 200);
+                res.set("Content-Type", fbRes.headers["content-type"] || "application/vnd.apple.mpegurl");
+                res.set("Content-Length", String(Buffer.byteLength(fbBody)));
+                res.send(fbBody);
+              });
+            },
+          );
+          fbReq.on("error", () => {
+            const playlist = rewriteHikvisionPlaylist(rawBody);
+            res.set("Content-Length", String(Buffer.byteLength(playlist)));
+            res.send(playlist);
+          });
+          return;
+        }
         // go2rtc emits absolute child-playlist and segment paths under
         // /api/hls/*. Keep every hop inside this authenticated dashboard
         // route; otherwise Remote mode asks Express for /api/hls/* and Hls.js
         // receives the dashboard HTML instead of an HLS manifest.
-        const playlist = rewriteHikvisionPlaylist(Buffer.concat(chunks).toString("utf8"));
+        const playlist = rewriteHikvisionPlaylist(rawBody);
         res.set("Content-Length", String(Buffer.byteLength(playlist)));
         res.send(playlist);
       });

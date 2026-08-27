@@ -58,7 +58,7 @@ if [ "${INVERTER_SKIP_SYSTEM_PACKAGES:-0}" != "1" ]; then
     export DEBIAN_FRONTEND=noninteractive
     apt-get update -qq
     apt-get install -y -qq \
-        build-essential ca-certificates curl git gnupg openssh-server \
+        build-essential ca-certificates curl ffmpeg git gnupg openssh-server \
         python3 python3-pip python3-venv rsync sqlite3 ufw >/dev/null
 fi
 git config --system --add safe.directory "${APP_DIR}" 2>/dev/null || true

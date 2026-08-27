@@ -28184,4 +28184,172 @@ table.fcal-settings-table .fcal-set-readonly {
     color: var(--text3) !important;
   }
 
+  /* ==========================================================================
+     MOBILE WORKSPACE & TOUCH CONTROLS FOR FORECAST PAGE & CAMERAS
+     ========================================================================== */
+
+  /* Forecast Page Mobile Workspace */
+  #page-forecast {
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+  #page-forecast .forecast-popout-bar {
+    padding: 2px 6px 0 0 !important;
+    height: 28px !important;
+  }
+  #page-forecast .forecast-shell {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    padding: 6px 6px 14px 6px !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    box-sizing: border-box !important;
+  }
+  #page-forecast .forecast-main {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  #page-forecast .forecast-page-sections > .sgroup.settings-card {
+    border-radius: 10px !important;
+    padding: 10px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  #page-forecast #btnOpenForecastSettings {
+    width: 100% !important;
+    min-height: 36px !important;
+    justify-content: center !important;
+  }
+  #page-forecast #forecastOperationsSection .forecast-preview-toolbar {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  #page-forecast #forecastOperationsSection .forecast-preview-toolbar label {
+    grid-column: span 1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    font-size: 11px !important;
+    margin: 0 !important;
+  }
+  #page-forecast #forecastOperationsSection .forecast-preview-toolbar .forecast-preview-field-unit {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+  }
+  #page-forecast #forecastOperationsSection .forecast-preview-toolbar-buttons {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    margin-top: 4px !important;
+  }
+  #page-forecast #forecastOperationsSection .forecast-preview-toolbar-buttons .btn {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    justify-content: center !important;
+  }
+  #page-forecast #forecastOperationsSection .forecast-preview-metrics {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    width: 100% !important;
+  }
+  #page-forecast #forecastOperationsSection .forecast-preview-metric {
+    min-height: 52px !important;
+    padding: 6px 8px !important;
+    border-radius: 8px !important;
+    box-sizing: border-box !important;
+  }
+  #page-forecast #forecastOperationsSection .forecast-preview-label {
+    font-size: 9px !important;
+  }
+  #page-forecast #forecastOperationsSection .forecast-preview-value {
+    font-size: 12px !important;
+  }
+  #page-forecast #forecastOperationsSection .forecast-preview-chart-wrap {
+    padding: 8px !important;
+    border-radius: 10px !important;
+    box-sizing: border-box !important;
+  }
+  #page-forecast #forecastOperationsSection .forecast-preview-chart-head {
+    flex-direction: column !important;
+    gap: 4px !important;
+    align-items: flex-start !important;
+  }
+  #page-forecast #forecastOperationsSection .forecast-preview-chart-title {
+    font-size: 13px !important;
+  }
+  #page-forecast #forecastOperationsSection .forecast-preview-chart-emphasis {
+    font-size: 10px !important;
+  }
+  #page-forecast #forecastOperationsSection .forecast-preview-chart-canvas canvas {
+    height: 240px !important;
+    max-height: 240px !important;
+  }
+
+  /* Camera Cards Touch Controls on Mobile */
+  .camera-card .cam-controls {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.75)) !important;
+    padding: 4px 6px !important;
+  }
+  .camera-card .cam-ctrl-btn {
+    font-size: 18px !important;
+    padding: 6px 8px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 6px !important;
+  }
+  .camera-card .cam-label {
+    font-size: 11px !important;
+    padding: 2px 6px !important;
+  }
+  .camera-card .cam-codec-badge {
+    font-size: 9px !important;
+    padding: 2px 6px !important;
+  }
+
+  /* Camera Settings Modals on Mobile */
+  .cam-settings-card,
+  .hik-settings-card {
+    width: calc(100vw - 16px) !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+    border-radius: 12px !important;
+    padding: 12px !important;
+    box-sizing: border-box !important;
+  }
+  .cam-field-row {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+  }
+  .cam-field-row > * {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+    min-width: 0 !important;
+  }
+  .cam-settings-actions {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+  }
+  .cam-settings-actions .btn {
+    width: 100% !important;
+    justify-content: center !important;
+    height: 36px !important;
+    min-height: 36px !important;
+  }
+
 }

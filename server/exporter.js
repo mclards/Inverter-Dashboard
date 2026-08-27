@@ -31,6 +31,7 @@ const {
   // v2.11.x — running-MWh fast-path: includes today's live row (is_final=0)
   // so the export can skip the heavy raw-readings scan for today's slice.
   getDailyRunningSummaryRange,
+  DATA_DIR,
 } = require('./db');
 const dailyAggregator = require('./dailyAggregator');
 const { formatAlarmHex, decodeAlarm } = require('./alarms');
@@ -1081,13 +1082,23 @@ function collectSolcastRowsForRange(startTs, endTs) {
   }
 }
 
+function getExportBaseDir() {
+  const isWin = process.platform === "win32";
+  const defaultBase = isWin ? 'C:\\Logs\\InverterDashboard' : path.join(path.dirname(DATA_DIR), 'exports');
+  const configured = String(getSetting('csvSavePath', defaultBase) || '').trim();
+  if (!isWin && (/^[A-Za-z]:[\\/]/.test(configured) || configured.includes('\\'))) {
+    return path.resolve(defaultBase);
+  }
+  return path.resolve(configured || defaultBase);
+}
+
 function resolveExportDir(inverter, categoryFolder) {
   const validFolders = new Set(Object.values(EXPORT_FOLDERS));
   if (!validFolders.has(categoryFolder)) {
     throw new Error(`[exporter] Invalid export category folder: "${categoryFolder}"`);
   }
 
-  const base = getSetting('csvSavePath', 'C:\\Logs\\InverterDashboard');
+  const base = getExportBaseDir();
   const invDir = path.join(base, inverterFolderLabel(inverter));
   ensureDir(invDir);
 

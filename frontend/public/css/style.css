@@ -8541,6 +8541,37 @@ select.cam-field-input { appearance: auto; }
   color: var(--red);
 }
 
+.exp-filename {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.exp-dl-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  padding: 3px 9px;
+  border-radius: 4px;
+  background: rgba(34, 197, 94, 0.18);
+  color: var(--green);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 10px;
+  line-height: 1.2;
+  vertical-align: middle;
+  transition: all 0.15s ease;
+}
+
+.exp-dl-link:hover,
+.exp-dl-link:active {
+  background: var(--green);
+  color: #0b0f14;
+  border-color: var(--green);
+  text-decoration: none;
+}
+
 .sgroup {
   margin-bottom: 10px;
   padding: 14px;
@@ -9680,23 +9711,32 @@ select.cam-field-input { appearance: auto; }
   }
 }
 
-#page-settings .srow label.chk-inline {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text2);
+#page-settings .srow label.chk-inline,
+#page-settings .settings-sections .srow label.chk-inline {
+  grid-column: 1 / -1 !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 10px !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  color: var(--text2) !important;
+  cursor: pointer !important;
 }
 
-#page-settings .chk-inline input[type="checkbox"] {
-  width: 14px;
-  height: 14px;
-  accent-color: var(--accent);
-  cursor: pointer;
+#page-settings .chk-inline input[type="checkbox"],
+#page-settings .settings-sections .chk-inline input[type="checkbox"] {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  max-width: 16px !important;
+  accent-color: var(--accent) !important;
+  cursor: pointer !important;
+  margin: 0 !important;
+  flex: 0 0 16px !important;
 }
 
 #page-settings .license-grid {
@@ -25562,7 +25602,7 @@ table.fcal-settings-table .fcal-set-readonly {
     width: 100% !important;
   }
 
-  #page-settings .settings-sections .srow label {
+  #page-settings .settings-sections .srow label:not(.chk-inline) {
     display: flex !important;
     flex-direction: column !important;
     align-items: flex-start !important;
@@ -25571,6 +25611,27 @@ table.fcal-settings-table .fcal-set-readonly {
     font-weight: 600 !important;
     color: var(--text2) !important;
     width: 100% !important;
+  }
+  #page-settings .settings-sections .srow label.chk-inline {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    color: var(--text2) !important;
+    width: 100% !important;
+    cursor: pointer !important;
+  }
+  #page-settings .settings-sections .srow label.chk-inline input[type="checkbox"] {
+    width: 16px !important;
+    height: 16px !important;
+    min-width: 16px !important;
+    max-width: 16px !important;
+    margin: 0 !important;
+    flex: 0 0 16px !important;
+    accent-color: var(--accent) !important;
+    cursor: pointer !important;
   }
 
   #page-settings .settings-sections .srow .inp,
@@ -26168,7 +26229,7 @@ table.fcal-settings-table .fcal-set-readonly {
     margin: 0 !important;
     width: 100% !important;
   }
-  #page-settings .settings-sections > .sgroup.settings-card > .srow > label {
+  #page-settings .settings-sections > .sgroup.settings-card > .srow > label:not(.chk-inline) {
     width: 100% !important;
   }
 

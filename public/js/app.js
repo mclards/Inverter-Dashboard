@@ -4399,27 +4399,36 @@ async function pickExportFolder() {
     return;
   }
 
-  // Browser fallback
+  if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent || "")) {
+    showMsg(
+      "settingsMsg",
+      "On mobile devices, exported files download directly to your Downloads folder / Files app.",
+      "",
+    );
+    return;
+  }
+
+  // Browser fallback for desktop web
   const manual = prompt(
-    "Enter export folder path:",
+    "Enter server export folder path:",
     current || "C:\\Logs\\InverterDashboard",
   );
   if (!manual) return;
   $("setCsvPath").value = manual;
   State.settings.csvSavePath = manual;
-  showMsg("settingsMsg", "Folder set. Click Save Settings to apply.", "");
+  showMsg("settingsMsg", "Server folder set. Click Save Settings to apply.", "");
 }
 
 async function openExportFolder() {
   const p = String(
     $("setCsvPath").value || State.settings.csvSavePath || "",
   ).trim();
-  if (!p) {
-    showMsg("settingsMsg", "Set export folder first.", "error");
-    return;
-  }
 
   if (window.electronAPI?.openFolder) {
+    if (!p) {
+      showMsg("settingsMsg", "Set export folder first.", "error");
+      return;
+    }
     const ok = await window.electronAPI.openFolder(p);
     if (!ok) showMsg("settingsMsg", "Unable to open export folder.", "error");
     return;
@@ -4430,7 +4439,11 @@ async function openExportFolder() {
     return;
   }
 
-  showToast(`Export folder: ${p}`, "success", 5000);
+  showMsg(
+    "settingsMsg",
+    "On mobile phones and web browsers, exported files are saved directly in your device's Downloads folder.",
+    "",
+  );
 }
 
 function openLogsFolder() {
@@ -23699,11 +23712,7 @@ async function runExport(
     const r = await api(`/api/export/${type}`, "POST", body, {
       signal: controller.signal,
     });
-    if (res) {
-      res.className = "exp-result";
-      res.textContent = "✔ Saved: " + r.path;
-    }
-    await openExportPathFolder(r.path);
+    await handleExportSuccess(r, res);
     setExportButtonState(btnId, "ok");
   } catch (e) {
     if (isExportCancelledError(e)) {
@@ -23767,11 +23776,7 @@ async function runSingleDateExport(
     const r = await api(`/api/export/${type}`, "POST", body, {
       signal: controller.signal,
     });
-    if (res) {
-      res.className = "exp-result";
-      res.textContent = "✔ Saved: " + r.path;
-    }
-    await openExportPathFolder(r.path);
+    await handleExportSuccess(r, res);
     setExportButtonState(btnId, "ok");
   } catch (e) {
     if (isExportCancelledError(e)) {
@@ -23836,11 +23841,7 @@ async function runEnergyExport() {
     }, {
       signal: controller.signal,
     });
-    if (res) {
-      res.className = "exp-result";
-      res.textContent = "✔ Saved: " + r.path;
-    }
-    await openExportPathFolder(r.path);
+    await handleExportSuccess(r, res);
     setExportButtonState("btnRunEnergyExport", "ok");
   } catch (e) {
     if (isExportCancelledError(e)) {
@@ -23981,12 +23982,8 @@ async function runForecastActualExport() {
       signal: controller.signal,
     });
     const sourceLabel = source === "solcast" ? "Solcast Day-Ahead" : "Trained Day-Ahead";
-    if (res) {
-      res.className = "exp-result";
-      res.textContent =
-        `✔ Saved: ${r.path} (${sourceLabel}${exportFormat === "average-table" ? ", average table" : ""})`;
-    }
-    await openExportPathFolder(r.path);
+    const customPrefix = `(${sourceLabel}${exportFormat === "average-table" ? ", average table" : ""})`;
+    await handleExportSuccess(r, res, customPrefix);
     setExportButtonState("btnRunForecastExport", "ok");
   } catch (e) {
     if (isExportCancelledError(e)) {
@@ -24015,8 +24012,7 @@ async function runSolcastWeekAheadExport() {
     const format = $("expWeekAheadFormat")?.value || "xlsx";
     const resolution = $("expWeekAheadResolution")?.value || "1hr";
     const r = await api("/api/export/solcast-week-ahead", "POST", { format, resolution });
-    if (res) { res.className = "exp-result"; res.textContent = `✔ Saved: ${r.path}`; }
-    await openExportPathFolder(r.path);
+    await handleExportSuccess(r, res);
     setExportButtonState("btnRunWeekAheadExport", "ok");
   } catch (e) {
     if (res) { res.className = "exp-result error"; res.textContent = "✗ " + e.message; }
@@ -24616,11 +24612,7 @@ async function runDailyDataExport() {
       { signal: controller.signal },
     );
     if (!r?.path) throw new Error("Export did not return output path.");
-    if (res) {
-      res.className = "exp-result";
-      res.textContent = "✔ Saved: " + r.path;
-    }
-    await openExportPathFolder(r.path);
+    await handleExportSuccess(r, res);
     setExportButtonState("btnRunDailyDataExport", "ok");
   } catch (e) {
     if (isExportCancelledError(e)) {
@@ -24689,11 +24681,7 @@ async function runDailyReportExport() {
       },
     );
     if (!r?.path) throw new Error("Export did not return output path.");
-    if (res) {
-      res.className = "exp-result";
-      res.textContent = "✔ Saved: " + r.path;
-    }
-    await openExportPathFolder(r.path);
+    await handleExportSuccess(r, res);
     setExportButtonState("btnRunDailyReportExport", "ok");
   } catch (e) {
     if (isExportCancelledError(e)) {
@@ -24721,6 +24709,41 @@ function dirFromFilePath(filePath) {
   return i >= 0 ? p.slice(0, i) : p;
 }
 
+function isElectronApp() {
+  return Boolean(window.electronAPI && typeof window.electronAPI.openFolder === "function");
+}
+
+function getExportFileName(exportResult) {
+  const p = String(exportResult?.relativePath || exportResult?.path || "").trim();
+  if (!p) return "export.xlsx";
+  const i = Math.max(p.lastIndexOf("/"), p.lastIndexOf("\\"));
+  return i >= 0 ? p.slice(i + 1) : p;
+}
+
+function getExportDownloadUrl(exportResult) {
+  const rel = String(exportResult?.relativePath || "").trim();
+  const abs = String(exportResult?.path || "").trim();
+  return `/api/export/artifact?relativePath=${encodeURIComponent(rel)}&path=${encodeURIComponent(abs)}`;
+}
+
+function triggerBrowserFileDownload(url, fileName) {
+  try {
+    const a = document.createElement("a");
+    a.style.display = "none";
+    a.href = url;
+    if (fileName) a.setAttribute("download", fileName);
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      try {
+        if (a.parentNode) a.parentNode.removeChild(a);
+      } catch (_) {}
+    }, 2000);
+  } catch (err) {
+    console.warn("[export] Automatic browser download trigger failed:", err);
+  }
+}
+
 async function openExportPathFolder(filePath) {
   const dir = dirFromFilePath(filePath);
   if (!dir) return;
@@ -24730,6 +24753,31 @@ async function openExportPathFolder(filePath) {
     }
   } catch (err) {
     console.warn("[app] openExportPathFolder failed:", err.message);
+  }
+}
+
+async function handleExportSuccess(exportResult, resultElementId, customPrefix = "") {
+  const res = typeof resultElementId === "string" ? $(resultElementId) : resultElementId;
+  const fileName = getExportFileName(exportResult);
+  const downloadUrl = getExportDownloadUrl(exportResult);
+
+  if (isElectronApp()) {
+    if (res) {
+      res.className = "exp-result";
+      res.textContent = (customPrefix ? customPrefix + " " : "") + "✔ Saved: " + (exportResult?.path || fileName);
+    }
+    await openExportPathFolder(exportResult?.path);
+  } else {
+    // Web browser / Mobile phone (iPhone Safari, Android Chrome, iPad, Desktop Web)
+    // 1. Immediately trigger automatic browser download into device's Downloads folder
+    triggerBrowserFileDownload(downloadUrl, fileName);
+
+    // 2. Render tap-friendly success UI with direct download link
+    if (res) {
+      res.className = "exp-result";
+      const prefixHtml = customPrefix ? `<span>${escapeHtml(customPrefix)}</span> ` : "";
+      res.innerHTML = `${prefixHtml}✔ <strong>Export Ready:</strong> <span class="exp-filename">${escapeHtml(fileName)}</span> <a href="${escapeHtml(downloadUrl)}" download="${escapeHtml(fileName)}" class="exp-dl-link" title="Tap to download file" target="_blank" rel="noopener">📥 Download</a>`;
+    }
   }
 }
 
@@ -28484,8 +28532,7 @@ async function _snbHandleMigExport() {
   try {
     const r = await api("/api/export/measurement-board-migration", "POST", { format });
     if (!r?.ok) throw new Error(r?.error || "export failed");
-    if (msgEl) { msgEl.textContent = "✔ Saved: " + r.path; msgEl.className = "smsg"; }
-    await openExportPathFolder(r.path);
+    await handleExportSuccess(r, msgEl);
   } catch (err) {
     if (msgEl) { msgEl.textContent = `Export failed: ${err.message}`; msgEl.className = "smsg error"; }
   } finally {

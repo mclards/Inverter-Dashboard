@@ -25250,16 +25250,20 @@ app.post("/api/energy/summary-source", async (req, res) => {
   }
 });
 
-app.post("/api/export/artifact", async (req, res) => {
+app.all(["/api/export/artifact", "/api/export/download"], async (req, res) => {
   if (isRemoteMode()) {
     return proxyToRemote(req, res);
   }
   try {
-    const relativePath = normalizeExportRelativePath(
-      req?.body?.relativePath,
-      req?.body?.path,
-    );
-    const filePath = resolveLocalExportPath(relativePath, req?.body?.path);
+    const rawRel =
+      req.query?.relativePath ||
+      req.query?.file ||
+      req.body?.relativePath ||
+      req.body?.file ||
+      "";
+    const rawPath = req.query?.path || req.body?.path || "";
+    const relativePath = normalizeExportRelativePath(rawRel, rawPath);
+    const filePath = resolveLocalExportPath(relativePath, rawPath);
     const stat = await fs.promises.stat(filePath);
     if (!stat.isFile()) {
       return res.status(404).json({ ok: false, error: "Export file not found." });

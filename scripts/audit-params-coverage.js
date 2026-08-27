@@ -7,7 +7,7 @@
 const path = require("path");
 const Database = require("better-sqlite3");
 
-const DEFAULT_DB = "C:\\ProgramData\\InverterDashboard\\adsi.db";
+const DEFAULT_DB = "C:\\ProgramData\\Inverter-Dashboard\\db\\adsi.db";
 const dbPath = process.env.ADSI_DB || DEFAULT_DB;
 
 function todayLocal() {

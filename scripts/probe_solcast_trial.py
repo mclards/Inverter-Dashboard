@@ -44,7 +44,7 @@ OUTPUT_PARAMETERS = [
     "precipitation_rate",
 ]
 BASE_URL = "https://api.solcast.com.au"
-DB_PATH = r"C:\ProgramData\InverterDashboard\db\adsi.db"
+DB_PATH = r"C:\ProgramData\Inverter-Dashboard\db\adsi.db"
 DEFAULT_KEY_FILE = r"C:\Users\User\.solcast_trial_key.txt"
 
 # Where to save the raw response (so we never re-probe to re-read it)

@@ -4048,7 +4048,7 @@ async function refreshPollCadenceChip() {
         `${overCount}/${total} inverter(s) polling faster than vendor-recommended ` +
         `${recSec}s (Ingeteam Level 2 AAV2011IFA01_ p.8). Faster polling stresses ` +
         `the comm board; brief comm windows in the Energy Summary may follow. ` +
-        `Edit C:\\ProgramData\\InverterDashboard\\ipconfig.json poll_interval to tune.`;
+        `Edit C:\\ProgramData\\Inverter-Dashboard\\db\\ipconfig.json poll_interval to tune.`;
     } else {
       chip.classList.remove("over-poll");
       chip.title =

@@ -91,8 +91,7 @@ function showRecoveryDialogAndExit({ integrityResult, startupFailures = [], reas
     "ADSI Inverter Dashboard could not start because application files are damaged.",
     "",
     "This usually happens after a sudden power loss while Windows was writing to disk.",
-    "Your plant data under C:\\ProgramData\\InverterDashboard\\ is not affected and will",
-    "be picked up automatically once the dashboard is reinstalled.",
+    "Your plant data under C:\\ProgramData\\Inverter-Dashboard\\ is not affected and will",
   ];
 
   const detailLines = [];

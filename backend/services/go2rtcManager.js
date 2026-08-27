@@ -7,14 +7,24 @@ const http = require("http");
 const os = require("os");
 
 /* ── Constants ────────────────────────────────────────────────────── */
-const PROGRAMDATA_ROOT = path.join(
-  process.env.PROGRAMDATA ||
-    (process.platform === "win32"
-      ? "C:\\ProgramData"
-      : process.env.ADSI_PORTABLE_DATA_DIR ||
-        path.join(os.homedir(), ".inverter-dashboard")),
-  "Inverter-Dashboard",
-);
+function resolveRuntimeRoot() {
+  if (process.platform === "win32") {
+    return path.join(process.env.PROGRAMDATA || "C:\\ProgramData", "Inverter-Dashboard");
+  }
+  if (String(process.env.INVERTER_STORAGE_DIR || "").trim()) {
+    return path.resolve(String(process.env.INVERTER_STORAGE_DIR).trim());
+  }
+  const explicitDbDir = String(process.env.INVERTER_DATA_DIR || "").trim();
+  if (explicitDbDir) {
+    const resolved = path.resolve(explicitDbDir);
+    return path.basename(resolved) === "db" ? path.dirname(resolved) : resolved;
+  }
+  return path.resolve(
+    String(process.env.ADSI_PORTABLE_DATA_DIR || "").trim() ||
+      path.join(os.homedir(), ".inverter-dashboard"),
+  );
+}
+const PROGRAMDATA_ROOT = resolveRuntimeRoot();
 const API_PORT = 1984;
 const WEBRTC_PORT = 8555;
 const HEALTH_INTERVAL_MS = 5000;
@@ -32,6 +42,7 @@ let crashCount = 0;
 let _autoRestart = false;
 let lastHealthTs = 0;
 let _stoppingIntentional = false;
+let _externalInstance = false;
 
 /* ── Path resolution ──────────────────────────────────────────────── */
 
@@ -64,6 +75,7 @@ function resolveExePath() {
     const systemPaths = [
       "/usr/local/bin/go2rtc",
       "/usr/bin/go2rtc",
+      "/opt/inverter-dashboard/backend/engines/go2rtc/go2rtc",
       "/opt/adsi-dashboard/server/go2rtc/go2rtc",
       "/opt/adsi-dashboard/server/go2rtc/go2rtc_linux_amd64",
     ];
@@ -179,6 +191,7 @@ function handleCrash() {
   crashCount++;
   console.warn(`[go2rtc] crash #${crashCount}`);
   go2rtcProcess = null;
+  _externalInstance = false;
 
   if (_autoRestart && crashCount <= MAX_RESTART_ATTEMPTS) {
     console.log(
@@ -192,12 +205,10 @@ function handleCrash() {
         status = "error";
       });
     }, delay);
-  } else if (crashCount > MAX_RESTART_ATTEMPTS) {
+  } else {
     status = "error";
     stopHealthLoop();
-    console.error(
-      `[go2rtc] exceeded max restart attempts (${MAX_RESTART_ATTEMPTS}). Giving up.`,
-    );
+    console.error(`[go2rtc] unavailable after ${crashCount} health/crash event(s)`);
   }
 }
 
@@ -239,6 +250,7 @@ async function _spawnProcess() {
   }
 
   go2rtcProcess = child;
+  _externalInstance = false;
 
   child.stdout.on("data", (data) => {
     data
@@ -295,6 +307,7 @@ async function start(enableAutoRestart = true) {
   const alreadyHealthy = await healthCheck();
   if (alreadyHealthy) {
     status = "running";
+    _externalInstance = true;
     startHealthLoop();
     return { ok: true, already: true, external: true };
   }
@@ -324,6 +337,14 @@ async function start(enableAutoRestart = true) {
  */
 function stop() {
   return new Promise((resolve) => {
+    if (_externalInstance) {
+      resolve({
+        ok: false,
+        error: "go2rtc is managed by systemd on this gateway; use the Linux service controls.",
+        managedExternally: true,
+      });
+      return;
+    }
     _stoppingIntentional = true;
     _autoRestart = false;
     stopHealthLoop();
@@ -331,7 +352,7 @@ function stop() {
     if (!go2rtcProcess || go2rtcProcess.exitCode !== null) {
       go2rtcProcess = null;
       status = "stopped";
-      resolve();
+      resolve({ ok: true });
       return;
     }
 
@@ -347,7 +368,7 @@ function stop() {
       go2rtcProcess = null;
       status = "stopped";
       console.log("[go2rtc] force-killed after timeout");
-      resolve();
+      resolve({ ok: true });
     }, SHUTDOWN_TIMEOUT_MS);
     if (forceKill.unref) forceKill.unref();
 
@@ -358,7 +379,7 @@ function stop() {
       go2rtcProcess = null;
       status = "stopped";
       console.log("[go2rtc] stopped");
-      resolve();
+      resolve({ ok: true });
     });
 
     try {
@@ -369,7 +390,7 @@ function stop() {
         clearTimeout(forceKill);
         go2rtcProcess = null;
         status = "stopped";
-        resolve();
+        resolve({ ok: true });
       }
     }
   });
@@ -386,6 +407,7 @@ function getStatus() {
     crashCount,
     lastHealthTs,
     autoRestart: _autoRestart,
+    managedExternally: _externalInstance,
   };
 }
 
@@ -401,6 +423,7 @@ setTimeout(async () => {
   const alive = await healthCheck();
   if (alive) {
     status = "running";
+    _externalInstance = true;
     lastHealthTs = Date.now();
     startHealthLoop();
   }

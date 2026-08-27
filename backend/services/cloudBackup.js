@@ -25,9 +25,9 @@ const fetch = require("node-fetch");
 // (`File size (...) is greater than 2 GiB`).  `archiver` writes Zip64 zips
 // natively (no 2 GiB / 4 GiB cap) and does NOT block the Node event loop
 // the way `execFileSync` did — fixes the export-fail AND the wizard freeze.
-// `extract-zip` (yauzl-based) reads Zip64 the same way.
+// The contained yauzl reader supports Zip64 while rejecting links and escapes.
 const archiver = require("archiver");
-const extractZip = require("extract-zip");
+const { safeExtractZip } = require("./safeZipExtract");
 
 const APP_VERSION = require("../package.json").version;
 const { resolvedBackupDir, resolvedBackupHistoryFile, resolvedLicenseDir, getNewRoot } = require("./storagePaths");
@@ -359,7 +359,7 @@ class CloudBackupService {
   // also stop blocking the event loop the way execFileSync did.
   //
   // For READING (`importPortableBackup`, `validatePortableBackup`) we use
-  // extract-zip (yauzl-based), which understands Zip64 archives transparently.
+  // The contained yauzl extractor understands Zip64 archives transparently.
 
   /**
    * Stream-zip the contents of `srcDir` into `destZip`.  Returns the number
@@ -432,12 +432,12 @@ class CloudBackupService {
    * Extract `srcZip` into `destDir`, creating destDir if needed.  Honours
    * Zip64 transparently. Async — does NOT block the event loop.
    *
-   * extract-zip uses absolute path semantics for `dir`; we resolve to be
-   * defensive against callers passing relatives.
+   * The contained reader rejects absolute paths, traversal, symlinks, and
+   * excessive expansion before writing archive entries.
    */
   async _extractZip(srcZip, destDir) {
     fs.mkdirSync(destDir, { recursive: true });
-    await extractZip(srcZip, { dir: path.resolve(destDir) });
+    await safeExtractZip(srcZip, { dir: path.resolve(destDir) });
   }
 
   // ─── Settings ─────────────────────────────────────────────────────────────
@@ -2521,7 +2521,7 @@ class CloudBackupService {
       this._setProgress({ pct: 20, message: "Extracting backup archive…" });
 
       // v2.8.14 hotfix: switched from `powershell Expand-Archive` to Node's
-      // extract-zip (yauzl-based, Zip64-capable). yauzl reads the zip
+      // The contained yauzl extractor is Zip64-capable and reads the zip
       // directly so we no longer copy multi-gigabyte archives to a tmp
       // location first — saves an entire archive's worth of disk I/O.
       await this._extractZip(srcPath, dir);
@@ -2595,7 +2595,7 @@ class CloudBackupService {
     const tempDir = path.join(this.backupDir, `_validate-${Date.now()}`);
     fs.mkdirSync(tempDir, { recursive: true });
 
-    // v2.8.14 hotfix: extract-zip reads .adsibak directly (no tmp-zip copy
+    // v2.8.14 hotfix: the extractor reads .adsibak directly (no tmp-zip copy
     // step needed), supports Zip64, and is async (no event-loop block).
     try {
       await this._extractZip(srcPath, tempDir);
@@ -2627,7 +2627,7 @@ class CloudBackupService {
         rowCounts: manifest.rowCounts || null,
       };
     } finally {
-      // No temp .zip to clean up since switching to extract-zip — only the
+      // No temp .zip to clean up with direct extraction — only the
       // extracted tempDir.
       fs.rmSync(tempDir, { recursive: true, force: true });
     }

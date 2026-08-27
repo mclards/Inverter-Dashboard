@@ -66,6 +66,29 @@ Inverter-Dashboard/
 
 ## 3. Quick Start
 
+### Linux production appliance
+
+```bash
+sudo git clone --depth 1 --branch main https://github.com/mclards/Inverter-Dashboard.git /opt/inverter-dashboard
+cd /opt/inverter-dashboard
+sudo ./deploy/linux/setup.sh
+```
+
+The installer is idempotent, retains runtime data under
+`/var/lib/inverter-dashboard`, installs verified Linux-native dependencies,
+and fails if any required service is not reachable. Future Git-based updates
+use one command:
+
+```bash
+sudo /opt/inverter-dashboard/deploy/linux/update.sh
+```
+
+Check component health without issuing inverter commands:
+
+```bash
+sudo /opt/inverter-dashboard/deploy/linux/scripts/inverter-health-check.sh
+```
+
 ### Starting the Server:
 ```bash
 # 1. Install Node.js dependencies

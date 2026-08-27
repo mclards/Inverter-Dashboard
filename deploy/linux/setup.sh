@@ -1,29 +1,9 @@
-﻿#!/usr/bin/env bash
-# ==============================================================================
-# ADSI Inverter Dashboard 2.0 — Linux Production Appliance Installer
-# Automated 18-Step Hardened Setup for Debian / Ubuntu Server
-#
-# Steps:
-#   1. Prerequisite Packages & SSH
-#   2. Node.js LTS Installation
-#   3. Dedicated Service User & Group (`inverter`)
-#   4. Application Directory Setup (/opt/inverter-dashboard)
-#   5. Storage Directories Setup (/var/lib/inverter-dashboard)
-#   6. Default Auth Credentials Setup
-#   7. Systemd Environment Template (/etc/default/inverter-dashboard)
-#   8. Python venv & Microservice Dependencies Setup
-#   9. Node.js Production Dependencies Setup
-#  10. SQLite Startup Integrity Auto-Repair Script
-#  11. Systemd Service Units Installation (inverter.target suite)
-#  12. go2rtc Live Camera Binary Setup
-#  13. File Ownership & Permissions Enforcement
-#  14. UFW Industrial Firewall Configuration
-#  15. Lid-Close & Sleep/Suspend Hardening
-#  16. Storage Performance & WAL Optimization
-#  17. Systemd Service Enable & Boot
-#  18. Post-Setup Verification & Network Discovery Summary
-# ==============================================================================
-set -euo pipefail
+#!/usr/bin/env bash
+# ADSI Inverter Dashboard 2.0 - Debian/Ubuntu production appliance installer.
+# Safe to rerun from the canonical Git checkout at /opt/inverter-dashboard.
+
+set -Eeuo pipefail
+umask 027
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -37,182 +17,264 @@ ok()    { echo -e "${GREEN}[  OK ]${NC} $1"; }
 warn()  { echo -e "${YELLOW}[WARN ]${NC} $1"; }
 error() { echo -e "${RED}[FAIL ]${NC} $1" >&2; exit 1; }
 
-echo -e "\n${BOLD}${CYAN}================================================================${NC}"
-echo -e "${BOLD}  ADSI INVERTER DASHBOARD 2.0 — LINUX APPLIANCE SETUP${NC}"
-echo -e "${BOLD}${CYAN}================================================================${NC}\n"
-
 if [ "$(id -u)" -ne 0 ]; then
-    error "This script must be run as root. Use 'sudo ./setup.sh'."
+    error "Run this installer as root: sudo ./deploy/linux/setup.sh"
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 APP_DIR="/opt/inverter-dashboard"
-DATA_DIR="/var/lib/inverter-dashboard"
+DATA_ROOT="/var/lib/inverter-dashboard"
+DB_DIR="${DATA_ROOT}/db"
 LOG_DIR="/var/log/inverter-dashboard"
+ENV_FILE="/etc/default/inverter-dashboard"
 APP_USER="inverter"
 APP_GROUP="inverter"
+GO2RTC_VERSION="1.9.14"
 
-# ── STEP 1: Prerequisite Packages & SSH ───────────────────────────────────────
-log "[1/18] Installing system dependencies, build tools, SQLite, and OpenSSH..."
-apt-get update -qq
-apt-get install -y -qq \
-    curl \
-    git \
-    build-essential \
-    python3 \
-    python3-venv \
-    python3-pip \
-    sqlite3 \
-    openssh-server \
-    ufw \
-    ca-certificates \
-    gnupg >/dev/null
-ok "Base packages installed."
+echo -e "\n${BOLD}${CYAN}================================================================${NC}"
+echo -e "${BOLD}  ADSI INVERTER DASHBOARD 2.0 - LINUX APPLIANCE SETUP${NC}"
+echo -e "${BOLD}${CYAN}================================================================${NC}\n"
 
-# ── STEP 2: Node.js LTS Installation ──────────────────────────────────────────
-log "[2/18] Checking Node.js runtime..."
-if ! command -v node >/dev/null 2>&1 || [ "$(node -v | cut -d'.' -f1 | tr -d 'v')" -lt 20 ]; then
-    log "Installing Node.js 22.x LTS repository..."
-    mkdir -p /etc/apt/keyrings
-    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg --yes
-    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" > /etc/apt/sources.list.d/nodesource.list
+log "[1/18] Validating the source checkout..."
+for required in package.json package-lock.json requirements.txt server/index.js; do
+    [ -f "${REPO_ROOT}/${required}" ] || error "Missing required source file: ${required}"
+done
+[ -d "${REPO_ROOT}/.git" ] || warn "Source is not a Git checkout; updates will require a new release bundle."
+ok "Source checkout validated at ${REPO_ROOT}."
+
+log "[2/18] Installing required operating-system packages..."
+if [ "${INVERTER_SKIP_SYSTEM_PACKAGES:-0}" != "1" ]; then
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -qq
+    apt-get install -y -qq \
+        build-essential ca-certificates curl git gnupg openssh-server \
+        python3 python3-pip python3-venv rsync sqlite3 ufw >/dev/null
+fi
+ok "Operating-system prerequisites are ready."
+
+log "[3/18] Checking the Node.js runtime..."
+NODE_MAJOR=0
+if command -v node >/dev/null 2>&1; then
+    NODE_MAJOR="$(node -p 'Number(process.versions.node.split(".")[0])' 2>/dev/null || echo 0)"
+fi
+if [ "${NODE_MAJOR}" -lt 20 ]; then
+    install -d -m 755 /etc/apt/keyrings
+    curl --proto '=https' --tlsv1.2 -fsSL \
+        https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+        | gpg --dearmor --yes -o /etc/apt/keyrings/nodesource.gpg
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" \
+        > /etc/apt/sources.list.d/nodesource.list
     apt-get update -qq
     apt-get install -y -qq nodejs >/dev/null
 fi
-ok "Node.js $(node -v) is ready."
+command -v npm >/dev/null 2>&1 || error "npm is unavailable after Node.js setup."
+ok "Node.js $(node -v) and npm $(npm -v) are ready."
 
-# ── STEP 3: Dedicated Service User & Group ────────────────────────────────────
-log "[3/18] Creating dedicated service user '${APP_USER}'..."
-if ! getent group "${APP_GROUP}" >/dev/null 2>&1; then
-    groupadd -r "${APP_GROUP}"
-fi
+log "[4/18] Creating the dedicated service identity..."
+getent group "${APP_GROUP}" >/dev/null 2>&1 || groupadd --system "${APP_GROUP}"
 if ! getent passwd "${APP_USER}" >/dev/null 2>&1; then
-    useradd -r -g "${APP_GROUP}" -d "${DATA_DIR}" -s /usr/sbin/nologin "${APP_USER}"
+    useradd --system --gid "${APP_GROUP}" --home-dir "${DATA_ROOT}" \
+        --shell /usr/sbin/nologin "${APP_USER}"
 fi
-ok "Service user '${APP_USER}' configured."
+ok "Service user ${APP_USER} is ready."
 
-# ── STEP 4: Application Directory Setup ───────────────────────────────────────
-log "[4/18] Synchronizing application code into ${APP_DIR}..."
-mkdir -p "${APP_DIR}"
-cp -r "${REPO_ROOT}/"* "${APP_DIR}/" 2>/dev/null || true
-ok "Application directory ready."
+log "[5/18] Preparing the Git-managed application directory..."
+if [ "${REPO_ROOT}" != "${APP_DIR}" ]; then
+    install -d -m 755 "${APP_DIR}"
+    rsync -a \
+        --exclude node_modules --exclude venv --exclude .venv \
+        --exclude storage --exclude release --exclude dist --exclude build \
+        "${REPO_ROOT}/" "${APP_DIR}/"
+else
+    ok "Installer is running from the canonical application checkout; self-copy skipped."
+fi
+chown -R "${APP_USER}:${APP_GROUP}" "${APP_DIR}"
+ok "Application source is ready at ${APP_DIR}."
 
-# ── STEP 5: Storage Directories Setup ─────────────────────────────────────────
-log "[5/18] Creating isolated runtime storage directories in ${DATA_DIR}..."
-mkdir -p \
-    "${DATA_DIR}/db" \
-    "${DATA_DIR}/config" \
-    "${DATA_DIR}/auth" \
-    "${DATA_DIR}/go2rtc" \
-    "${DATA_DIR}/archives" \
+log "[6/18] Creating persistent runtime directories..."
+install -d -o "${APP_USER}" -g "${APP_GROUP}" -m 750 \
+    "${DATA_ROOT}" "${DB_DIR}" "${DB_DIR}/archive" \
+    "${DATA_ROOT}/config" "${DATA_ROOT}/auth" "${DATA_ROOT}/go2rtc" \
+    "${DATA_ROOT}/archives" "${DATA_ROOT}/forecast" "${DATA_ROOT}/weather" \
     "${LOG_DIR}"
-ok "Storage directories created."
+ok "Persistent data is isolated under ${DATA_ROOT}."
 
-# ── STEP 6: Default Auth Credentials Setup ────────────────────────────────────
-log "[6/18] Configuring default authentication credentials..."
-AUTH_FILE="${DATA_DIR}/auth/credentials.json"
+log "[7/18] Configuring operator authentication..."
+AUTH_FILE="${DATA_ROOT}/auth/credentials.json"
 if [ ! -f "${AUTH_FILE}" ]; then
-    # SHA-256 for default password '1234': 03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4
-    cat <<'EOF' > "${AUTH_FILE}"
+    cat > "${AUTH_FILE}" <<EOF
 {
   "username": "admin",
   "passwordHash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4",
-  "createdAt": "2026-08-24T00:00:00.000Z"
+  "createdAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 }
 EOF
+    chown "${APP_USER}:${APP_GROUP}" "${AUTH_FILE}"
     chmod 600 "${AUTH_FILE}"
+    warn "Bootstrap operator credentials are admin / 1234; change them after first sign-in."
+else
+    ok "Existing operator credentials preserved."
 fi
-ok "Authentication credentials secured."
 
-# ── STEP 7: Systemd Environment Template ──────────────────────────────────────
-log "[7/18] Installing environment defaults into /etc/default/inverter-dashboard..."
-install -m 644 -o root -g root "${APP_DIR}/deploy/linux/default/inverter-dashboard" /etc/default/inverter-dashboard
-ok "Environment file installed."
-
-# ── STEP 8: Python venv & Microservice Dependencies Setup ─────────────────────
-log "[8/18] Setting up Python virtual environment and AI/Modbus dependencies..."
-if [ ! -d "${APP_DIR}/venv" ]; then
-    python3 -m venv "${APP_DIR}/venv"
+log "[8/18] Installing canonical runtime environment settings..."
+ENV_TEMPLATE="${APP_DIR}/deploy/linux/default/inverter-dashboard"
+if [ ! -f "${ENV_FILE}" ]; then
+    install -m 640 -o root -g "${APP_GROUP}" "${ENV_TEMPLATE}" "${ENV_FILE}"
+elif grep -Fqx 'INVERTER_DATA_DIR=/var/lib/inverter-dashboard' "${ENV_FILE}" \
+    && grep -Fqx 'INVERTER_PORTABLE_DATA_DIR=/var/lib/inverter-dashboard' "${ENV_FILE}"; then
+    cp -a "${ENV_FILE}" "${ENV_FILE}.pre-db-layout"
+    sed -i \
+        -e 's|^INVERTER_DATA_DIR=/var/lib/inverter-dashboard$|INVERTER_DATA_DIR=/var/lib/inverter-dashboard/db|' \
+        -e '/^INVERTER_PORTABLE_DATA_DIR=\/var\/lib\/inverter-dashboard$/d' \
+        "${ENV_FILE}"
+    grep -q '^ADSI_SERVER_PORT=' "${ENV_FILE}" \
+        || echo 'ADSI_SERVER_PORT=3500' >> "${ENV_FILE}"
+    grep -q '^INVERTER_STORAGE_DIR=' "${ENV_FILE}" \
+        || echo 'INVERTER_STORAGE_DIR=/var/lib/inverter-dashboard' >> "${ENV_FILE}"
+    grep -q '^ADSI_LOGIN_CREDENTIAL_PATH=' "${ENV_FILE}" \
+        || echo 'ADSI_LOGIN_CREDENTIAL_PATH=/var/lib/inverter-dashboard/auth/credentials.json' >> "${ENV_FILE}"
+    chown root:"${APP_GROUP}" "${ENV_FILE}"
+    chmod 640 "${ENV_FILE}"
+    warn "Migrated the legacy Linux data-root environment; backup: ${ENV_FILE}.pre-db-layout"
+else
+    ok "Existing operator-supplied environment file preserved."
 fi
-"${APP_DIR}/venv/bin/pip" install --upgrade pip -q
-"${APP_DIR}/venv/bin/pip" install -r "${APP_DIR}/requirements.txt" -q
-ok "Python venv and dependencies installed."
+set -a
+# shellcheck disable=SC1090
+. "${ENV_FILE}"
+set +a
+case "${INVERTER_DATA_DIR:-}" in
+    /*) ;;
+    *) error "INVERTER_DATA_DIR must be an absolute operator-approved path." ;;
+esac
+if [ ! -d "${INVERTER_DATA_DIR}" ]; then
+    install -d -o "${APP_USER}" -g "${APP_GROUP}" -m 750 "${INVERTER_DATA_DIR}"
+fi
+runuser -u "${APP_USER}" -- test -w "${INVERTER_DATA_DIR}" \
+    || error "The service user cannot write to ${INVERTER_DATA_DIR}."
 
-# ── STEP 9: Node.js Production Dependencies Setup ─────────────────────────────
-log "[9/18] Installing Node.js backend dependencies..."
-cd "${APP_DIR}"
-npm install --omit=dev --loglevel=error
-ok "Node.js dependencies installed."
+log "[9/18] Installing Python dependencies in an isolated environment..."
+if [ ! -x "${APP_DIR}/venv/bin/python" ]; then
+    runuser -u "${APP_USER}" -- python3 -m venv "${APP_DIR}/venv"
+fi
+runuser -u "${APP_USER}" -- "${APP_DIR}/venv/bin/pip" install --upgrade pip -q
+runuser -u "${APP_USER}" -- "${APP_DIR}/venv/bin/pip" install \
+    -r "${APP_DIR}/requirements.txt" -q
+ok "Python dependencies are ready."
 
-# ── STEP 10: SQLite Startup Integrity Auto-Repair Script ──────────────────────
-log "[10/18] Installing database auto-repair script..."
-chmod +x "${APP_DIR}/deploy/linux/scripts/inverter-db-check.sh"
-ok "Database auto-repair script enabled."
+log "[10/18] Installing production Node.js dependencies..."
+runuser -u "${APP_USER}" -- npm --prefix "${APP_DIR}" ci --omit=dev --loglevel=error
+ok "Node.js dependencies are ready."
 
-# ── STEP 11: Systemd Service Units Installation ───────────────────────────────
-log "[11/18] Installing systemd unit files..."
-cp "${APP_DIR}/deploy/linux/systemd/"*.service /etc/systemd/system/
-cp "${APP_DIR}/deploy/linux/systemd/inverter.target" /etc/systemd/system/
+log "[11/18] Provisioning the pinned go2rtc Linux binary..."
+case "$(uname -m)" in
+    x86_64|amd64)
+        GO2RTC_ASSET="go2rtc_linux_amd64"
+        GO2RTC_SHA256="32d616af226bd731678ffde328b94cfb94e30339bfefc469cfb76323144615a6"
+        ;;
+    aarch64|arm64)
+        GO2RTC_ASSET="go2rtc_linux_arm64"
+        GO2RTC_SHA256="359fabade8a7a51e81a55fe6df6b0ef81764a5e1d63179577534eaaa71904b50"
+        ;;
+    armv7l|armv8l)
+        GO2RTC_ASSET="go2rtc_linux_arm"
+        GO2RTC_SHA256="4d7e1639af5a2722a28e864468fd8099b3c1682565446c798bf9e3b38fde12e4"
+        ;;
+    *) error "Unsupported go2rtc CPU architecture: $(uname -m)" ;;
+esac
+GO2RTC_BIN="/usr/local/bin/go2rtc"
+if [ ! -x "${GO2RTC_BIN}" ] \
+    || ! echo "${GO2RTC_SHA256}  ${GO2RTC_BIN}" | sha256sum --check --status; then
+    GO2RTC_TMP="$(mktemp)"
+    trap 'rm -f "${GO2RTC_TMP:-}"' EXIT
+    curl --proto '=https' --tlsv1.2 -fL \
+        "https://github.com/AlexxIT/go2rtc/releases/download/v${GO2RTC_VERSION}/${GO2RTC_ASSET}" \
+        -o "${GO2RTC_TMP}"
+    echo "${GO2RTC_SHA256}  ${GO2RTC_TMP}" | sha256sum --check --status \
+        || error "go2rtc checksum verification failed."
+    install -m 755 -o root -g root "${GO2RTC_TMP}" "${GO2RTC_BIN}"
+    rm -f "${GO2RTC_TMP}"
+    trap - EXIT
+fi
+GO2RTC_CONFIG="${DATA_ROOT}/go2rtc/go2rtc.yaml"
+if [ ! -f "${GO2RTC_CONFIG}" ]; then
+    install -m 640 -o "${APP_USER}" -g "${APP_GROUP}" \
+        "${APP_DIR}/deploy/linux/default/go2rtc.yaml" "${GO2RTC_CONFIG}"
+fi
+ok "go2rtc ${GO2RTC_VERSION} is installed with a verified checksum."
+
+log "[12/18] Validating executable scripts and application syntax..."
+chmod 755 "${APP_DIR}/deploy/linux/setup.sh" \
+    "${APP_DIR}/deploy/linux/update.sh" \
+    "${APP_DIR}/deploy/linux/scripts/inverter-db-check.sh" \
+    "${APP_DIR}/deploy/linux/scripts/inverter-health-check.sh"
+runuser -u "${APP_USER}" -- /usr/bin/node --check "${APP_DIR}/server/index.js"
+runuser -u "${APP_USER}" -- "${APP_DIR}/venv/bin/python" -m py_compile \
+    "${APP_DIR}/backend/engines/inverter/InverterCoreService.py" \
+    "${APP_DIR}/backend/engines/forecast/ForecastCoreService.py"
+ok "Linux entry points passed syntax validation."
+
+log "[13/18] Installing systemd service definitions..."
+install -m 644 "${APP_DIR}/deploy/linux/systemd/inverter.target" /etc/systemd/system/
+install -m 644 "${APP_DIR}/deploy/linux/systemd/"*.service /etc/systemd/system/
 systemctl daemon-reload
-ok "Systemd units registered."
+ok "systemd service definitions are registered."
 
-# ── STEP 12: go2rtc Live Camera Binary Setup ──────────────────────────────────
-log "[12/18] Setting up go2rtc live camera streaming daemon..."
-GO2RTC_BIN="${APP_DIR}/backend/engines/go2rtc/go2rtc"
-if [ -f "${GO2RTC_BIN}" ]; then
-    chmod +x "${GO2RTC_BIN}"
-fi
-ok "go2rtc binary permissions verified."
+log "[14/18] Initializing the application database in WAL mode..."
+runuser -u "${APP_USER}" -- env \
+    INVERTER_DATA_DIR="${INVERTER_DATA_DIR:-${DB_DIR}}" \
+    INVERTER_STORAGE_DIR="${INVERTER_STORAGE_DIR:-${DATA_ROOT}}" \
+    node -e "const db=require('${APP_DIR}/server/db'); db.db.close();"
+ok "Application database initialized."
 
-# ── STEP 13: File Ownership & Permissions Enforcement ─────────────────────────
-log "[13/18] Enforcing security ownership for user '${APP_USER}'..."
-chown -R "${APP_USER}:${APP_GROUP}" "${APP_DIR}" "${DATA_DIR}" "${LOG_DIR}"
-chmod -R 750 "${DATA_DIR}"
-chmod -R 750 "${LOG_DIR}"
-ok "Ownership finalized."
-
-# ── STEP 14: UFW Industrial Firewall Configuration ────────────────────────────
-log "[14/18] Configuring UFW industrial firewall..."
+log "[15/18] Configuring the host firewall..."
 if command -v ufw >/dev/null 2>&1; then
     ufw allow 22/tcp comment "SSH Remote Management" >/dev/null 2>&1 || true
-    ufw allow 3500/tcp comment "ADSI Inverter Dashboard 2.0 Web & WS Gateway" >/dev/null 2>&1 || true
-    ufw allow 1984/tcp comment "go2rtc Camera Streaming API" >/dev/null 2>&1 || true
-    ufw allow 8555/tcp comment "WebRTC Signaling & Video" >/dev/null 2>&1 || true
-    ufw allow 8555/udp comment "WebRTC Media UDP" >/dev/null 2>&1 || true
-    ok "Firewall ports 22, 3500, 1984, 8555 opened."
+    ufw allow 3500/tcp comment "ADSI Dashboard Gateway" >/dev/null 2>&1 || true
+    ufw allow 1984/tcp comment "go2rtc Camera API" >/dev/null 2>&1 || true
+    ufw allow 8555/tcp comment "go2rtc WebRTC TCP" >/dev/null 2>&1 || true
+    ufw allow 8555/udp comment "go2rtc WebRTC UDP" >/dev/null 2>&1 || true
 fi
+ok "Required firewall rules are present."
 
-# ── STEP 15: Lid-Close & Sleep/Suspend Hardening ───────────────────────────────
-log "[15/18] Applying 24/7 industrial uptime locks (disabling lid-close sleep)..."
-LOGIND_CONF="/etc/systemd/logind.conf"
-if [ -f "${LOGIND_CONF}" ]; then
-    if ! grep -q "^HandleLidSwitch=ignore" "${LOGIND_CONF}"; then
-        echo "HandleLidSwitch=ignore" >> "${LOGIND_CONF}"
-        echo "HandleLidSwitchExternalPower=ignore" >> "${LOGIND_CONF}"
-        systemctl restart systemd-logind 2>/dev/null || true
+log "[16/18] Applying optional 24/7 appliance power hardening..."
+if [ "${INVERTER_HARDEN_SLEEP:-1}" = "1" ]; then
+    if ! grep -q '^HandleLidSwitch=ignore$' /etc/systemd/logind.conf; then
+        echo 'HandleLidSwitch=ignore' >> /etc/systemd/logind.conf
     fi
+    if ! grep -q '^HandleLidSwitchExternalPower=ignore$' /etc/systemd/logind.conf; then
+        echo 'HandleLidSwitchExternalPower=ignore' >> /etc/systemd/logind.conf
+    fi
+    systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target >/dev/null
+    warn "Sleep targets are masked; logind settings take full effect after reboot."
+else
+    ok "Sleep hardening skipped by operator override."
 fi
-systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target >/dev/null 2>&1 || true
-ok "Sleep and lid-close locks enforced."
 
-# ── STEP 16: Storage Performance & WAL Optimization ───────────────────────────
-log "[16/18] Initializing database in WAL mode..."
-su -s /bin/bash "${APP_USER}" -c "node -e 'const db = require(\"${APP_DIR}/backend/core/db\"); db.db.close();'" 2>/dev/null || true
-ok "Database initialized with WAL mode."
+log "[17/18] Enabling and starting the dashboard services..."
+systemctl enable inverter.target inverter-engine.service inverter-server.service \
+    inverter-forecast.service inverter-go2rtc.service >/dev/null
+systemctl start inverter.target
+systemctl restart inverter-engine.service
+systemctl restart inverter-server.service
+systemctl restart inverter-forecast.service
+systemctl restart inverter-go2rtc.service
+ok "Service start requests completed."
 
-# ── STEP 17: Systemd Service Enable & Boot ────────────────────────────────────
-log "[17/18] Enabling and starting inverter.target suite..."
-systemctl enable inverter.target inverter-server.service inverter-engine.service inverter-forecast.service inverter-go2rtc.service >/dev/null 2>&1 || true
-systemctl restart inverter.target
-ok "All Inverter Dashboard 2.0 services started."
+log "[18/18] Verifying current service and HTTP health..."
+if ! "${APP_DIR}/deploy/linux/scripts/inverter-health-check.sh" --wait 30; then
+    systemctl status inverter-engine.service inverter-server.service \
+        inverter-forecast.service inverter-go2rtc.service --no-pager --full || true
+    error "Installation completed, but one or more services are not healthy."
+fi
 
-# ── STEP 18: Post-Setup Summary ───────────────────────────────────────────────
 echo -e "\n${BOLD}${GREEN}================================================================${NC}"
-echo -e "${BOLD}${GREEN}  SETUP COMPLETE — ADSI INVERTER DASHBOARD 2.0 IS ONLINE!${NC}"
+echo -e "${BOLD}${GREEN}  SETUP COMPLETE - DASHBOARD SERVICES ARE REACHABLE${NC}"
 echo -e "${BOLD}${GREEN}================================================================${NC}\n"
-
-echo -e "  ${BOLD}Server Port:${NC}        http://<server-ip>:3500"
-echo -e "  ${BOLD}Systemd Target:${NC}     sudo systemctl status inverter.target"
-echo -e "  ${BOLD}Service Logs:${NC}       sudo journalctl -u inverter-server.service -f"
-echo -e "  ${BOLD}Storage Directory:${NC}  ${DATA_DIR}\n"
+echo -e "  ${BOLD}Dashboard:${NC}          http://<server-ip>:3500"
+echo -e "  ${BOLD}Application:${NC}        ${APP_DIR}"
+echo -e "  ${BOLD}Runtime data:${NC}       ${DATA_ROOT}"
+echo -e "  ${BOLD}Update command:${NC}     sudo ${APP_DIR}/deploy/linux/update.sh"
+echo -e "  ${BOLD}Health command:${NC}     sudo ${APP_DIR}/deploy/linux/scripts/inverter-health-check.sh"
+echo -e "\n  Service reachability passed. Live inverter polling still requires the plant network.\n"

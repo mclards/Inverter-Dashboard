@@ -1,0 +1,10 @@
+# ADSI Inverter Dashboard go2rtc baseline configuration.
+# Add camera streams through the dashboard instead of storing credentials here.
+streams: {}
+
+api:
+  listen: ":1984"
+  origin: "*"
+
+webrtc:
+  listen: ":8555"

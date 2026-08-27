@@ -1,7 +1,9 @@
-﻿# ADSI Inverter Dashboard 2.0 Environment Defaults
+# ADSI Inverter Dashboard 2.0 Environment Defaults
 PORT=3500
-INVERTER_DATA_DIR=/var/lib/inverter-dashboard
-INVERTER_PORTABLE_DATA_DIR=/var/lib/inverter-dashboard
+ADSI_SERVER_PORT=3500
+INVERTER_DATA_DIR=/var/lib/inverter-dashboard/db
+INVERTER_STORAGE_DIR=/var/lib/inverter-dashboard
+ADSI_LOGIN_CREDENTIAL_PATH=/var/lib/inverter-dashboard/auth/credentials.json
 INVERTER_ENGINE_PORT=9100
 INVERTER_ENGINE_HOST=127.0.0.1
 NODE_ENV=production

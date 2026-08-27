@@ -13557,8 +13557,11 @@ app.post("/api/streaming/go2rtc/stop", (req, res) => {
   if (isRemoteMode()) return proxyToRemote(req, res);
   go2rtcManager
     .stop()
-    .then(() => res.json({ ok: true }))
-      .catch((e) => res.status(500).json({ ok: false, error: e.message }));
+    .then((result) => {
+      if (result?.ok === false) return res.status(409).json(result);
+      return res.json({ ok: true });
+    })
+    .catch((e) => res.status(500).json({ ok: false, error: e.message }));
 });
 
 /* ── Dedicated Hikvision DVR streaming ───────────────────────────── */

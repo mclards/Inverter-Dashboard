@@ -1,7 +1,8 @@
-﻿[Unit]
+[Unit]
 Description=ADSI Inverter Dashboard 2.0 go2rtc Live Video WebRTC Streamer
 After=network-online.target
 PartOf=inverter.target
+RequiresMountsFor=/var/lib/inverter-dashboard
 StartLimitIntervalSec=60
 StartLimitBurst=5
 
@@ -11,9 +12,15 @@ User=inverter
 Group=inverter
 WorkingDirectory=/var/lib/inverter-dashboard/go2rtc
 EnvironmentFile=-/etc/default/inverter-dashboard
-ExecStart=/opt/inverter-dashboard/backend/engines/go2rtc/go2rtc -config /var/lib/inverter-dashboard/go2rtc/go2rtc.yaml
+ExecStartPre=/usr/bin/test -x /usr/local/bin/go2rtc
+ExecStartPre=/usr/bin/test -r /var/lib/inverter-dashboard/go2rtc/go2rtc.yaml
+ExecStart=/usr/local/bin/go2rtc -config /var/lib/inverter-dashboard/go2rtc/go2rtc.yaml
 Restart=always
 RestartSec=5
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
 LimitNOFILE=65536
 KillMode=mixed
 TimeoutStopSec=10

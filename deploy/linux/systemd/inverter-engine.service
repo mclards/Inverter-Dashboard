@@ -1,7 +1,8 @@
-﻿[Unit]
+[Unit]
 Description=ADSI Inverter Dashboard 2.0 Modbus Polling & Telemetry Microservice
 After=network-online.target
 PartOf=inverter.target
+RequiresMountsFor=/opt/inverter-dashboard /var/lib/inverter-dashboard
 StartLimitIntervalSec=60
 StartLimitBurst=5
 
@@ -14,6 +15,10 @@ EnvironmentFile=-/etc/default/inverter-dashboard
 ExecStart=/opt/inverter-dashboard/venv/bin/python /opt/inverter-dashboard/backend/engines/inverter/InverterCoreService.py
 Restart=always
 RestartSec=5
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
 LimitNOFILE=65536
 KillMode=mixed
 TimeoutStopSec=10

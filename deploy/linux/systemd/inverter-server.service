@@ -1,7 +1,8 @@
-﻿[Unit]
+[Unit]
 Description=ADSI Inverter Dashboard 2.0 Express Web & WebSocket Gateway
 After=network-online.target inverter-engine.service
 PartOf=inverter.target
+RequiresMountsFor=/opt/inverter-dashboard /var/lib/inverter-dashboard
 StartLimitIntervalSec=60
 StartLimitBurst=5
 
@@ -11,10 +12,14 @@ User=inverter
 Group=inverter
 WorkingDirectory=/opt/inverter-dashboard
 EnvironmentFile=-/etc/default/inverter-dashboard
-ExecStartPre=/opt/inverter-dashboard/deploy/linux/scripts/inverter-db-check.sh
-ExecStart=/usr/bin/node /opt/inverter-dashboard/backend/server.js
+ExecStartPre=/usr/bin/bash /opt/inverter-dashboard/deploy/linux/scripts/inverter-db-check.sh
+ExecStart=/usr/bin/node /opt/inverter-dashboard/server/index.js
 Restart=always
 RestartSec=5
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
 LimitNOFILE=65536
 KillMode=mixed
 TimeoutStopSec=15

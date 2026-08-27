@@ -1,7 +1,9 @@
 "use strict";
 
 const assert = require("assert");
+const childProcess = require("child_process");
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "../..");
@@ -16,9 +18,11 @@ const linuxFiles = [
   "deploy/linux/update.sh",
   "deploy/linux/scripts/inverter-db-check.sh",
   "deploy/linux/scripts/inverter-health-check.sh",
+  "deploy/linux/scripts/inverter-ipconfig-seed.js",
   "deploy/linux/scripts/tailscale-setup.sh",
   "deploy/linux/default/inverter-dashboard",
   "deploy/linux/default/go2rtc.yaml",
+  "deploy/linux/default/ipconfig.json",
   "deploy/linux/systemd/inverter.target",
   "deploy/linux/systemd/inverter-engine.service",
   "deploy/linux/systemd/inverter-server.service",
@@ -81,7 +85,59 @@ assert.match(setup, /NODESOURCE_KEYRING="\/usr\/share\/keyrings\/nodesource\.gpg
 assert.match(setup, /install -m 644 -o root -g root "\$\{NODE_KEY_GPG\}" "\$\{NODESOURCE_KEYRING\}"/);
 assert.match(setup, /gpg --batch --no-default-keyring --keyring "\$\{NODE_KEY_GPG\}" --list-keys/);
 assert.match(setup, /Signed-By: \$\{NODESOURCE_KEYRING\}/);
+assert.match(setup, /inverter-ipconfig-seed\.js/);
+assert.match(setup, /deploy\/linux\/default\/ipconfig\.json/);
+assert.match(setup, /inspect\.signature\(ModbusTcpClient\.read_input_registers\)/);
+assert.match(setup, /'slave' in inspect\.signature/);
 assert.doesNotMatch(setup, /gpg --dearmor --yes -o \/etc\/apt\/keyrings\/nodesource\.gpg/);
+
+const topologySeed = JSON.parse(read("deploy/linux/default/ipconfig.json"));
+for (const map of ["inverters", "poll_interval", "units", "losses"]) {
+  assert.equal(Object.keys(topologySeed[map]).length, 27, `${map} must seed all 27 inverter records`);
+}
+assert.deepEqual(topologySeed.units["8"], [2, 4], "sparse node assignments must remain sparse");
+assert.deepEqual(topologySeed.units["23"], [3, 4], "disabled nodes must not be silently re-enabled");
+assert.equal(topologySeed.inverters["6"], "192.168.1.136");
+
+const topologySeeder = read("deploy/linux/scripts/inverter-ipconfig-seed.js");
+assert.match(topologySeeder, /isSyntheticFreshInstall/);
+assert.match(topologySeeder, /pre-canonical-seed/);
+assert.match(topologySeeder, /Preserved operator topology/);
+
+const seedTestDir = fs.mkdtempSync(path.join(os.tmpdir(), "inverter-linux-seed-"));
+try {
+  const seedPath = path.join(ROOT, "deploy/linux/default/ipconfig.json");
+  const targetPath = path.join(seedTestDir, "ipconfig.json");
+  const runSeeder = () => childProcess.execFileSync(
+    process.execPath,
+    [path.join(ROOT, "deploy/linux/scripts/inverter-ipconfig-seed.js"), seedPath, targetPath],
+    { encoding: "utf8" },
+  );
+
+  runSeeder();
+  assert.deepEqual(JSON.parse(fs.readFileSync(targetPath, "utf8")), topologySeed);
+
+  const customized = structuredClone(topologySeed);
+  customized.inverters["1"] = "192.168.1.200";
+  fs.writeFileSync(targetPath, JSON.stringify(customized));
+  assert.match(runSeeder(), /Preserved operator topology/);
+  assert.equal(JSON.parse(fs.readFileSync(targetPath, "utf8")).inverters["1"], "192.168.1.200");
+
+  const synthetic = { inverters: {}, poll_interval: {}, units: {}, losses: {} };
+  for (let index = 1; index <= 27; index += 1) {
+    const key = String(index);
+    synthetic.inverters[key] = `192.168.1.${100 + index}`;
+    synthetic.poll_interval[key] = 0.05;
+    synthetic.units[key] = [1, 2, 3, 4];
+    synthetic.losses[key] = 2.5;
+  }
+  fs.writeFileSync(targetPath, JSON.stringify(synthetic));
+  assert.match(runSeeder(), /Replaced the untouched synthetic topology/);
+  assert.deepEqual(JSON.parse(fs.readFileSync(targetPath, "utf8")), topologySeed);
+  assert.ok(fs.existsSync(`${targetPath}.pre-canonical-seed`));
+} finally {
+  fs.rmSync(seedTestDir, { recursive: true, force: true });
+}
 
 const bootstrap = read("deploy/linux/install.sh");
 assert.match(bootstrap, /apt-get install -y -qq ca-certificates git/);

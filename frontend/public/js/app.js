@@ -4714,6 +4714,7 @@ async function refreshServerLifecycleStatus() {
       if (res?.ok) {
         const remoteMode = res.operationMode === "remote";
         const localPollingLocked = Boolean(res.serverStartBlocked);
+        const externallyManaged = Boolean(res.lifecycleManagedExternally);
         const telemetry = res.telemetry || {};
         if (res.running) {
           badge.textContent = "● RUNNING (Port 3500)";
@@ -4744,6 +4745,13 @@ async function refreshServerLifecycleStatus() {
           if (autoChk) autoChk.disabled = true;
           const msg = $("srvActionMsg");
           if (msg) msg.textContent = res.serverStartBlockReason || "Clear the Server Host URL, then restart to enable local polling.";
+        } else if (externallyManaged) {
+          if (startBtn) startBtn.disabled = true;
+          if (stopBtn) stopBtn.disabled = true;
+          if (keepChk) keepChk.disabled = true;
+          if (autoChk) autoChk.disabled = true;
+          const msg = $("srvActionMsg");
+          if (msg) msg.textContent = "Linux appliance services are managed automatically by systemd.";
         } else {
           if (keepChk) keepChk.disabled = false;
           if (autoChk) autoChk.disabled = false;
@@ -4751,7 +4759,7 @@ async function refreshServerLifecycleStatus() {
         if (webVal) webVal.textContent = res.services?.web ? "Active (Port 3500)" : "Offline";
         if (telemVal) telemVal.textContent = res.services?.telemetry
           ? `Healthy (${telemetry.connectedInverters || 0}/${telemetry.configuredInverters || 0} inverters; ${Math.max(0, Math.round(Number(telemetry.newestFrameAgeMs || 0)))} ms)`
-          : telemetry.reachable ? `Online (${telemetry.connectedInverters || 0}/${telemetry.configuredInverters || 0} connected; off-network)` : "Offline";
+          : telemetry.reachable ? `Online (${telemetry.connectedInverters || 0}/${telemetry.configuredInverters || 0} connected; no fresh telemetry)` : "Offline";
         if (fcastVal) fcastVal.textContent = res.services?.forecast ? "Active (background worker)" : "Offline";
         if (keepChk) keepChk.checked = Boolean(res.keepInBackground);
         if (autoChk) autoChk.checked = Boolean(res.autoStart);
@@ -4772,8 +4780,8 @@ async function refreshServerLifecycleStatus() {
           badge.textContent = "● RUNNING (Port 3500)";
           badge.style.color = "var(--green, #10b981)";
         } else if (data.services?.web) {
-          badge.textContent = isReachable ? "● RUNNING (Web Server; Polling Ready)" : "● RUNNING (Web Server)";
-          badge.style.color = "var(--green, #10b981)";
+          badge.textContent = isReachable ? "● DEGRADED (Web Server; no fresh telemetry)" : "● RUNNING (Web Server)";
+          badge.style.color = isReachable ? "var(--warn, #f59e0b)" : "var(--green, #10b981)";
         } else {
           badge.textContent = "○ STOPPED (Gateway services offline)";
           badge.style.color = "var(--text2, #64748b)";
@@ -4783,12 +4791,19 @@ async function refreshServerLifecycleStatus() {
           telemVal.textContent = isHealthy
             ? `Healthy (${telemetry.connectedInverters || 0}/${telemetry.configuredInverters || 0} inverters; ${Math.max(0, Math.round(Number(telemetry.newestFrameAgeMs || 0)))} ms)`
             : isReachable
-              ? `Online (${telemetry.connectedInverters || 0}/${telemetry.configuredInverters || 0} connected; off-network)`
+              ? `Online (${telemetry.connectedInverters || 0}/${telemetry.configuredInverters || 0} connected; no fresh telemetry)`
               : "Offline";
         }
         if (fcastVal) fcastVal.textContent = data.services?.forecast ? "Active (background worker)" : "Offline";
-        if (startBtn) startBtn.disabled = Boolean(isHealthy);
-        if (stopBtn) stopBtn.disabled = false;
+        const externallyManaged = Boolean(data.lifecycleManagedExternally);
+        if (startBtn) startBtn.disabled = externallyManaged || Boolean(isHealthy);
+        if (stopBtn) stopBtn.disabled = externallyManaged;
+        if (keepChk) keepChk.disabled = externallyManaged;
+        if (autoChk) autoChk.disabled = externallyManaged;
+        if (externallyManaged) {
+          const msg = $("srvActionMsg");
+          if (msg) msg.textContent = "Linux appliance services are managed automatically by systemd.";
+        }
         if (keepChk) keepChk.checked = Boolean(data.keepInBackground);
         if (autoChk) autoChk.checked = Boolean(data.autoStart);
         return;

@@ -26,7 +26,7 @@ Register Decoding Rules (Modbus standard):
 See services/inverter_engine.py for frame assembly and v2.10.x sign extension.
 """
 
-from pymodbus.client.sync import ModbusTcpClient
+from pymodbus.client import ModbusTcpClient
 import time
 
 # T3.7 + T3.10 fix (Phase 6, 2026-04-14):
@@ -76,7 +76,7 @@ def create_client(ip, port=502, timeout=1.0):
 def read_input(client, address, count, unit):
     _refresh_timeout(client)
     try:
-        r = client.read_input_registers(address=address, count=count, unit=unit)
+        r = client.read_input_registers(address=address, count=count, slave=unit)
         if r and not r.isError():
             return r.registers
     except Exception:
@@ -87,7 +87,7 @@ def read_input(client, address, count, unit):
 def read_holding(client, address, count, unit):
     _refresh_timeout(client)
     try:
-        r = client.read_holding_registers(address=address, count=count, unit=unit)
+        r = client.read_holding_registers(address=address, count=count, slave=unit)
         if r and not r.isError():
             return r.registers
     except Exception:
@@ -99,7 +99,7 @@ def write_single(client, address, value, unit):
     Safe FC6 single register write. Returns True on success.
     """
     try:
-        r = client.write_register(address, value, unit=unit)
+        r = client.write_register(address, value, slave=unit)
         if r and not r.isError():
             return True
     except Exception:
@@ -121,7 +121,7 @@ def write_single(client, address, value, unit):
     time.sleep(0.1)
 
     try:
-        r = client.write_register(address, value, unit=unit)
+        r = client.write_register(address, value, slave=unit)
         if r and not r.isError():
             return True
     except Exception:

@@ -19285,6 +19285,8 @@ app.get("/api/server/status", async (req, res) => {
     port: 3500,
     operationMode: mode,
     serverStartBlocked: mode === "remote",
+    lifecycleManagedExternally: process.platform === "linux",
+    lifecycleManager: process.platform === "linux" ? "systemd" : "application",
     services: {
       web: true,
       telemetry: telemetry.healthy,
@@ -19301,14 +19303,15 @@ app.post("/api/server/start", async (req, res) => {
   if (!browserAuth.isDeveloperSession(auth?.session) && auth?.mode !== "loopback" && auth?.mode !== "remote-token") {
     return res.status(403).json({ ok: false, error: "Developer access is required to start server services." });
   }
-  const cp = require("child_process");
   if (process.platform === "linux") {
-    cp.exec("echo sacups | sudo -S systemctl start inverter-telemetry inverter-forecast 2>/dev/null || systemctl start inverter-telemetry inverter-forecast 2>/dev/null", () => {
-      res.json({ ok: true, message: "Local services started." });
+    return res.status(409).json({
+      ok: false,
+      managedExternally: true,
+      manager: "systemd",
+      error: "Linux appliance services are managed by systemd and start automatically at boot.",
     });
-  } else {
-    res.json({ ok: true, message: "Local services started." });
   }
+  res.json({ ok: true, message: "Local services started." });
 });
 
 app.post("/api/server/stop", async (req, res) => {
@@ -19316,14 +19319,15 @@ app.post("/api/server/stop", async (req, res) => {
   if (!browserAuth.isDeveloperSession(auth?.session) && auth?.mode !== "loopback" && auth?.mode !== "remote-token") {
     return res.status(403).json({ ok: false, error: "Developer access is required to stop server services." });
   }
-  const cp = require("child_process");
   if (process.platform === "linux") {
-    cp.exec("echo sacups | sudo -S systemctl stop inverter-telemetry inverter-forecast 2>/dev/null || systemctl stop inverter-telemetry inverter-forecast 2>/dev/null", () => {
-      res.json({ ok: true, message: "Local services stopped." });
+    return res.status(409).json({
+      ok: false,
+      managedExternally: true,
+      manager: "systemd",
+      error: "Linux appliance services are managed by systemd and start automatically at boot.",
     });
-  } else {
-    res.json({ ok: true, message: "Local services stopped." });
   }
+  res.json({ ok: true, message: "Local services stopped." });
 });
 
 app.post("/api/server/config", async (req, res) => {

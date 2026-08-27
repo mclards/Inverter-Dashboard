@@ -55,12 +55,21 @@ assert.match(
   "Remote clients must identify device-local-only saves explicitly",
 );
 assert.match(server, /if \(remoteClientSave && !remoteClientLocalOnlySave\)/);
+assert.match(server, /lifecycleManagedExternally: process\.platform === "linux"/);
+assert.match(server, /Linux appliance services are managed by systemd and start automatically at boot/);
+assert.doesNotMatch(server, /sudo -S/);
+assert.doesNotMatch(server, /echo sacups/);
+assert.doesNotMatch(server, /inverter-telemetry/);
 
 for (const appSource of [publicApp, frontendApp]) {
   assert.match(appSource, /setServerAutoStart\(e\.target\.checked\)/);
   assert.match(appSource, /if \(keepChk\) keepChk\.disabled = true;/);
   assert.match(appSource, /if \(autoChk\) autoChk\.disabled = true;/);
   assert.match(appSource, /Could not save the auto-start setting/);
+  assert.match(appSource, /Linux appliance services are managed automatically by systemd/);
+  assert.match(appSource, /DEGRADED \(Web Server; no fresh telemetry\)/);
+  assert.doesNotMatch(appSource, /Polling Ready/);
+  assert.doesNotMatch(appSource, /connected; off-network/);
 }
 
 const publicVersion = (publicIndex.match(/js\/app\.js\?v=([^"']+)/) || [])[1];

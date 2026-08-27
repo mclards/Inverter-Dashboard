@@ -28,6 +28,16 @@
   APT runs, allowing an interrupted older installation to recover on rerun.
 - Runtime settings, credentials, topology, databases, camera configuration,
   forecast artifacts, and logs are preserved on reruns and Git updates.
+- The Linux installer validates and seeds the canonical 27-inverter topology
+  before starting telemetry. It replaces only the exact untouched synthetic
+  `.101`-through-`.127`, four-node default (keeping a backup); any customized
+  operator topology is validated and preserved.
+- The telemetry drivers use the pinned pymodbus 3.6 API (`pymodbus.client` and
+  `slave=`). A missing driver is fatal at startup, so systemd cannot report an
+  apparently active telemetry process that is incapable of polling.
+- Browser lifecycle controls recognize that Linux services are systemd-owned.
+  They cannot run password-embedded service commands, and reachable telemetry
+  without fresh frames is shown as degraded rather than polling-ready.
 - The production backup restore path no longer depends on the vulnerable
   `extract-zip` package. Its contained ZIP reader rejects path traversal,
   absolute paths, symlinks, NUL names, and excessive archive expansion while
@@ -69,3 +79,14 @@ sudo /opt/inverter-dashboard/deploy/linux/scripts/inverter-health-check.sh
 The health check establishes component reachability only. It does not issue
 Modbus control commands and does not claim successful field polling when the
 host is disconnected from the inverter subnet.
+
+## 2026-08-27 field diagnosis and verification boundary
+
+On the production appliance, all four dashboard services were active, the
+wired host route selected `enp4s0`, and several configured devices accepted
+TCP/502 connections. A read-only pymodbus 3.6.8 probe returned valid input
+register responses from inverter `.101` on nodes N1 through N4. The installed
+telemetry driver nevertheless imported the removed pymodbus 2.x module and
+silently disabled its client functions. This record captures the durable
+driver, installer, topology, and status corrections. Live fleet polling must
+be re-verified after the corrected commit is installed on the appliance.

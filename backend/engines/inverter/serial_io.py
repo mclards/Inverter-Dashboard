@@ -105,7 +105,7 @@ def _do_unlock(client, slave: int) -> None:
         r = client.write_registers(
             address=UNLOCK_REGISTER,
             values=list(UNLOCK_VALUES),
-            unit=int(slave),
+            slave=int(slave),
         )
     except Exception as exc:
         raise SerialIoError(f"unlock_exception: {exc}") from exc
@@ -118,7 +118,7 @@ def _do_write(client, slave: int, regs: list) -> None:
         r = client.write_registers(
             address=SERIAL_REGISTER,
             values=regs,
-            unit=int(slave),
+            slave=int(slave),
         )
     except Exception as exc:
         raise SerialIoError(f"write_exception: {exc}") from exc
@@ -344,4 +344,3 @@ def info_to_dict(info: SlaveIdInfo) -> dict:
         "live_snapshot_hex": info.live_snapshot_raw.hex(),
         "raw_payload_hex": info.raw_payload.hex(),
     }
-

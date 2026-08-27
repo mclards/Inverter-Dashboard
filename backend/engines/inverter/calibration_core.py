@@ -35,7 +35,7 @@ def _read_calibration_block_sync(client, lock, slave: int,
     """
     try:
         with lock:
-            r = client.read_holding_registers(address=base, count=count, unit=slave)
+            r = client.read_holding_registers(address=base, count=count, slave=slave)
         if r is None:
             return {"ok": False, "error": "null_response"}
         if r.isError():
@@ -88,8 +88,8 @@ def _read_live_for_calibration_sync(client, lock, slave: int) -> dict:
     }
     try:
         with lock:
-            r1 = client.read_input_registers(address=0, count=19, unit=slave)
-            r2 = client.read_input_registers(address=64, count=13, unit=slave)
+            r1 = client.read_input_registers(address=0, count=19, slave=slave)
+            r2 = client.read_input_registers(address=64, count=13, slave=slave)
         if r1 is not None and not r1.isError() and hasattr(r1, "registers"):
             regs = list(r1.registers)
             def g(i):

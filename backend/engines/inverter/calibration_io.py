@@ -117,7 +117,7 @@ def _do_unlock(client, slave: int) -> None:
         r = client.write_registers(
             address=UNLOCK_REGISTER,
             values=list(UNLOCK_VALUES),
-            unit=int(slave),
+            slave=int(slave),
         )
     except Exception as exc:
         raise CalibIoError(f"unlock_exception: {exc}") from exc
@@ -131,7 +131,7 @@ def _do_write_one(client, slave: int, offset: int, value_u16: int) -> None:
         r = client.write_registers(
             address=int(offset),
             values=[int(value_u16) & 0xFFFF],
-            unit=int(slave),
+            slave=int(slave),
         )
     except Exception as exc:
         raise CalibIoError(f"write_exception: {exc}") from exc
@@ -143,7 +143,7 @@ def _do_write_bulk(client, slave: int, base_offset: int, values_u16: List[int]) 
         r = client.write_registers(
             address=int(base_offset),
             values=[int(v) & 0xFFFF for v in values_u16],
-            unit=int(slave),
+            slave=int(slave),
         )
     except Exception as exc:
         raise CalibIoError(f"write_bulk_exception: {exc}") from exc
@@ -153,7 +153,7 @@ def _do_write_bulk(client, slave: int, base_offset: int, values_u16: List[int]) 
 def _do_read_block(client, slave: int, base: int, count: int) -> List[int]:
     """Read `count` UInt16s starting at `base`. Raises on Modbus failure."""
     try:
-        r = client.read_holding_registers(address=int(base), count=int(count), unit=int(slave))
+        r = client.read_holding_registers(address=int(base), count=int(count), slave=int(slave))
     except Exception as exc:
         raise CalibIoError(f"read_exception: {exc}") from exc
     if r is None or r.isError():
@@ -582,7 +582,7 @@ def _consign_apc_sync(client, lock: threading.Lock, slave: int, pct: float) -> d
 
     try:
         with lock:
-            r = client.write_registers(address=APC_REG, values=values, unit=int(slave))
+            r = client.write_registers(address=APC_REG, values=values, slave=int(slave))
         if r is None:
             out["error"] = "null_response"
             return out
@@ -837,4 +837,3 @@ def write_cfg_field_with_lock(
                 f"0x{final_u16:04X}"
             )
         return out
-

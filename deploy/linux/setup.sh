@@ -186,6 +186,12 @@ if [ ! -d "${INVERTER_DATA_DIR}" ]; then
 fi
 runuser -u "${APP_USER}" -- test -w "${INVERTER_DATA_DIR}" \
     || error "The service user cannot write to ${INVERTER_DATA_DIR}."
+runuser -u "${APP_USER}" -- /usr/bin/node \
+    "${APP_DIR}/deploy/linux/scripts/inverter-ipconfig-seed.js" \
+    "${APP_DIR}/deploy/linux/default/ipconfig.json" \
+    "${INVERTER_DATA_DIR}/ipconfig.json"
+chmod 640 "${INVERTER_DATA_DIR}/ipconfig.json"
+ok "Canonical inverter topology is present; operator configuration was preserved when already customized."
 
 log "[9/18] Installing Python dependencies in an isolated environment..."
 if [ ! -x "${APP_DIR}/venv/bin/python" ]; then
@@ -243,11 +249,16 @@ chmod 755 "${APP_DIR}/deploy/linux/setup.sh" \
     "${APP_DIR}/deploy/linux/update.sh" \
     "${APP_DIR}/deploy/linux/scripts/inverter-db-check.sh" \
     "${APP_DIR}/deploy/linux/scripts/inverter-health-check.sh" \
-    "${APP_DIR}/deploy/linux/scripts/tailscale-setup.sh"
+    "${APP_DIR}/deploy/linux/scripts/tailscale-setup.sh" \
+    "${APP_DIR}/deploy/linux/scripts/inverter-ipconfig-seed.js"
 runuser -u "${APP_USER}" -- /usr/bin/node --check "${APP_DIR}/server/index.js"
 runuser -u "${APP_USER}" -- "${APP_DIR}/venv/bin/python" -m py_compile \
     "${APP_DIR}/backend/engines/inverter/InverterCoreService.py" \
     "${APP_DIR}/backend/engines/forecast/ForecastCoreService.py"
+runuser -u "${APP_USER}" -- env \
+    PYTHONPATH="${APP_DIR}/backend/engines/inverter" \
+    "${APP_DIR}/venv/bin/python" -c \
+    "import inspect; from drivers.modbus_tcp import ModbusTcpClient; assert 'slave' in inspect.signature(ModbusTcpClient.read_input_registers).parameters"
 ok "Linux entry points passed syntax validation."
 
 log "[13/18] Installing systemd service definitions..."

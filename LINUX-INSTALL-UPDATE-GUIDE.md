@@ -31,7 +31,12 @@ The bootstrap installs its own prerequisites, repairs the exact legacy
 NodeSource keyring defect when present, clones or fast-forwards the canonical
 repository, and runs the complete idempotent setup. Setup installs and verifies
 the gateway, telemetry engine, forecast worker, go2rtc, database, firewall,
-systemd services, Tailscale, and component health.
+systemd services, Tailscale, canonical inverter topology, and component health.
+
+On a fresh install, setup seeds the dashboard's validated 27-inverter topology.
+On reruns it preserves any valid operator-customized topology. It upgrades only
+the exact untouched synthetic fresh-install topology and keeps an
+`ipconfig.json.pre-canonical-seed` backup beside it.
 
 An existing checkout with uncommitted changes or an unexpected Git remote is
 rejected instead of overwritten. Runtime data and credentials under
@@ -61,6 +66,11 @@ The check requires all dashboard services, `tailscaled`, the gateway HTTP
 endpoint, telemetry health endpoint, and go2rtc API to be reachable. This proves
 service reachability only. Successful live Modbus polling requires the plant
 network and a fresh telemetry read from a configured inverter/node.
+
+On Linux, systemd owns service start, stop, restart, and boot persistence. The
+browser lifecycle page is status-only for these controls; it must not request
+or store a sudo password. Use the installer/update command for normal service
+deployment and the read-only health command for verification.
 
 ## Developer commit and push workflow
 

@@ -63,6 +63,11 @@ except ImportError:
         except ImportError:
             create_client = read_input = read_holding = write_single = None
 
+if create_client is None:
+    raise RuntimeError(
+        "Modbus TCP driver could not be imported; refusing to start an unready telemetry service"
+    )
+
 try:
     from shared_data import shared
     import firmware_buslock
@@ -1469,7 +1474,7 @@ async def read_slow_async(client, unit, ip):
     Safe defaults (0 or None) for missing regs preserve backward-compat if
     the device doesn't support the full range.
 
-    Wire format: read_input_registers(address=64, count=53, unit=unit)
+    Wire format: read_input_registers(address=64, count=53, slave=unit)
       Modbus addresses 30065Ã¢â‚¬â€œ30117 (PDF Ã‚Â§2 p6Ã¢â‚¬â€œ9)
 
     Field decode (per PDF + plan Ã‚Â§2 register map):
@@ -2644,7 +2649,7 @@ async def sync_clock(ip: str, unit: int, target_dt=None,
             write_ok = False
             write_err = None
             try:
-                r = client.write_registers(address=0, values=values, unit=int(unit))
+                r = client.write_registers(address=0, values=values, slave=int(unit))
                 write_ok = bool(r and not r.isError())
                 if not write_ok and r is not None:
                     write_err = f"modbus_error: {r}"
@@ -2755,7 +2760,7 @@ async def sync_clock_inverter(ip: str, units, target_dt=None,
                 int(target_dt.hour), int(target_dt.minute), int(target_dt.second),
             ]
             try:
-                client.write_registers(address=0, values=values, unit=0)
+                client.write_registers(address=0, values=values, slave=0)
                 write_ok = True
             except Exception as exc:
                 write_err = f"write_exception: {exc}"
@@ -3913,7 +3918,7 @@ def _read_grid_control_state_sync(client, lock, slave: int) -> dict:
     try:
         with lock:
             r = client.read_holding_registers(address=_GC_READ_BASE_ADDR,
-                                              count=_GC_READ_COUNT, unit=slave)
+                                              count=_GC_READ_COUNT, slave=slave)
         if r is None:
             return {"ok": False, "error": "null_response"}
         if r.isError():
@@ -4697,7 +4702,7 @@ async def api_calibration_full_config(ip: str, slave: int):
                     r = c.read_holding_registers(
                         address=base + offset,
                         count=need,
-                        unit=s,
+                        slave=s,
                     )
                     if r is None or r.isError():
                         return {"ok": False, "error": f"modbus_error@{offset}: {r}"}
@@ -4777,7 +4782,7 @@ async def api_calibration_scan(ip: str, slave: int):
             while offset < total:
                 need = min(CHUNK, total - offset)
                 r = client.read_holding_registers(
-                    address=base + offset, count=need, unit=int(s))
+                    address=base + offset, count=need, slave=int(s))
                 if r is None or r.isError():
                     return {"ok": False, "error": f"modbus_error@{offset}"}
                 got = list(r.registers) if hasattr(r, "registers") else []

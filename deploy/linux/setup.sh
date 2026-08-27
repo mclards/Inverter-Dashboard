@@ -61,6 +61,8 @@ if [ "${INVERTER_SKIP_SYSTEM_PACKAGES:-0}" != "1" ]; then
         build-essential ca-certificates curl git gnupg openssh-server \
         python3 python3-pip python3-venv rsync sqlite3 ufw >/dev/null
 fi
+git config --system --add safe.directory "${APP_DIR}" 2>/dev/null || true
+git config --system --add safe.directory "${REPO_ROOT}" 2>/dev/null || true
 ok "Operating-system prerequisites are ready."
 
 /usr/bin/bash "${REPO_ROOT}/deploy/linux/scripts/tailscale-setup.sh"
@@ -131,6 +133,8 @@ install -d -o "${APP_USER}" -g "${APP_GROUP}" -m 750 \
     "${DATA_ROOT}/config" "${DATA_ROOT}/auth" "${DATA_ROOT}/go2rtc" \
     "${DATA_ROOT}/archives" "${DATA_ROOT}/forecast" "${DATA_ROOT}/weather" \
     "${LOG_DIR}"
+chown -R "${APP_USER}:${APP_GROUP}" "${DATA_ROOT}"
+find "${DATA_ROOT}" -type d -exec chmod 750 {} +
 ok "Persistent data is isolated under ${DATA_ROOT}."
 
 log "[7/18] Configuring operator authentication..."
@@ -184,6 +188,11 @@ esac
 if [ ! -d "${INVERTER_DATA_DIR}" ]; then
     install -d -o "${APP_USER}" -g "${APP_GROUP}" -m 750 "${INVERTER_DATA_DIR}"
 fi
+chown -R "${APP_USER}:${APP_GROUP}" "${INVERTER_DATA_DIR}"
+if [ -f "${INVERTER_DATA_DIR}/ipconfig.json" ]; then
+    chown "${APP_USER}:${APP_GROUP}" "${INVERTER_DATA_DIR}/ipconfig.json"
+    chmod 640 "${INVERTER_DATA_DIR}/ipconfig.json"
+fi
 runuser -u "${APP_USER}" -- test -w "${INVERTER_DATA_DIR}" \
     || error "The service user cannot write to ${INVERTER_DATA_DIR}."
 runuser -u "${APP_USER}" -- /usr/bin/node \
@@ -191,6 +200,7 @@ runuser -u "${APP_USER}" -- /usr/bin/node \
     "${APP_DIR}/deploy/linux/default/ipconfig.json" \
     "${INVERTER_DATA_DIR}/ipconfig.json"
 chmod 640 "${INVERTER_DATA_DIR}/ipconfig.json"
+chown "${APP_USER}:${APP_GROUP}" "${INVERTER_DATA_DIR}/ipconfig.json"
 ok "Canonical inverter topology is present; operator configuration was preserved when already customized."
 
 log "[9/18] Installing Python dependencies in an isolated environment..."

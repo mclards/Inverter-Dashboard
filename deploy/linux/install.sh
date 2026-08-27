@@ -29,6 +29,7 @@ echo "[install] Preparing Git bootstrap prerequisites..."
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq ca-certificates git >/dev/null
+git config --system --add safe.directory "${APP_DIR}" 2>/dev/null || true
 
 if [ -d "${APP_DIR}/.git" ]; then
     CURRENT_ORIGIN="$(git -c safe.directory="${APP_DIR}" -C "${APP_DIR}" remote get-url origin 2>/dev/null || true)"

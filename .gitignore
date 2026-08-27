@@ -11,6 +11,7 @@ __pycache__/
 *.log
 logs/
 *.tmp
+.tmp/
 temp/
 .DS_Store
 Thumbs.db

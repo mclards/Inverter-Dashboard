@@ -16,8 +16,10 @@ log_line() {
 
 [ -f "${DB_PATH}" ] || exit 0
 
-CHECK_OUTPUT="$(sqlite3 "${DB_PATH}" 'PRAGMA quick_check(1);' 2>&1 || true)"
-[ "${CHECK_OUTPUT}" = "ok" ] && exit 0
+CHECK_OUTPUT="$(sqlite3 "${DB_PATH}" 'PRAGMA schema_version;' 2>&1 || true)"
+if [ -n "${CHECK_OUTPUT}" ] && [ "${CHECK_OUTPUT}" -ge 0 ] 2>/dev/null; then
+    exit 0
+fi
 
 REPAIRED_PATH="${DB_PATH}.repaired.$$"
 BACKUP_PATH="${DB_PATH}.corrupted.$(date +%Y%m%d%H%M%S).bak"

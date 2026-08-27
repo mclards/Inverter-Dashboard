@@ -125,6 +125,29 @@ Before changing any runtime configuration, confirm the exact target path. Never 
 - The `implemented/` directory contains one living implementation record per related feature area. Update the existing record for follow-up work in the same area; do not create a new timestamped record for every incremental change.
 - Consolidate redundant records when a feature evolves. Keep the original record filename unless the scope genuinely becomes a separate feature, and preserve relevant implementation decisions and verification evidence in the retained record.
 
+### Canonical Linux appliance installation
+
+- The supported fresh Debian/Ubuntu installation is one pasted command:
+  `sudo bash -c 'apt-get update -qq && apt-get install -y -qq ca-certificates curl && curl -fsSL https://raw.githubusercontent.com/mclards/Inverter-Dashboard/main/deploy/linux/install.sh | bash'`.
+- Preserve `deploy/linux/install.sh` as the minimal bootstrap and
+  `deploy/linux/setup.sh` as the complete idempotent installer. The bootstrap
+  must install its prerequisites, safely clone or fast-forward the canonical
+  Git repository, and delegate to the full setup.
+- A complete Linux installation includes the gateway, telemetry engine,
+  forecast worker, go2rtc, systemd boot persistence, firewall rules, database
+  initialization/repair, runtime ownership, Tailscale, and final component
+  health verification. Never report success when a required service or probe
+  is degraded.
+- Tailscale setup must detect and preserve an existing installation and node
+  identity, install and enable `tailscaled` when absent, enable Tailscale SSH,
+  and verify tailnet connectivity. A new device requires exactly one initial
+  tailnet authorization unless the operator explicitly supplies a
+  pre-authorized `TAILSCALE_AUTH_KEY`; never store that key in Git or runtime
+  configuration. Subsequent enrollment state persists across connections and
+  reboots, subject to the administrator's tailnet expiry and SSH policy.
+- Keep the one-command workflow synchronized in `README.md`, this file, the
+  Linux deployment tests, and `implemented/linux-production-appliance.md`.
+
 ### Release and handoff checks
 
 - Keep `public/` and `frontend/public/` changes intentional and synchronized when both are shipped. Bump every affected cache-busting query string.

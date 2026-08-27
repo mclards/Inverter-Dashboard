@@ -16,18 +16,34 @@ Plan: plans/2026-05-12-inverter-calibration-tool.md
 from __future__ import annotations
 
 import time
-from services import calibration_decoder as _calib_dec
+try:
+    from calibration_decoder import (
+        CALIBRATION_BLOCK_BASE as _CALIB_READ_BASE,
+        CALIBRATION_BLOCK_LEN as _CALIB_READ_COUNT,
+    )
+except ImportError:
+    from services.calibration_decoder import (
+        CALIBRATION_BLOCK_BASE as _CALIB_READ_BASE,
+        CALIBRATION_BLOCK_LEN as _CALIB_READ_COUNT,
+    )
 
 # ─── Constants ────────────────────────────────────────────────────────────
 
-_CALIB_READ_BASE  = _calib_dec.CALIBRATION_BLOCK_BASE   # 80
-_CALIB_READ_COUNT = _calib_dec.CALIBRATION_BLOCK_LEN    # 15
-
-# ─── Core sync functions (blocking, Modbus client injected) ────────────────
+def _call_client(fn, *args, **kwargs):
+    slave = kwargs.pop("slave", None)
+    if slave is not None:
+        try:
+            return fn(*args, slave=slave, **kwargs)
+        except TypeError:
+            try:
+                return fn(*args, device_id=slave, **kwargs)
+            except TypeError:
+                return fn(*args, **kwargs)
+    return fn(*args, **kwargs)
 
 def _read_calibration_block_sync(client, lock, slave: int,
-                                  base: int = _CALIB_READ_BASE,
-                                  count: int = _CALIB_READ_COUNT) -> dict:
+                                   base: int = _CALIB_READ_BASE,
+                                   count: int = _CALIB_READ_COUNT) -> dict:
     """Blocking FC03 read of the calibration block. Returns raw regs.
 
     Caller holds the executor; we hold the per-IP lock only for the wire
@@ -35,7 +51,7 @@ def _read_calibration_block_sync(client, lock, slave: int,
     """
     try:
         with lock:
-            r = client.read_holding_registers(address=base, count=count, slave=slave)
+            r = _call_client(client.read_holding_registers, address=base, count=count, slave=slave)
         if r is None:
             return {"ok": False, "error": "null_response"}
         if r.isError():
@@ -48,48 +64,25 @@ def _read_calibration_block_sync(client, lock, slave: int,
         return {"ok": False, "error": f"exception: {exc}"}
 
 def _read_live_for_calibration_sync(client, lock, slave: int) -> dict:
-    """Read the input registers that pair with each calibration scale factor.
-
-    Used by the Field Calibration page so the operator sees the LIVE measured
-    value (Vac, Iac, Vdc, Idc, Pac, Qac) alongside the scale factor being
-    edited. Mirrors the TrinPM20 video workflow: read the display value,
-    compare to the external meter, modify scale factor until they match.
-
-    Two FC04 reads under one lock acquisition:
-      • addr 0,  count 19 → Vdc(8), Idc(9), Vac1-3(10-12), Iac1-3(13-15), Pac(18)
-      • addr 64, count 13 → Qac(68), Estado(73), VpvN(74), VpvP(75), NomPower(76)
-
-    Returns a dict with each live value or None on per-field failure.  Never
-    raises — calibration state must remain readable even if the input regs
-    are momentarily unavailable.
-
-    v2.11.0-beta.6 — Slice κ.10 TrinPM20 gates: extended count 12→13 to
-    include input reg 30077 (NominalPower ÷ 10). Adds `state_raw` (Estado
-    bitfield from reg 30074) and `nominal_power_w` so calibration safety
-    gates can refuse Fesc_ipv writes below 70 % Pn, refuse reactive-curve
-    writes at the wrong consign target, and refuse any write while the
-    inverter is in `error`/`blocked` phase. See server/calibrationRoutes
-    requireSafeForOffset gate.
-    """
+    """Read the input registers that pair with each calibration scale factor."""
     out = {
         "vac1_v": None, "vac2_v": None, "vac3_v": None,
         "iac1_a": None, "iac2_a": None, "iac3_a": None,
         "vdc_v": None,  "idc_a": None,  "pac_w": None,
         "qac_var": None, "vpv_p_v": None, "vpv_n_v": None,
-        # Slice κ.10 — TrinPM20 safety-gate fields:
-        "state_raw":       None,    # Estado bitfield (reg 30074)
-        "state_phase":     None,    # decoded low-byte phase (0=initial, 1=init-mag, 2=grid-connected, 3=error)
-        "state_stop":      None,    # bit 8 — 1 = stop, 0 = run
-        "state_blocked":   None,    # bit 9 — 1 = blocked
-        "state_grid_fault": None,   # bit 10 — 1 = grid fault detected
-        "nominal_power_w": None,    # reg 30077 × 10
-        "pct_of_pn":       None,    # pac_w / nominal_power_w × 100 (rounded 0.1)
+        "state_raw":       None,
+        "state_phase":     None,
+        "state_stop":      None,
+        "state_blocked":   None,
+        "state_grid_fault": None,
+        "nominal_power_w": None,
+        "pct_of_pn":       None,
         "read_at_ms": int(time.time() * 1000),
     }
     try:
         with lock:
-            r1 = client.read_input_registers(address=0, count=19, slave=slave)
-            r2 = client.read_input_registers(address=64, count=13, slave=slave)
+            r1 = _call_client(client.read_input_registers, address=0, count=19, slave=slave)
+            r2 = _call_client(client.read_input_registers, address=64, count=13, slave=slave)
         if r1 is not None and not r1.isError() and hasattr(r1, "registers"):
             regs = list(r1.registers)
             def g(i):

@@ -1,26 +1,26 @@
-"""Calibration write pipeline â€” Phase 2 of the Field Calibration tool.
+"""Calibration write pipeline — Phase 2 of the Field Calibration tool.
 
-Plan: plans/2026-05-12-inverter-calibration-tool.md Â§3
+Plan: plans/2026-05-12-inverter-calibration-tool.md §3
 Mirrors the proven `services/serial_io.py` pattern:
 
-    UNLOCK  â†’  WRITE-ONE or WRITE-BULK  â†’  SLEEP(1000 ms)  â†’  VERIFY (FC03 read-back)
+    UNLOCK  →  WRITE-ONE or WRITE-BULK  →  SLEEP(1000 ms)  →  VERIFY (FC03 read-back)
 
 All four Modbus exchanges happen under a single per-IP lock acquisition so
 the poller cannot interleave between unlock and write.  The unlock magic
-(`0xFFFA â† [0x0065, 0x07A7]`) is the same gate proven on hardware for the
+(`0xFFFA ← [0x0065, 0x07A7]`) is the same gate proven on hardware for the
 serial-number write (Slice C, 2026-04-27).  Whether the same magic gates
-the calibration window (offsets 81-94) is open question Â§4.1 of the plan
-â€” this module is the implementation; the on-site spike confirms scope.
+the calibration window (offsets 81-94) is open question §4.1 of the plan
+— this module is the implementation; the on-site spike confirms scope.
 
-The module is pure-Python with no SQLite/HTTP â€” the caller
+The module is pure-Python with no SQLite/HTTP — the caller
 (FastAPI endpoint in `services/inverter_engine.py`) provides the locked
 client and audits the result via Node.
 
 Safety preflight (always-on):
-  1. Read offset 80 (ValidCfgCode) â€” must be 0x1F1F or operation refuses
-  2. Read target offset before write â€” captures `value_before` for audit
-  3. After write + sleep, read target offset back â€” pass if matches
-  4. Re-read offset 80 â€” confirm sentinel survived the write
+  1. Read offset 80 (ValidCfgCode) — must be 0x1F1F or operation refuses
+  2. Read target offset before write — captures `value_before` for audit
+  3. After write + sleep, read target offset back — pass if matches
+  4. Re-read offset 80 — confirm sentinel survived the write
 """
 from __future__ import annotations
 
@@ -35,16 +35,12 @@ try:
         VALID_CFG_CODE_EXPECTED,
     )
 except ImportError:
-    try:
-        from services.calibration_decoder import (
-            CALIBRATION_FIELDS,
-            VALID_CFG_CODE_EXPECTED,
-        )
-    except ImportError:
-        CALIBRATION_FIELDS = {}
-        VALID_CFG_CODE_EXPECTED = 0x55AA
+    from services.calibration_decoder import (
+        CALIBRATION_FIELDS,
+        VALID_CFG_CODE_EXPECTED,
+    )
 
-# â”€â”€â”€ Wire constants (shared with serial_io) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Wire constants (shared with serial_io) ─────────────────────────────────
 
 UNLOCK_REGISTER = 0xFFFA
 UNLOCK_VALUES   = (0x0065, 0x07A7)
@@ -53,20 +49,20 @@ VALID_CFG_OFFSET = 80
 VERIFY_DELAY_S   = 1.0
 DEFAULT_TIMEOUT_S = 3.0
 
-# v2.11.x â€” verify tolerance band. Operator preference (2026-05-13):
+# v2.11.x — verify tolerance band. Operator preference (2026-05-13):
 # the inverter quantizes some scale factors internally (writing 1884
 # may land on 1814 because the firmware rounds to a coarser step).
 # Treating that as a hard "Write failed: readback mismatch" was alarming
-# and inaccurate â€” the write DID land, just on a quantization grid.
+# and inaccurate — the write DID land, just on a quantization grid.
 # We now mark the write as successful when the readback is within
-# either Â±5 % OR Â±10 absolute units of the requested value (whichever
+# either ±5 % OR ±10 absolute units of the requested value (whichever
 # is larger), and surface a `quantized=true` flag + note instead of an
 # error. Anything outside that band is still a true verify failure
 # (e.g. write didn't take, register was clobbered by a parallel read).
 VERIFY_TOLERANCE_PCT       = 5.0
 VERIFY_TOLERANCE_ABS_UNITS = 10
 
-# â”€â”€â”€ Errors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Errors ────────────────────────────────────────────────────────────────
 
 class CalibIoError(Exception):
     """Operational failure during the calibration pipeline."""
@@ -78,7 +74,7 @@ class CalibRangeError(CalibIoError):
 class CalibPreflightError(CalibIoError):
     """Sentinel / safety preflight failed; do NOT write."""
 
-# â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Helpers ───────────────────────────────────────────────────────────────
 
 # offset -> (field, is_signed, label)
 _FIELD_INDEX: Dict[int, Tuple[str, bool, str]] = {
@@ -110,11 +106,24 @@ def _signed16(u: int) -> int:
     u = int(u) & 0xFFFF
     return u - 0x10000 if u >= 0x8000 else u
 
-# â”€â”€â”€ Modbus operations (sync â€” caller MUST hold lock) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+def _call_client(fn, *args, **kwargs):
+    slave = kwargs.pop("slave", None)
+    if slave is not None:
+        try:
+            return fn(*args, slave=slave, **kwargs)
+        except TypeError:
+            try:
+                return fn(*args, device_id=slave, **kwargs)
+            except TypeError:
+                return fn(*args, **kwargs)
+    return fn(*args, **kwargs)
+
+# ─── Modbus operations (sync — caller MUST hold lock) ──────────────────────
 
 def _do_unlock(client, slave: int) -> None:
     try:
-        r = client.write_registers(
+        r = _call_client(
+            client.write_registers,
             address=UNLOCK_REGISTER,
             values=list(UNLOCK_VALUES),
             slave=int(slave),
@@ -127,8 +136,9 @@ def _do_unlock(client, slave: int) -> None:
 def _do_write_one(client, slave: int, offset: int, value_u16: int) -> None:
     try:
         # Single-register write via FC16 (write_registers with one value)
-        # â€” same path the serial write uses, more uniform than FC06.
-        r = client.write_registers(
+        # — same path the serial write uses, more uniform than FC06.
+        r = _call_client(
+            client.write_registers,
             address=int(offset),
             values=[int(value_u16) & 0xFFFF],
             slave=int(slave),
@@ -140,7 +150,8 @@ def _do_write_one(client, slave: int, offset: int, value_u16: int) -> None:
 
 def _do_write_bulk(client, slave: int, base_offset: int, values_u16: List[int]) -> None:
     try:
-        r = client.write_registers(
+        r = _call_client(
+            client.write_registers,
             address=int(base_offset),
             values=[int(v) & 0xFFFF for v in values_u16],
             slave=int(slave),
@@ -153,7 +164,7 @@ def _do_write_bulk(client, slave: int, base_offset: int, values_u16: List[int]) 
 def _do_read_block(client, slave: int, base: int, count: int) -> List[int]:
     """Read `count` UInt16s starting at `base`. Raises on Modbus failure."""
     try:
-        r = client.read_holding_registers(address=int(base), count=int(count), slave=int(slave))
+        r = _call_client(client.read_holding_registers, address=int(base), count=int(count), slave=int(slave))
     except Exception as exc:
         raise CalibIoError(f"read_exception: {exc}") from exc
     if r is None or r.isError():
@@ -179,14 +190,14 @@ def _preflight(client, slave: int) -> Dict[str, object]:
         "by_offset": {VALID_CFG_OFFSET + i: regs[i] for i in range(len(regs))},
     }
 
-# â”€â”€â”€ Range guard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Range guard ───────────────────────────────────────────────────────────
 
 def validate_value(offset: int, new_value: int, current_value: Optional[int],
                    *, max_delta_pct: float = 50.0) -> None:
     """Refuse obvious mistakes:
-      â€¢ offset must be in the writable set
-      â€¢ value must fit UInt16 (or Int16 if signed)
-      â€¢ if `current_value` is known and != 0, `|new - cur| / |cur| <= max_delta_pct`
+      • offset must be in the writable set
+      • value must fit UInt16 (or Int16 if signed)
+      • if `current_value` is known and != 0, `|new - cur| / |cur| <= max_delta_pct`
 
     Operator can opt out of the % guard by passing `max_delta_pct=None`.
     """
@@ -217,7 +228,7 @@ def validate_value(offset: int, new_value: int, current_value: Optional[int],
             f"(guard {max_delta_pct:.1f}%); pass `max_delta_pct=null` to force"
         )
 
-# â”€â”€â”€ Public write APIs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Public write APIs ─────────────────────────────────────────────────────
 
 @dataclass
 class WriteOneResult:
@@ -243,7 +254,7 @@ def write_one_with_lock(
     max_delta_pct: Optional[float] = 50.0,
     verify_delay_s: float = VERIFY_DELAY_S,
 ) -> dict:
-    """Three-stage pipeline: UNLOCK â†’ WRITE â†’ VERIFY for one register.
+    """Three-stage pipeline: UNLOCK → WRITE → VERIFY for one register.
 
     Single lock acquisition. Returns a dict ready for HTTP serialization.
     """
@@ -266,7 +277,7 @@ def write_one_with_lock(
         return out
 
     with lock:
-        # PREFLIGHT â€” sentinel + capture value_before
+        # PREFLIGHT — sentinel + capture value_before
         try:
             pre = _preflight(client, int(slave))
         except CalibPreflightError as exc:
@@ -308,7 +319,7 @@ def write_one_with_lock(
             out["error"]  = str(exc)
             return out
 
-        # VERIFY â€” sleep then re-read sentinel + target offset together.
+        # VERIFY — sleep then re-read sentinel + target offset together.
         time.sleep(max(0.0, float(verify_delay_s)))
         try:
             post = _do_read_block(client, int(slave), VALID_CFG_OFFSET, 15)
@@ -326,9 +337,9 @@ def write_one_with_lock(
             post_value_disp = post_value
             req_disp        = _u16(new_value)
         out["value_after"] = post_value_disp
-        # Conservative verify â€” allow the inverter to quantize within a
-        # tolerance band. Exact match â†’ success. Within tolerance â†’
-        # success_quantized (still ok=true, just flagged). Outside â†’
+        # Conservative verify — allow the inverter to quantize within a
+        # tolerance band. Exact match → success. Within tolerance →
+        # success_quantized (still ok=true, just flagged). Outside →
         # verify_failed (true error: write didn't take or got clobbered).
         exact_match  = post_value_disp == req_disp
         delta_units  = abs(int(post_value_disp) - int(req_disp))
@@ -347,7 +358,7 @@ def write_one_with_lock(
             out["status"] = "sentinel_clobbered"
             out["error"]  = (
                 f"ValidCfgCode changed from 0x{pre['sentinel']:04X} to 0x{post[0]:04X}; "
-                f"calibration block may revert on next boot â€” investigate immediately"
+                f"calibration block may revert on next boot — investigate immediately"
             )
             return out
 
@@ -358,14 +369,14 @@ def write_one_with_lock(
             out["ok"]     = True
             out["status"] = "success_quantized"
             out["note"]   = (
-                f"inverter quantized {req_disp} â†’ {post_value_disp} "
-                f"(Î” {delta_units} units, {delta_pct:.2f} % â€” within tolerance)"
+                f"inverter quantized {req_disp} → {post_value_disp} "
+                f"(Δ {delta_units} units, {delta_pct:.2f} % — within tolerance)"
             )
         else:
             out["status"] = "verify_failed"
             out["error"]  = (
                 f"readback {post_value_disp} differs from requested {req_disp} "
-                f"by {delta_units} units ({delta_pct:.2f} %), beyond Â±{tol_units}-unit tolerance"
+                f"by {delta_units} units ({delta_pct:.2f} %), beyond ±{tol_units}-unit tolerance"
             )
         return out
 
@@ -441,7 +452,7 @@ def write_bulk_with_lock(
             out["error"]  = str(exc)
             return out
 
-        # WRITE â€” prefer one FC16 multi-write if offsets are contiguous.
+        # WRITE — prefer one FC16 multi-write if offsets are contiguous.
         offsets = [o for o, _ in writes_sorted]
         contiguous = all(offsets[i] - offsets[i - 1] == 1 for i in range(1, len(offsets)))
         try:
@@ -480,8 +491,8 @@ def write_bulk_with_lock(
                 post_disp = post_v
                 req_disp  = _u16(int(new_v))
                 cur_disp  = cur
-            # Same conservative tolerance band as the single-write path â€”
-            # exact match OR within Â±5 % / Â±10 units â†’ success.
+            # Same conservative tolerance band as the single-write path —
+            # exact match OR within ±5 % / ±10 units → success.
             exact      = post_disp == req_disp
             delta_u    = abs(int(post_disp) - int(req_disp))
             denom      = max(1, abs(int(req_disp)))
@@ -552,14 +563,14 @@ def preflight_read_with_lock(client, lock: threading.Lock, slave: int) -> dict:
             out["error"] = str(exc)
         return out
 
-# â”€â”€â”€ Active Power Control (APC) â€” Continuous %P Setpoint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-# Verified protocol 2026-05-04: FC16 â†’ reg 0x03E8 (1000)
+# ─── Active Power Control (APC) — Continuous %P Setpoint ────────────────────
+# Verified protocol 2026-05-04: FC16 → reg 0x03E8 (1000)
 #   opcode 0x0005 = STOP  |  0x0006 = START  |  0x0003 = SET-ACTIVE-PCT
-#   reg[1001] = Q15 setpoint = (pct/100) Ã— 0x7FFF  (only when opcode=0x0003)
-# Wire test: PAC 143 kW â†’ 125 kW within 8 s at 50 % on inverter .126 slave 1.
-# See plans/2026-05-04-curtailment-control.md Â§1 for full verification record.
+#   reg[1001] = Q15 setpoint = (pct/100) × 0x7FFF  (only when opcode=0x0003)
+# Wire test: PAC 143 kW → 125 kW within 8 s at 50 % on inverter .126 slave 1.
+# See plans/2026-05-04-curtailment-control.md §1 for full verification record.
 
-APC_REG          = 0x03E8   # 1000 â€” command register
+APC_REG          = 0x03E8   # 1000 — command register
 APC_OPCODE_SET_P = 0x0003
 APC_OPCODE_STOP  = 0x0005
 APC_OPCODE_START = 0x0006
@@ -582,7 +593,7 @@ def _consign_apc_sync(client, lock: threading.Lock, slave: int, pct: float) -> d
 
     try:
         with lock:
-            r = client.write_registers(address=APC_REG, values=values, slave=int(slave))
+            r = _call_client(client.write_registers, address=APC_REG, values=values, slave=int(slave))
         if r is None:
             out["error"] = "null_response"
             return out
@@ -614,14 +625,14 @@ def consign_apc_with_lock(client, lock: threading.Lock, slave: int, pct: float) 
         }
     return _consign_apc_sync(client, lock, int(slave), pct_f)
 
-# â”€â”€â”€ L2 config block writes (Utility Tool tabs B/C/D/I) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── L2 config block writes (Utility Tool tabs B/C/D/I) ──────────────────────
 # Mirrors write_one_with_lock above but operates on the broader L2 config
 # block (offsets 0-176) rather than the calibration scale-factor window
 # (offsets 81-94). The field metadata comes from services/cfg_trif_map.FIELDS
 # (the same map the read decoder uses) and the user-supplied value is
 # turned into a raw u16 by services/cfg_block_write.encode_value().
 #
-# Same UNLOCK magic (0xFFFA <- [0x0065, 0x07A7]) â€” the magic is the
+# Same UNLOCK magic (0xFFFA <- [0x0065, 0x07A7]) — the magic is the
 # general "privileged write" gate proven by Slice C (serial write) and
 # the calibration write path; same DSP, same protection register. Live-
 # soak on hardware is still pending and must precede any production use.
@@ -642,30 +653,27 @@ def write_cfg_field_with_lock(
 ) -> dict:
     """Write one L2 config-block field. Returns a serializable dict.
 
-    field_meta is one row from services.cfg_trif_map.FIELDS â€” the same
+    field_meta is one row from services.cfg_trif_map.FIELDS — the same
     metadata the read decoder uses. new_value is the operator-supplied
     natural value (e.g. 5000 W, not 500 raw; 60.00 Hz, not 6000 raw);
     cfg_block_write.encode_value does the kind-specific encoding.
 
     `is_flash_active` is an optional zero-arg callable. When provided it
     is invoked AFTER the per-IP lock is acquired so we close the TOCTOU
-    window between the endpoint's pre-check and the actual write â€” a
+    window between the endpoint's pre-check and the actual write — a
     firmware flash that claims the bus mid-call is still caught.
     """
     # Imported lazily so that calibration_io.py keeps loading even if
-    # cfg_block_write is temporarily broken â€” the calibration write path
+    # cfg_block_write is temporarily broken — the calibration write path
     # (offsets 81-94) does not depend on this new code.
     try:
         from cfg_block_write import (
             encode_value, is_writable_field, merge_bit, CfgEncodeError,
         )
     except ImportError:
-        try:
-            from services.cfg_block_write import (
-                encode_value, is_writable_field, merge_bit, CfgEncodeError,
-            )
-        except ImportError:
-            encode_value = is_writable_field = merge_bit = CfgEncodeError = None
+        from services.cfg_block_write import (
+            encode_value, is_writable_field, merge_bit, CfgEncodeError,
+        )
 
     offset = int(field_meta.get("offset") or -1)
     kind = str(field_meta.get("kind") or "")
@@ -695,7 +703,7 @@ def write_cfg_field_with_lock(
     if not is_writable_field(field_meta):
         out["status"] = "not_writable"
         out["error"] = (
-            f"field '{field_name}' (kind '{kind}') is not writable â€” see "
+            f"field '{field_name}' (kind '{kind}') is not writable — see "
             f"cfg_block_write.UNSUPPORTED_KINDS / NON_WRITABLE_FIELDS"
         )
         return out
@@ -721,7 +729,7 @@ def write_cfg_field_with_lock(
                 if is_flash_active():
                     out["status"] = "firmware_flash_in_progress"
                     out["error"] = (
-                        "firmware flash started during write window â€” "
+                        "firmware flash started during write window — "
                         "refused at lock acquisition")
                     return out
             except Exception as exc:
@@ -730,7 +738,7 @@ def write_cfg_field_with_lock(
                 # status but do not stop the write.
                 out["flash_probe_error"] = str(exc)
 
-        # PREFLIGHT â€” sentinel must be 0x1F1F before any write attempt.
+        # PREFLIGHT — sentinel must be 0x1F1F before any write attempt.
         try:
             sentinel_regs = _do_read_block(client, int(slave), VALID_CFG_OFFSET, 1)
         except CalibIoError as exc:
@@ -771,7 +779,7 @@ def write_cfg_field_with_lock(
             final_u16 = int(encoded) & 0xFFFF
         out["raw_to_write"] = final_u16
 
-        # No-op write detection â€” if the requested final u16 already matches
+        # No-op write detection — if the requested final u16 already matches
         # the current register, skip the unlock+write entirely. Safer (no
         # bus traffic) and surfaces a clear status to the UI.
         if final_u16 == cur_reg:
@@ -782,26 +790,26 @@ def write_cfg_field_with_lock(
             out["verify_ok"] = True
             return out
 
-        # UNLOCK â€” same magic as the calibration window. Hardware-soak
+        # UNLOCK — same magic as the calibration window. Hardware-soak
         # for the broader L2 offsets is the gate before production use.
         try:
             _do_unlock(client, int(slave))
         except CalibIoError as exc:
             out["status"] = "unlock_failed"
-            out["error"] = str(exc)
+            out["error"]  = str(exc)
             return out
 
-        # WRITE â€” single-register FC16. Multi-field write-all is sequenced
+        # WRITE — single-register FC16. Multi-field write-all is sequenced
         # by the caller (one lock acquisition per field; one unlock per
-        # write â€” same shape as write_one_with_lock).
+        # write — same shape as write_one_with_lock).
         try:
             _do_write_one(client, int(slave), offset, final_u16)
         except CalibIoError as exc:
             out["status"] = "write_failed"
-            out["error"] = str(exc)
+            out["error"]  = str(exc)
             return out
 
-        # VERIFY â€” sleep then re-read sentinel + target together.
+        # VERIFY — sleep then re-read sentinel + target together.
         time.sleep(max(0.0, float(verify_delay_s)))
         try:
             post_target = int(_do_read_block(client, int(slave), offset, 1)[0])
@@ -809,17 +817,17 @@ def write_cfg_field_with_lock(
                 client, int(slave), VALID_CFG_OFFSET, 1)[0])
         except CalibIoError as exc:
             out["status"] = "verify_read_failed"
-            out["error"] = str(exc)
+            out["error"]  = str(exc)
             return out
         out["value_after_raw"] = post_target
         out["sentinel_after"] = post_sentinel
 
         if post_sentinel != VALID_CFG_CODE_EXPECTED:
             out["status"] = "sentinel_clobbered"
-            out["error"] = (
+            out["error"]  = (
                 f"ValidCfgCode changed from 0x{sentinel:04X} to "
                 f"0x{post_sentinel:04X}; calibration block may revert on "
-                f"next boot â€” investigate immediately"
+                f"next boot — investigate immediately"
             )
             return out
 
@@ -828,7 +836,7 @@ def write_cfg_field_with_lock(
             out["status"] = "success"
             out["verify_ok"] = True
         else:
-            # No tolerance band here â€” config-block fields are integer
+            # No tolerance band here — config-block fields are integer
             # settings (Modbus#, country code, Hz envelope), not quantized
             # scale factors. A mismatch is a real failure.
             out["status"] = "verify_failed"

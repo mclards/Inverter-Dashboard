@@ -7,7 +7,7 @@ Layout verified 2026-04-27 against ISM's "Stop Reasons" window on two
 physical inverters (.109 slave=2 comm-board, .133 slave=4 EKI fallback).
 
 Per the v2.9.0 counter-recovery pattern, this module is **read-only**:
-Python reads via Modbus â†’ returns JSON-serializable dicts â†’ Node
+Python reads via Modbus → returns JSON-serializable dicts → Node
 persists into SQLite via an internal HTTP endpoint
 (`/api/stop-reasons/internal/capture`).
 """
@@ -22,12 +22,9 @@ from typing import Optional
 try:
     from vendor_pdu import VendorPduError, vendor_scope_peek
 except ImportError:
-    try:
-        from services.vendor_pdu import VendorPduError, vendor_scope_peek
-    except ImportError:
-        pass
+    from services.vendor_pdu import VendorPduError, vendor_scope_peek
 
-# â”€â”€â”€ Per-node SCOPE addresses (Trifasico::LeeMotivosDeParo) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Per-node SCOPE addresses (Trifasico::LeeMotivosDeParo) ─────────────────
 NODE_BASE_ADDR = 0xFEB5
 NODE_STRIDE = 0x19
 NODE_MAX_SUPPORTED = 3   # v2.10.0 cap; node 4 (0xFF00) returns garbage
@@ -38,7 +35,7 @@ ARRAYHIST_COUNT_WORDS = 31
 STOP_REASON_COUNT_WORDS = 25
 STOP_REASON_BYTES = 50   # 25 * 2
 
-# â”€â”€â”€ StopReason record â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── StopReason record ─────────────────────────────────────────────────────
 
 @dataclass(frozen=True)
 class StopReasonRecord:
@@ -46,19 +43,19 @@ class StopReasonRecord:
 
     Layout (verified 2026-04-30 against an operator-supplied trip
     capture; supersedes the 2026-04-27 ISM-display-derived guess for
-    PotAC, Vpv, and Vac which all turned out to be 10Ã— off):
-      idx 0   PotAC (signed int16, raw W) â€” divide by 1000 for kW.
-              Cross-checked: 23.5 kW = 207V Ã— 38.9A Ã— âˆš3 with PF=1.
-      idx 1   Vpv   (raw V) â€” INGECON SUN PE DC bus, typically 600-900 V.
-      idx 2-4 Vac1/2/3 (raw V) â€” matches daily-log poll path at
-              reg(10/11/12) â†’ inverter_5min_param.vac1_v.
-      idx 5-6 Iac1/2 (Ã—0.1 A)
-      idx 7-9 Frec1/2/3 (Ã—0.01 Hz)
-      idx 10  Cos (Ã—0.001)
-      idx 11  Temp (Â°C, signed)
+    PotAC, Vpv, and Vac which all turned out to be 10× off):
+      idx 0   PotAC (signed int16, raw W) — divide by 1000 for kW.
+              Cross-checked: 23.5 kW = 207V × 38.9A × √3 with PF=1.
+      idx 1   Vpv   (raw V) — INGECON SUN PE DC bus, typically 600-900 V.
+      idx 2-4 Vac1/2/3 (raw V) — matches daily-log poll path at
+              reg(10/11/12) → inverter_5min_param.vac1_v.
+      idx 5-6 Iac1/2 (×0.1 A)
+      idx 7-9 Frec1/2/3 (×0.01 Hz)
+      idx 10  Cos (×0.001)
+      idx 11  Temp (°C, signed)
       idx 12  Alarma (u16 bitmap, 0=none)
       idx 13  MotParo (primary stop motive code)
-      idx 14  MesDia (HB=month, LB=day â€” DD/MM display)
+      idx 14  MesDia (HB=month, LB=day — DD/MM display)
       idx 15  HoraMin (HB=hour, LB=min)
       idx 16-17  Ref1/Pos1 (signed)
       idx 18  Alarmas1 (u16 bitmap)
@@ -66,7 +63,7 @@ class StopReasonRecord:
       idx 21  Alarmas2 (u16 bitmap)
       idx 22  Flags (u16 bitmap)
       idx 23  TimeoutBand
-      idx 24  DebugDesc â˜… vendor diagnostic sub-code
+      idx 24  DebugDesc ★ vendor diagnostic sub-code
     """
     pot_ac: float
     vpv: float
@@ -104,7 +101,7 @@ class StopReasonRecord:
         )
 
     def event_when_struct(self) -> str:
-        """Inverter-RTC stamp formatted DD/MM HH:MM (forensic only â€” Slice F
+        """Inverter-RTC stamp formatted DD/MM HH:MM (forensic only — Slice F
         treats this as advisory; canonical event_at_ms is poller-stamped)."""
         return (
             f"{self.mes_dia_day:02d}/{self.mes_dia_month:02d} "
@@ -115,7 +112,7 @@ class StopReasonRecord:
         """Stable hash for de-duping repeated reads of the same event.
 
         Collapses (motparo, debug_desc, struct timestamp, alarma bitmap,
-        alarmas1 bitmap) â€” fields that won't change unless a NEW event
+        alarmas1 bitmap) — fields that won't change unless a NEW event
         occurs. Used by the UNIQUE constraint on inverter_stop_reasons.
         """
         key = struct.pack(
@@ -139,22 +136,22 @@ def parse_stop_reason(raw: bytes) -> StopReasonRecord:
         )
     w = struct.unpack(">25H", raw[:STOP_REASON_BYTES])
     return StopReasonRecord(
-        # v2.10.4 â€” Cross-validated against an operator-supplied capture
+        # v2.10.4 — Cross-validated against an operator-supplied capture
         # (2026-04-28 09:59:17 INV1 N1 undervoltage trip):
         #   raw PotAC = 23545, Vpv = 604, Vac = 207/204/203,
         #   Iac = 389/386, Frec = 5991, Cos = 1000.
         #
         # Sanity check at the trip:
-        #   207 V phase Ã— 38.9 A Ã— âˆš3 â‰ˆ 13.95 kW per phase
-        #   Total 3-phase active power â‰ˆ 24 kW with PF=1
-        #   PotAC raw 23545 Ã· 1000 = 23.5 kW â† matches measured power
-        #   PotAC raw 23545 Ã· 10    = 2354 kW â† exceeds 997.64 kW rated cap
+        #   207 V phase × 38.9 A × √3 ≈ 13.95 kW per phase
+        #   Total 3-phase active power ≈ 24 kW with PF=1
+        #   PotAC raw 23545 ÷ 1000 = 23.5 kW ← matches measured power
+        #   PotAC raw 23545 ÷ 10    = 2354 kW ← exceeds 997.64 kW rated cap
         #
-        # So PotAC is reported in raw watts (signed), NOT Ã—0.1 kW.
+        # So PotAC is reported in raw watts (signed), NOT ×0.1 kW.
         # Vpv is raw volts (DC bus typically 600-900 V on INGECON SUN PE).
         # Vac1/2/3 are raw volts (matches daily-log poll path at reg
         # 10/11/12 which renders correctly at xxx.x V via the same site
-        # firmware). Iac stays at Ã—0.1 A â€” consistent with the power
+        # firmware). Iac stays at ×0.1 A — consistent with the power
         # cross-check above.
         pot_ac=_i16(w[0]) / 1000.0,
         vpv=float(w[1]),
@@ -211,7 +208,7 @@ def to_capture_payload(record: StopReasonRecord, *, raw: bytes,
     })
     return d
 
-# â”€â”€â”€ ARRAYHISTMOTPARO (lifetime stop-motive counters) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── ARRAYHISTMOTPARO (lifetime stop-motive counters) ──────────────────────
 
 @dataclass(frozen=True)
 class StopMotiveHistogram:
@@ -240,7 +237,7 @@ def parse_arrayhist(raw: bytes) -> StopMotiveHistogram:
     counters = struct.unpack(">31H", raw[:62])
     return StopMotiveHistogram(counters=counters, raw=bytes(raw[:62]))
 
-# â”€â”€â”€ Modbus read helpers (sync â€” caller must hold thread_locks[ip]) â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Modbus read helpers (sync — caller must hold thread_locks[ip]) ────────
 
 def read_node_stop_reason(client, slave: int, node: int,
                            timeout_s: float = 3.0) -> tuple[bytes, StopReasonRecord]:
@@ -274,7 +271,7 @@ def read_all_nodes(client, slave: int, *, max_node: int = NODE_MAX_SUPPORTED,
     """Read all nodes 1..max_node sequentially under the same lock-held call.
 
     Returns a list of (node, raw, record) tuples. Per-node failures are
-    NOT swallowed â€” the caller decides whether one bad node aborts the
+    NOT swallowed — the caller decides whether one bad node aborts the
     whole sweep.
     """
     out = []
@@ -283,7 +280,7 @@ def read_all_nodes(client, slave: int, *, max_node: int = NODE_MAX_SUPPORTED,
         out.append((node, raw, rec))
     return out
 
-# â”€â”€â”€ Lock-holding orchestrator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Lock-holding orchestrator ─────────────────────────────────────────────
 
 def read_with_lock(client, lock: threading.Lock, slave: int, *,
                     nodes: Optional[list[int]] = None,
@@ -331,4 +328,3 @@ def read_with_lock(client, lock: threading.Lock, slave: int, *,
             except Exception as e:
                 out_histogram = {"ok": False, "error": str(e)}
     return {"nodes": out_nodes, "histogram": out_histogram}
-

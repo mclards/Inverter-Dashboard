@@ -10,7 +10,7 @@ tool claim an inverter so the poller backs off it for the duration.
 Contract:
   • Only the CALIBRATOR writes (claim/heartbeat/release). The poller and
     the inverter engine are READ-ONLY (active_ips).
-  • Marker: %PROGRAMDATA%/InverterDashboard/firmware-active.json, written
+  • Marker: %PROGRAMDATA%/Inverter-Dashboard/firmware-active.json, written
     atomically (temp + os.replace).
   • A claim is ACTIVE iff expires_ms > now. A hard TTL bounds a crashed
     job; a live job heartbeats. release() is best-effort; the TTL is the
@@ -37,7 +37,7 @@ _LOCK = threading.Lock()  # serialise this process's own read-modify-write
 def _marker_path() -> str:
     # Mirror calibrator_app._fw_audit_path() resolution exactly.
     base = os.getenv("PROGRAMDATA") or os.path.dirname(__file__)
-    d = os.path.join(base, "InverterDashboard")
+    d = os.path.join(base, "Inverter-Dashboard")
     try:
         os.makedirs(d, exist_ok=True)
     except OSError:

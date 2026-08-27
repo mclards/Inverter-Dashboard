@@ -66,18 +66,49 @@ def create_client(ip, port=502, timeout=1.0):
     Create a persistent Modbus TCP client.
     timeout: TCP read timeout in seconds; configurable from dashboard settings.
     """
-    client = ModbusTcpClient(host=ip, port=port, timeout=timeout, retry_on_empty=False)
+    try:
+        client = ModbusTcpClient(
+            host=ip,
+            port=port,
+            timeout=timeout,
+            retries=0,
+            reconnect_delay=0.0,
+            reconnect_delay_max=0.0,
+        )
+    except TypeError:
+        try:
+            client = ModbusTcpClient(host=ip, port=port, timeout=timeout, retries=0)
+        except TypeError:
+            try:
+                client = ModbusTcpClient(host=ip, port=port, timeout=timeout, retry_on_empty=False)
+            except TypeError:
+                client = ModbusTcpClient(host=ip, port=port, timeout=timeout)
     try:
         client.connect()
     except Exception:
         pass
     return client
 
+def _call_modbus(fn, *args, **kwargs):
+    slave = kwargs.pop("slave", None)
+    if slave is not None:
+        try:
+            return fn(*args, slave=slave, **kwargs)
+        except TypeError:
+            try:
+                return fn(*args, device_id=slave, **kwargs)
+            except TypeError:
+                return fn(*args, **kwargs)
+    return fn(*args, **kwargs)
+
 def read_input(client, address, count, unit):
     _refresh_timeout(client)
     try:
-        r = client.read_input_registers(address=address, count=count, slave=unit)
-        if r and not r.isError():
+        if hasattr(client, "connected") and not client.connected:
+            try: client.connect()
+            except Exception: pass
+        r = _call_modbus(client.read_input_registers, address=address, count=count, slave=unit)
+        if r and not r.isError() and hasattr(r, "registers"):
             return r.registers
     except Exception:
         # Force clean reconnect on next read; do NOT swallow the FD.
@@ -87,8 +118,11 @@ def read_input(client, address, count, unit):
 def read_holding(client, address, count, unit):
     _refresh_timeout(client)
     try:
-        r = client.read_holding_registers(address=address, count=count, slave=unit)
-        if r and not r.isError():
+        if hasattr(client, "connected") and not client.connected:
+            try: client.connect()
+            except Exception: pass
+        r = _call_modbus(client.read_holding_registers, address=address, count=count, slave=unit)
+        if r and not r.isError() and hasattr(r, "registers"):
             return r.registers
     except Exception:
         _close_quietly(client)
@@ -99,7 +133,7 @@ def write_single(client, address, value, unit):
     Safe FC6 single register write. Returns True on success.
     """
     try:
-        r = client.write_register(address, value, slave=unit)
+        r = _call_modbus(client.write_register, address, value, slave=unit)
         if r and not r.isError():
             return True
     except Exception:
@@ -121,7 +155,7 @@ def write_single(client, address, value, unit):
     time.sleep(0.1)
 
     try:
-        r = client.write_register(address, value, slave=unit)
+        r = _call_modbus(client.write_register, address, value, slave=unit)
         if r and not r.isError():
             return True
     except Exception:

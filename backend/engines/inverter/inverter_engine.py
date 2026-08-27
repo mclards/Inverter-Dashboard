@@ -1,9 +1,9 @@
 # =================================================
-#   Inverter Dashboard Ã¢â‚¬â€ Hybrid Engine
+#   Inverter Dashboard — Hybrid Engine
 #   ASYNCIO POLLING + WRITE THREADS
 #
-#   Designed & Developed by Engr. Clariden MontaÃƒÂ±o REE (Engr. M.)
-#   Ã‚Â© 2026 Engr. Clariden MontaÃƒÂ±o REE. All rights reserved.
+#   Designed & Developed by Engr. Clariden Montaño REE (Engr. M.)
+#   © 2026 Engr. Clariden Montaño REE. All rights reserved.
 # =================================================
 import sys
 import os
@@ -46,11 +46,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import sys
 _CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-_REPO_ROOT = os.path.abspath(os.path.join(_CURRENT_DIR, "..", "..", ".."))
-if _CURRENT_DIR not in sys.path:
-    sys.path.insert(0, _CURRENT_DIR)
-if _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
+_REPO_ROOT = os.path.abspath(os.path.join(_CURRENT_DIR, ".."))
+_APP_ROOT = os.path.abspath(os.path.join(_CURRENT_DIR, "..", "..", ".."))
+for _p in (_CURRENT_DIR, _REPO_ROOT, _APP_ROOT):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 try:
     from drivers.modbus_tcp import create_client, read_input, read_holding, write_single
@@ -65,7 +65,7 @@ except ImportError:
 
 if create_client is None:
     raise RuntimeError(
-        "Modbus TCP driver could not be imported; refusing to start an unready telemetry service"
+        "Inverter Telemetry Engine could not import Modbus transport driver; refusing to start an unready telemetry service."
     )
 
 try:
@@ -79,27 +79,6 @@ except ImportError:
         from services.shared_data import shared
         from services import firmware_buslock
 
-try:
-    from stop_reason import read_with_lock as _read_with_lock
-except Exception:
-    _read_with_lock = None
-
-try:
-    from serial_io import read_serial_with_lock as _read_serial, write_serial_with_lock as _write_serial
-except Exception:
-    _read_serial = _write_serial = None
-
-try:
-    from calibration_io import (
-        write_one_with_lock,
-        write_bulk_with_lock,
-        write_cfg_field_with_lock,
-        consign_apc_with_lock,
-        preflight_read_with_lock,
-    )
-except Exception:
-    write_one_with_lock = write_bulk_with_lock = write_cfg_field_with_lock = consign_apc_with_lock = preflight_read_with_lock = None
-
 # RS485-USB fleet bridge removed in v2.11.x (field calibration moved to the
 # standalone Inverter Calibration Tool). Kept as a None sentinel so the
 # remaining `if rs485_bridge is not None:` guards below stay valid no-ops
@@ -109,11 +88,11 @@ rs485_bridge = None
 ENGINE_PORT = int(os.getenv("INVERTER_ENGINE_PORT", "9100"))
 ENGINE_HOST = str(os.getenv("INVERTER_ENGINE_HOST", "127.0.0.1") or "127.0.0.1").strip() or "127.0.0.1"
 
-# Slice ÃŽÂ² Ã¢â‚¬â€ slow-poll cadence for diagnostic registers (addr 64-116).
+# Slice β — slow-poll cadence for diagnostic registers (addr 64-116).
 # Runtime tunable via ADSI_SLOW_POLL_INTERVAL_S env var; operator restart
 # required to apply changes. Range: 5-300 seconds (clamped). Set to 0 to
 # disable the slow-poll tier entirely.
-# Plan: plans/2026-05-10-modbus-registers-official-revamp.md Ã‚Â§4 Slice ÃŽÂ²
+# Plan: plans/2026-05-10-modbus-registers-official-revamp.md §4 Slice β
 try:
     SLOW_POLL_INTERVAL_S = int(os.getenv("ADSI_SLOW_POLL_INTERVAL_S", "30"))
 except (TypeError, ValueError):
@@ -122,7 +101,7 @@ if SLOW_POLL_INTERVAL_S != 0:
     SLOW_POLL_INTERVAL_S = max(5, min(300, SLOW_POLL_INTERVAL_S))
 
 # -------------------------------------------------
-#   FastAPI app  Ã¢â‚¬â€  created ONCE with CORS middleware
+#   FastAPI app  —  created ONCE with CORS middleware
 # -------------------------------------------------
 
 app = FastAPI()
@@ -131,7 +110,7 @@ app = FastAPI()
 # origin so that if the service port is ever accidentally exposed beyond
 # 127.0.0.1 (e.g. firewall misconfiguration, future remote-access feature),
 # an untrusted browser origin cannot POST /write.  The service ALSO binds
-# to ENGINE_HOST (default 127.0.0.1) which is the primary defence Ã¢â‚¬â€ this
+# to ENGINE_HOST (default 127.0.0.1) which is the primary defence — this
 # is belt-and-braces.  Override with INVERTER_ENGINE_CORS_ORIGINS env var
 # (comma-separated) if the operator needs to add a reverse-proxy origin.
 _cors_default = ["http://127.0.0.1:3500", "http://localhost:3500"]
@@ -153,17 +132,17 @@ def _signed_int16(raw):
     """Convert Modbus raw UInt16 to signed Int16 (two's complement).
 
     Per Ingeteam INGECON SUN Modbus RTU spec
-    (docs/IngeconSunPMax-Entire-Modbus-RTU-Registers.pdf Ã‚Â§2 pg 4-5):
-      - Reg 30010 (addr 9) `Idc`  Ã¢â‚¬â€ signed, 1 A/LSB (PDF: "In Amps")
-      - Reg 30019 (addr 18) `PAC` Ã¢â‚¬â€ signed, raw Ãƒâ€” 10 = W ("in tens of Watt")
+    (docs/IngeconSunPMax-Entire-Modbus-RTU-Registers.pdf §2 pg 4-5):
+      - Reg 30010 (addr 9) `Idc`  — signed, 1 A/LSB (PDF: "In Amps")
+      - Reg 30019 (addr 18) `PAC` — signed, raw × 10 = W ("in tens of Watt")
     Slow-poll signed fields:
-      - Reg 30069 (addr 68) `QAC` Ã¢â‚¬â€ signed, raw Ãƒâ€” 10 = VAr ("Reactive power
-        DIV 10", same convention as Nominal power DIV 10 Ã¢â€ â€™ raw Ãƒâ€” 10 = real)
-      - Reg 30072-73 (addr 71-72) Ã¢â‚¬â€ signed Ã‚Â°C temperatures (Slice ÃŽÂ± only
+      - Reg 30069 (addr 68) `QAC` — signed, raw × 10 = VAr ("Reactive power
+        DIV 10", same convention as Nominal power DIV 10 → raw × 10 = real)
+      - Reg 30072-73 (addr 71-72) — signed °C temperatures (Slice α only
         addresses Idc/PAC; temps already signed-handled in read_fast_async)
 
     Audit: audits/2026-05-11/register-decode-traceback.md.
-    Related plan: plans/2026-05-10-modbus-registers-official-revamp.md Ã‚Â§4 Slice ÃŽÂ±
+    Related plan: plans/2026-05-10-modbus-registers-official-revamp.md §4 Slice α
     """
     u16 = int(raw) & 0xFFFF
     return u16 - 0x10000 if u16 > 0x7FFF else u16
@@ -190,14 +169,14 @@ def hex_h_to_dec(val):
     return None
 
 def inverter_number_from_ip(ip):
-    """Return the inverter number (1Ã¢â‚¬â€œ27) for a given IP address, or None."""
+    """Return the inverter number (1–27) for a given IP address, or None."""
     for inv_num, inv_ip in ip_map.items():
         if inv_ip == ip:
             return int(inv_num)
     return None
 
 # -------------------------------------------------
-#   Configuration  Ã¢â‚¬â€  paths & tunables
+#   Configuration  —  paths & tunables
 # -------------------------------------------------
 
 PORTABLE_ROOT = str(
@@ -212,21 +191,6 @@ EXPLICIT_DATA_DIR = str(
     or os.getenv("ADSI_DATA_DIR")
     or ""
 ).strip()
-
-# A repository-local `storage` directory is useful only for explicitly opted-in
-# isolated developer runs. Auto-selecting it on Windows made a normal
-# `python inverter_engine.py` launch silently ignore the operator's ProgramData
-# configuration. Electron supplies INVERTER_DATA_DIR for production launches.
-if (
-    not PORTABLE_ROOT
-    and not EXPLICIT_DATA_DIR
-    and os.getenv("ADSI_USE_REPO_STORAGE", "").strip().lower() in {"1", "true", "yes"}
-):
-    _auto_storage = Path(__file__).resolve().parent.parent.parent.parent / "storage"
-    if _auto_storage.exists():
-        PORTABLE_ROOT = str(_auto_storage)
-    elif sys.platform.startswith("linux") and Path("/var/lib/inverter-dashboard").exists():
-        PORTABLE_ROOT = "/var/lib/inverter-dashboard"
 
 if PORTABLE_ROOT:
     PROGRAMDATA_DIR = Path(PORTABLE_ROOT) / "programdata" if (Path(PORTABLE_ROOT) / "programdata").exists() else Path(PORTABLE_ROOT)
@@ -248,13 +212,20 @@ if EXPLICIT_DATA_DIR:
 elif PORTABLE_ROOT:
     DATA_DIR = Path(PORTABLE_ROOT) / "db"
 else:
-    DATA_DIR = PROGRAMDATA_DIR / "db"
+    # v2.4.43+: prefer consolidated layout under PROGRAMDATA_DIR/db/ when migration is done.
+    _new_db_dir = PROGRAMDATA_DIR / "db"
+    _sentinel   = PROGRAMDATA_DIR / ".adsi-migration-v2.4.43.json"
+    if _sentinel.exists() or (_new_db_dir / "adsi.db").exists() or sys.platform.startswith("linux") or os.getenv("INVERTER_STORAGE_DIR"):
+        DATA_DIR = _new_db_dir
+    else:
+        APPDATA_ROOT = os.getenv("APPDATA")
+        if APPDATA_ROOT:
+            DATA_DIR = Path(APPDATA_ROOT) / "Inverter-Dashboard"
+        else:
+            DATA_DIR = Path.home() / ".inverter-dashboard"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-DB_PATH = DATA_DIR / "inverter.db"
-if not DB_PATH.exists() and (DATA_DIR / "adsi.db").exists():
-    DB_PATH = DATA_DIR / "adsi.db"
-
+DB_PATH = DATA_DIR / "adsi.db"
 if PORTABLE_ROOT:
     IPCONFIG_PATH = Path(PORTABLE_ROOT) / "config" / "ipconfig.json"
 elif EXPLICIT_DATA_DIR:
@@ -266,11 +237,9 @@ LEGACY_IPCONFIG_PATHS = [
     DATA_DIR / "ipconfig.json",
     PROGRAMDATA_DIR / "config" / "ipconfig.json",
     PROGRAMDATA_DIR / "ipconfig.json",
-    # NOTE: Intentionally excluding Path(__file__).parent / "ipconfig.json"
-    # and Path.cwd() / "ipconfig.json". In a PyInstaller bundle __file__'s
-    # directory is the extracted _MEIxxxx dir which may contain a stale
-    # build-time ipconfig, and CWD depends on how the installer launches
-    # the service Ã¢â‚¬â€  both would be replaced on every update and could
+    Path(os.path.expandvars("%APPDATA%")) / "inverter-dashboard" / "config" / "ipconfig.json",
+    Path(os.path.expandvars("%APPDATA%")) / "InverterDashboard-2.0" / "config" / "ipconfig.json",
+    Path(os.path.expandvars("%APPDATA%")) / "Inverter-Dashboard" / "config" / "ipconfig.json",
 ]
 AUTORESET_PATH = PROGRAMDATA_DIR / "autoreset.json"
 SERVICE_STOP_FILE_RAW = str(
@@ -282,7 +251,7 @@ SERVICE_STOP_FILE = Path(SERVICE_STOP_FILE_RAW) if SERVICE_STOP_FILE_RAW else No
 SERVICE_STOP_POLL_SEC = 0.25
 
 DEFAULT_INTERVAL  = 0.05   # default poll interval per inverter
-MIN_POLL_INTERVAL = 0.05   # hard floor Ã¢â‚¬â€ protects against runaway tight loops
+MIN_POLL_INTERVAL = 0.05   # hard floor — protects against runaway tight loops
 # Ingeteam Level 2 workflow (AAV2011IFA01_ p.8, 0008H alarm) recommends no
 # faster than 1 Hz per unit at the SCADA level: "reduce the frequency at which
 # the SCADA communicates with the inverter (1 communication per second
@@ -290,7 +259,7 @@ MIN_POLL_INTERVAL = 0.05   # hard floor Ã¢â‚¬â€ protects against runa
 # emit a startup warning so operators know the upstream vendor guidance.
 RECOMMENDED_POLL_INTERVAL = 1.0
 
-# Ã¢â€â‚¬Ã¢â€â‚¬ Tunable constants Ã¢â‚¬â€ overridden at runtime from DB 'inverterPollConfig' Ã¢â€â‚¬Ã¢â€â‚¬
+# ── Tunable constants — overridden at runtime from DB 'inverterPollConfig' ──
 READ_SPACING    = 0.005  # seconds between input / holding reads
 RECONNECT_DELAY = 0.5    # seconds to wait after reconnect before retry read
 _modbus_timeout = 1.0    # Modbus TCP read timeout (passed to create_client)
@@ -322,13 +291,13 @@ static_units    = {}   # ip -> [unit list] or None
 auto_reset_state = {}  # (ip, unit) -> {"state": str, "since": float, "busy": bool}
 _last_unit_fail  = {}  # ip -> timestamp of last failed unit-detect
 
-# Ã¢â€â‚¬Ã¢â€â‚¬ Per-unit dead-node backoff (2026-05-29) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+# ── Per-unit dead-node backoff (2026-05-29) ──────────────────────────────────
 # All units behind one inverter IP share ONE TCP socket and ONE per-IP lock.
 # A single slave that stops answering (absent/faulted node, pulled fibre, RS485
 # branch fault) otherwise forces a full shared-socket reconnect + double
 # read-timeout (~2.5 s) on EVERY poll cycle inside read_fast_async()/safe_read().
 # Because poll_inverter reads units sequentially on the shared socket, that
-# penalty drags the inverter's HEALTHY sibling nodes down with it Ã¢â‚¬â€ their
+# penalty drags the inverter's HEALTHY sibling nodes down with it — their
 # dashboard refresh collapses from sub-second to multi-second and the shared
 # connection is torn down/rebuilt every cycle. To isolate a dead node: once a
 # unit misses UNIT_DEAD_FAIL_THRESHOLD consecutive reads it is "throttled" and
@@ -344,7 +313,7 @@ DISABLE_UNIT_DEAD_BACKOFF = os.environ.get(
 # (ip, unit) -> {"fail": int, "throttled": bool, "next_probe": float monotonic}
 _unit_health = {}
 
-# Ã¢â€â‚¬Ã¢â€â‚¬ Per-IP self-healing client rebuild (2026-06-08) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+# ── Per-IP self-healing client rebuild (2026-06-08) ──────────────────────────
 # The per-IP ModbusTcpClient is cached for the whole process lifetime (see
 # `clients` + rebuild_global_maps). The only failure recovery elsewhere is
 # close()/connect() on that SAME object, to the SAME IP (safe_read /
@@ -353,7 +322,7 @@ _unit_health = {}
 # through the Mikrotik/Advantech chain, or an Ingeteam AAX0041 gateway that has
 # stopped servicing this TCP session), polling for that inverter stays dead even
 # though the IP still pings. Historically the ONLY fix was to change the
-# inverter's IP Ã¢â‚¬â€ which forces rebuild_global_maps to construct a brand-new
+# inverter's IP — which forces rebuild_global_maps to construct a brand-new
 # client object. This makes that recovery automatic: after IP_REBUILD_AFTER_S of
 # zero successful reads on an IP, the poll loop discards the wedged client and
 # builds a fresh one (rate-limited to IP_REBUILD_MIN_INTERVAL_S so a genuinely
@@ -445,7 +414,7 @@ async def rebuild_ip_client(ip, reason):
 # `global X; try: X except NameError: X = set()` inside the function, which
 # has a small window where two threads both hit NameError and one
 # re-initialises away the other's just-added entry.  Pre-initialising at
-# module scope closes the window Ã¢â‚¬â€ the first `add()` always lands in the
+# module scope closes the window — the first `add()` always lands in the
 # already-existing set.
 _pac_clamp_notified: set = set()
 
@@ -495,7 +464,7 @@ def _resolve_future_threadsafe(loop, fut, value):
         pass
 
 # -------------------------------------------------
-#   ipconfig.json  Ã¢â‚¬â€  load
+#   ipconfig.json  —  load
 # -------------------------------------------------
 
 DEFAULT_LOSS_PCT = 2.5
@@ -506,10 +475,6 @@ def _default_ipconfig():
         key = str(i)
         cfg["inverters"][key] = f"192.168.1.{100 + i}"
         cfg["poll_interval"][key] = float(DEFAULT_INTERVAL)
-        # The sanitiser uses this as the fallback for a missing ``units``
-        # entry.  Keep every config section structurally complete so a valid
-        # legacy/partial ipconfig can never prevent the telemetry service
-        # from starting.
         cfg["units"][key] = [1, 2, 3, 4]
         cfg["losses"][key] = float(DEFAULT_LOSS_PCT)
     return cfg
@@ -605,16 +570,13 @@ def _write_ipconfig_file(path_obj, cfg):
 
 def _load_ipconfig_sync():
     """Synchronous load; called via executor so the event loop stays unblocked."""
-    # 1) Primary source: the managed ProgramData config file. The dashboard
-    # exposes this exact file to field operators, so a valid edit must take
-    # effect even when an older DB mirror is still present after an upgrade.
+    # 1) The managed ProgramData config is the field-operator source. Prefer
+    # it to a stale DB mirror left by an earlier dashboard installation.
     canonical_raw = _read_ipconfig_file(IPCONFIG_PATH)
     if canonical_raw is not None:
         return _sanitize_ipconfig(canonical_raw)
 
-    # 2) DB mirror. Node synchronizes this from the canonical file at startup
-    # and on topology saves; it remains the safe fallback during a temporary
-    # file-system outage.
+    # 2) DB mirror fallback.
     db_raw = _read_ipconfig_from_db()
     if db_raw is not None:
         cfg = _sanitize_ipconfig(db_raw)
@@ -634,14 +596,14 @@ def _load_ipconfig_sync():
         cfg = _sanitize_ipconfig(raw)
         _write_ipconfig_file(IPCONFIG_PATH, cfg)
         # Do NOT write back to the DB from the fallback path. _read_ipconfig_from_db
-        # returns None on both "key missing" AND "transient SQLite lock" Ã¢â‚¬â€ writing
+        # returns None on both "key missing" AND "transient SQLite lock" — writing
         # back on the latter would silently overwrite a newer value Node just wrote.
         # Node's loadIpConfigFromDb already seeds the DB from legacy files on
         # startup when its own read returns empty, so this migration is already
         # covered by the Node side without the race window.
         return cfg
 
-    # 3) Default if nothing exists. Do NOT promote the default into the DB Ã¢â‚¬â€
+    # 3) Default if nothing exists. Do NOT promote the default into the DB —
     #    a Node restart may still populate the real setting from a mirror
     #    file that appeared after we checked.
     cfg = _default_ipconfig()
@@ -654,7 +616,7 @@ async def load_ipconfig():
     return await loop.run_in_executor(executor, _load_ipconfig_sync)
 
 # -------------------------------------------------
-#   inverterPollConfig  Ã¢â‚¬â€  live-tunable constants
+#   inverterPollConfig  —  live-tunable constants
 # -------------------------------------------------
 
 def _load_poll_config_sync():
@@ -696,7 +658,7 @@ def _apply_poll_config(cfg):
         _modbus_timeout = max(0.2, min(v, 10.0))
 
 # -------------------------------------------------
-#   autoreset.json  Ã¢â‚¬â€  load
+#   autoreset.json  —  load
 # -------------------------------------------------
 
 def load_autoreset_config():
@@ -795,7 +757,7 @@ def write_worker_loop(ip, lock, q):
         batch_mode = bool(job.get("batch")) or len(normalized_steps) > 1
         result_payload = [] if batch_mode else False
 
-        # T3.12 fix (Phase 6, 2026-04-14) Ã¢â‚¬â€ REVISED Slice ÃŽÂº.9 (2026-05-12):
+        # T3.12 fix (Phase 6, 2026-04-14) — REVISED Slice κ.9 (2026-05-12):
         # post-write read-back is now a LOGGED DIAGNOSTIC, not a failure
         # gate. Field observation 2026-05-12: register 16 holds the actual
         # ON/OFF state, not the commanded state. INGECON inverters take
@@ -804,7 +766,7 @@ def write_worker_loop(ip, lock, q):
         # the OLD state and trips a mismatch even when the FC6 ACK landed
         # cleanly and the command is being executed. The original intent
         # (catching silent-interlock rejections) is preserved via the
-        # poller's continuous reading of register 16 Ã¢â‚¬â€ a real rejection
+        # poller's continuous reading of register 16 — a real rejection
         # leaves the on_off indicator on the inverter card stuck in the
         # prior state for the operator to see.  Returns True/False/None
         # for forensic logging only; callers MUST NOT downgrade step_ok
@@ -830,7 +792,7 @@ def write_worker_loop(ip, lock, q):
                             step["unit"],
                         )
                         if step_ok:
-                            # Slice ÃŽÂº.9 (2026-05-12) Ã¢â‚¬â€ log-only diagnostic;
+                            # Slice κ.9 (2026-05-12) — log-only diagnostic;
                             # do NOT downgrade step_ok. See _verify_step
                             # docstring for rationale.
                             verdict = _verify_step(step)
@@ -838,7 +800,7 @@ def write_worker_loop(ip, lock, q):
                                 print(
                                     f"[write_worker] post-write verify mismatch (logged, not failed) "
                                     f"ip={ip} unit={step['unit']} "
-                                    f"wrote={step['value']} addr={step['address']} Ã¢â‚¬â€ "
+                                    f"wrote={step['value']} addr={step['address']} — "
                                     f"register may need time to reflect commanded state"
                                 )
                         result_payload.append({
@@ -854,14 +816,14 @@ def write_worker_loop(ip, lock, q):
                         step["unit"],
                     )
                     if result_payload:
-                        # Slice ÃŽÂº.9 (2026-05-12) Ã¢â‚¬â€ log-only diagnostic;
+                        # Slice κ.9 (2026-05-12) — log-only diagnostic;
                         # do NOT downgrade result_payload.
                         verdict = _verify_step(step)
                         if verdict is False:
                             print(
                                 f"[write_worker] post-write verify mismatch (logged, not failed) "
                                 f"ip={ip} unit={step['unit']} "
-                                f"wrote={step['value']} addr={step['address']} Ã¢â‚¬â€ "
+                                f"wrote={step['value']} addr={step['address']} — "
                                 f"register may need time to reflect commanded state"
                             )
         except Exception:
@@ -914,7 +876,7 @@ async def safe_read(func, client, addr, count, unit, ip):
     if lock is None:
         return None
 
-    # Ã¢â€â‚¬Ã¢â€â‚¬ First attempt Ã¢â€â‚¬Ã¢â€â‚¬
+    # ── First attempt ──
     try:
         result = await loop.run_in_executor(executor, func, client, addr, count, unit, lock)
         if result:
@@ -922,7 +884,7 @@ async def safe_read(func, client, addr, count, unit, ip):
     except Exception:
         pass
 
-    # Ã¢â€â‚¬Ã¢â€â‚¬ Reconnect + retry Ã¢â€â‚¬Ã¢â€â‚¬
+    # ── Reconnect + retry ──
     def reconnect_and_read():
         try:
             with lock:
@@ -950,12 +912,12 @@ def is_write_pending(ip):
     evt = write_pending.get(ip)
     return bool(evt and evt.is_set())
 
-# Ã¢â€â‚¬Ã¢â€â‚¬ Cross-process firmware-flash bus lock Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+# ── Cross-process firmware-flash bus lock ────────────────────────────────
 # While the standalone calibrator flashes an inverter's firmware over the
 # same transparent TCP->RTU gateway, a second Modbus master (this poller)
 # interleaving frames makes the DSP reject the flash ("error code 2").
 # When the calibrator has published a claim for `ip` we skip ALL Modbus to
-# it for the cycle Ã¢â‚¬â€ exactly like the proven is_write_pending() backoff.
+# it for the cycle — exactly like the proven is_write_pending() backoff.
 # FAIL-OPEN: any marker problem -> firmware_buslock.active_ips() == {} ->
 # polling continues unchanged. The set is re-read at most every 2 s so 27
 # poll tasks don't hammer the file.
@@ -969,7 +931,7 @@ def firmware_flash_active(ip):
         try:
             c["ips"] = firmware_buslock.active_ips()
         except Exception:
-            c["ips"] = set()          # fail-open Ã¢â‚¬â€ never silence polling
+            c["ips"] = set()          # fail-open — never silence polling
         c["ts"] = now
     return ip in c["ips"]
 
@@ -1049,9 +1011,9 @@ def operator_write_hold_active(ip, unit):
 async def handle_auto_reset(ip, unit, alarm_val):
     """
     State machine that resets a tripped inverter:
-      armed          Ã¢â€ â€™ alarm detected Ã¢â€ â€™ write OFF Ã¢â€ â€™ waiting_clear
-      waiting_clear  Ã¢â€ â€™ alarm clears   Ã¢â€ â€™ write ON  Ã¢â€ â€™ armed
-      waiting_clear  Ã¢â€ â€™ timeout        Ã¢â€ â€™              armed
+      armed          → alarm detected → write OFF → waiting_clear
+      waiting_clear  → alarm clears   → write ON  → armed
+      waiting_clear  → timeout        →              armed
     """
     key = (ip, unit)
 
@@ -1086,7 +1048,7 @@ async def handle_auto_reset(ip, unit, alarm_val):
     if alarm_val == 0x7FFF:
         if not entry or entry.get("state") != "fatal_locked":
             print(
-                f"[AUTORESET] {ip} unit {unit}: alarm 0x7FFF (fatal) Ã¢â‚¬â€ "
+                f"[AUTORESET] {ip} unit {unit}: alarm 0x7FFF (fatal) — "
                 f"cannot be auto-reset. Requires display-code unlock at the unit. "
                 f"See docs/Inverter-Incident-Workflow.pdf p.14.",
                 flush=True,
@@ -1114,10 +1076,10 @@ async def handle_auto_reset(ip, unit, alarm_val):
     auto_reset_state[key] = entry
 
     try:
-        # Ã¢â€â‚¬Ã¢â€â‚¬ State: armed Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+        # ── State: armed ──────────────────────────────────────
         if state == "armed" and alarm_val in alarm_dec_list:
             # T3.5 fix: suppress auto-reset if an operator write just happened
-            # on this (ip, unit) Ã¢â‚¬â€ avoids racing with manual control.
+            # on this (ip, unit) — avoids racing with manual control.
             if operator_write_hold_active(ip, unit):
                 return
 
@@ -1135,7 +1097,7 @@ async def handle_auto_reset(ip, unit, alarm_val):
                 })
             except WriteQueueFullError as e:
                 # T3.11 fix (Phase 6): auto-reset is best-effort; on a full
-                # queue, log and skip this cycle Ã¢â‚¬â€ next alarm tick will retry.
+                # queue, log and skip this cycle — next alarm tick will retry.
                 print(f"[AUTORESET] queue full, skipping OFF for {ip} unit {unit}: {e}")
                 return
 
@@ -1152,10 +1114,10 @@ async def handle_auto_reset(ip, unit, alarm_val):
                 return
 
             auto_reset_state[key] = {"state": "waiting_clear", "since": now, "busy": True}
-            print(f"[AUTORESET] OFF OK Ã¢â€ â€™ waiting_clear  {ip}  unit {unit}")
+            print(f"[AUTORESET] OFF OK → waiting_clear  {ip}  unit {unit}")
             return
 
-        # Ã¢â€â‚¬Ã¢â€â‚¬ State: waiting_clear Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+        # ── State: waiting_clear ──────────────────────────────
         if state == "waiting_clear":
             elapsed = now - entry["since"]
 
@@ -1183,12 +1145,12 @@ async def handle_auto_reset(ip, unit, alarm_val):
                     return
 
                 auto_reset_state[key] = {"state": "armed", "since": 0}
-                print(f"[AUTORESET] CLEAR Ã¢â€ â€™ ON  {ip}  unit {unit}")
+                print(f"[AUTORESET] CLEAR → ON  {ip}  unit {unit}")
                 return
 
             if elapsed >= wait_timeout:
                 auto_reset_state[key] = {"state": "armed", "since": 0}
-                print(f"[AUTORESET] CLEAR TIMEOUT ({wait_timeout}s) Ã¢â€ â€™ re-armed  {ip}  unit {unit}")
+                print(f"[AUTORESET] CLEAR TIMEOUT ({wait_timeout}s) → re-armed  {ip}  unit {unit}")
                 return
 
     finally:
@@ -1240,7 +1202,7 @@ def _u32_hi_lo(regs, off):
     """UInt32 decode for Ingeteam big-endian word-pair (high word first).
 
     Raises ValueError on a truncated frame so callers detect the gap instead of
-    silently consuming a zero Ã¢â‚¬â€ corrupted Etotal/parcE during crash-recovery
+    silently consuming a zero — corrupted Etotal/parcE during crash-recovery
     seed would reset kwh_today on restart.
     """
     if off + 1 >= len(regs):
@@ -1254,9 +1216,9 @@ def _rtc_from_regs(regs, server_year=None):
     Decode RTC from regs(20..25). Returns (dt_naive_or_None, valid: bool).
 
     Validity:
-      Ã¢â‚¬Â¢ year within Ã‚Â±5 of server_year (catches inv-21/u3 2047 fault pattern)
-        Ã¢â‚¬â€ when server_year is None, accept 2000..2100 for offline/testing
-      Ã¢â‚¬Â¢ month 1..12, day 1..31, hour 0..23, minute 0..59, second 0..59
+      • year within ±5 of server_year (catches inv-21/u3 2047 fault pattern)
+        — when server_year is None, accept 2000..2100 for offline/testing
+      • month 1..12, day 1..31, hour 0..23, minute 0..59, second 0..59
     Drift (minor clock skew) is handled by the caller via rtc_drift_s; the
     decoder rejects only clearly-corrupt RTCs.
     """
@@ -1289,16 +1251,16 @@ async def read_fast_async(client, unit, ip):
     plus the v2.9.0 hardware-counter / RTC / full-alarm fields,
     or None on failure.
 
-    Widened from 26Ã¢â€ â€™60 regs in v2.9.0 (Slice A) to capture:
-      Ã¢â‚¬Â¢ Etotal (reg 0-1, UInt32 hi-lo)
-      Ã¢â‚¬Â¢ Alarm bitfield (reg 6-7, UInt32 hi-lo) Ã¢â‚¬â€ was truncated to 16-bit
-      Ã¢â‚¬Â¢ Fac grid frequency (reg 19)
-      Ã¢â‚¬Â¢ parcE partial kWh (reg 58-59, UInt32 hi-lo)
-    Widened from 60Ã¢â€ â€™72 regs in v2.10.x to capture:
-      Ã¢â‚¬Â¢ temp_c heatsink temperature (reg 71, raw Ã‚Â°C minus 1 for ISM parity)
-    Widened from 72Ã¢â€ â€™78 regs in v2.10.x (Slice ÃŽÂ²) to capture:
-      Ã¢â‚¬Â¢ AAP0016 analog inputs (reg 41-44): 12-bit ADC, 0-4095
-      Ã¢â‚¬Â¢ AAP0016 PT100 probes (reg 45-46): temperature via ADC
+    Widened from 26→60 regs in v2.9.0 (Slice A) to capture:
+      • Etotal (reg 0-1, UInt32 hi-lo)
+      • Alarm bitfield (reg 6-7, UInt32 hi-lo) — was truncated to 16-bit
+      • Fac grid frequency (reg 19)
+      • parcE partial kWh (reg 58-59, UInt32 hi-lo)
+    Widened from 60→72 regs in v2.10.x to capture:
+      • temp_c heatsink temperature (reg 71, raw °C minus 1 for ISM parity)
+    Widened from 72→78 regs in v2.10.x (Slice β) to capture:
+      • AAP0016 analog inputs (reg 41-44): 12-bit ADC, 0-4095
+      • AAP0016 PT100 probes (reg 45-46): temperature via ADC
     All legacy keys preserved; new keys are additive (null if AAP0016 not installed).
     """
     if is_write_pending(ip):
@@ -1317,14 +1279,14 @@ async def read_fast_async(client, unit, ip):
     def reg(i):
         return regs[i] if len(regs) > i else 0
 
-    # Ã¢â€â‚¬Ã¢â€â‚¬ on_off: hold last known value on transient holding-register failure (Fix #6) Ã¢â€â‚¬Ã¢â€â‚¬
+    # ── on_off: hold last known value on transient holding-register failure (Fix #6) ──
     on_off_key = f"{ip}_{unit}"
     on_off_raw = onoff[0] if onoff else None
     if on_off_raw is not None:
         _last_known_on_off[on_off_key] = on_off_raw
     on_off_val = on_off_raw if on_off_raw is not None else _last_known_on_off.get(on_off_key)
 
-    # Ã¢â€â‚¬Ã¢â€â‚¬ Fix #3: warn when inverter RTC date diverges from server wall-clock Ã¢â€â‚¬Ã¢â€â‚¬
+    # ── Fix #3: warn when inverter RTC date diverges from server wall-clock ──
     inv_num_for_log = inverter_number_from_ip(ip)
     y_reg  = reg(20)
     mo_reg = reg(21)
@@ -1336,10 +1298,10 @@ async def read_fast_async(client, unit, ip):
             print(
                 f"[CLOCK] Date mismatch inv={inv_num_for_log} unit={unit}"
                 f" inverter={inverter_date} server={server_date}"
-                f" Ã¢â‚¬â€ bucket ts will use server clock but 'day' field uses inverter date"
+                f" — bucket ts will use server clock but 'day' field uses inverter date"
             )
 
-    # Ã¢â€â‚¬Ã¢â€â‚¬ v2.9.0 Slice A: decode hardware counters + RTC + full alarm Ã¢â€â‚¬Ã¢â€â‚¬
+    # ── v2.9.0 Slice A: decode hardware counters + RTC + full alarm ──
     now_ms      = int(time.time() * 1000)
     _server_year = time.localtime().tm_year
     rtc_dt, rtc_valid = _rtc_from_regs(regs, server_year=_server_year)
@@ -1350,7 +1312,7 @@ async def read_fast_async(client, unit, ip):
         alarm_32   = _u32_hi_lo(regs, 6)
         etotal_kwh = _u32_hi_lo(regs, 0)
         parce_kwh  = _u32_hi_lo(regs, 58)
-        # v2.11.x Slice ÃŽÂº Ã¢â‚¬â€ grid-connection cycle counters. Both are UInt32
+        # v2.11.x Slice κ — grid-connection cycle counters. Both are UInt32
         # hi-lo encoded just like Etotal. `conex` is the lifetime count
         # (since the inverter was commissioned); `conex_resettable` is an
         # operator-resettable variant. K1 contactor wear correlates with
@@ -1362,23 +1324,23 @@ async def read_fast_async(client, unit, ip):
         return None
     fac_hz     = round((reg(19) or 0) / 100.0, 2)
 
-    # v2.10.x All Parameters Data Ã¢â‚¬â€ additional fields needed by the
+    # v2.10.x All Parameters Data — additional fields needed by the
     # 5-min aggregator. Register map verified against capture-inverter1.pcapng
-    # (INV01 / Slave 1 @ 16:50:57 4/27/2026 Ã¢â‚¬â€ every screenshot value matched).
-    #   reg 16 = CosPhi Ãƒâ€” 1000  (0..1000)
-    #   reg 17 = Phi Sine Sign  (0=Ã¢Ë†â€™, 1=+) Ã¢â‚¬â€ kept for ISM column parity
-    #   reg 71 = TempCI (cooling-system / heatsink temperature, signed Ã‚Â°C).
+    # (INV01 / Slave 1 @ 16:50:57 4/27/2026 — every screenshot value matched).
+    #   reg 16 = CosPhi × 1000  (0..1000)
+    #   reg 17 = Phi Sine Sign  (0=−, 1=+) — kept for ISM column parity
+    #   reg 71 = TempCI (cooling-system / heatsink temperature, signed °C).
     #
-    #            Ã¢â€â‚¬Ã¢â€â‚¬ Two-source cross-validation Ã¢â€â‚¬Ã¢â€â‚¬
-    #            (a) ISM live display: 30-sample Ãƒâ€” 30-second monitor on
-    #                192.168.1.109 / s1 (2026-04-28 08:37Ã¢â‚¬â€œ08:52). reg 71
-    #                tracked the ISM "Temp (Ã‚Â°C)" column exactly with a
-    #                constant +1 Ã‚Â°C offset (reg 71 reads 1 Ã‚Â°C higher than
-    #                ISM displays). reg 70 stayed at 0 Ã¢â‚¬â€ confirmed not a
+    #            ── Two-source cross-validation ──
+    #            (a) ISM live display: 30-sample × 30-second monitor on
+    #                192.168.1.109 / s1 (2026-04-28 08:37–08:52). reg 71
+    #                tracked the ISM "Temp (°C)" column exactly with a
+    #                constant +1 °C offset (reg 71 reads 1 °C higher than
+    #                ISM displays). reg 70 stayed at 0 — confirmed not a
     #                hi/lo pair.
     #            (b) Stop Reason snapshot (services/stop_reason.py:50): the
     #                vendor FC 0x71 SCOPE struct's idx-11 `temp` field is
-    #                signed int16, raw Ã‚Â°C, no scaling Ã¢â‚¬â€ verified 2026-04-27
+    #                signed int16, raw °C, no scaling — verified 2026-04-27
     #                to match ISM display directly. Since reg 71 = ISM + 1
     #                and StopReason.temp = ISM, we have:
     #                    StopReason.temp == reg(71) - 1
@@ -1387,12 +1349,12 @@ async def read_fast_async(client, unit, ip):
     #                snapshot captured at fault time.
     #
     #            Per the alarm reference (server/alarms.js:266 Overtemperature):
-    #              Ã¢â‚¬Â¢ TempCI alarm threshold = 78 Ã‚Â°C
-    #              Ã¢â‚¬Â¢ TempCI = -14 Ã‚Â°C is a SENSOR FAULT sentinel (open NTC),
-    #                NOT a real reading Ã¢â‚¬â€ return None so the dashboard's
-    #                Temp column shows "Ã¢â‚¬â€" instead of a misleading number.
-    #              Ã¢â‚¬Â¢ reg 72 looks like TempINT (internal electronics, threshold
-    #                80 Ã‚Â°C, slower response) Ã¢â‚¬â€ capture but don't surface yet.
+    #              • TempCI alarm threshold = 78 °C
+    #              • TempCI = -14 °C is a SENSOR FAULT sentinel (open NTC),
+    #                NOT a real reading — return None so the dashboard's
+    #                Temp column shows "—" instead of a misleading number.
+    #              • reg 72 looks like TempINT (internal electronics, threshold
+    #                80 °C, slower response) — capture but don't surface yet.
     cosphi_x1000 = int(reg(16) or 0)
     cosphi_val   = round(cosphi_x1000 / 1000.0, 3) if cosphi_x1000 else 0.0
     phi_sign     = 1 if int(reg(17) or 0) else 0
@@ -1402,8 +1364,8 @@ async def read_fast_async(client, unit, ip):
     if raw_temp_ci & 0x8000:
         raw_temp_ci -= 0x10000
     if raw_temp_ci == -14:
-        # Sensor fault Ã¢â‚¬â€ open NTC. Don't average a fake number into the
-        # 5-min slot; let the column render "Ã¢â‚¬â€" so the operator notices.
+        # Sensor fault — open NTC. Don't average a fake number into the
+        # 5-min slot; let the column render "—" so the operator notices.
         temp_c_val = None
     elif raw_temp_ci == 0:
         # Inverter offline / register not yet refreshed.
@@ -1413,8 +1375,8 @@ async def read_fast_async(client, unit, ip):
 
     return {
         "ts":            now_ms,
-        # Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ existing fields (preserve exactly for Node-RED / poller compatibility) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-        "alarm":         reg(7),               # DEPRECATED Ã¢â‚¬â€ 16-bit legacy, remove in v2.10
+        # ─── existing fields (preserve exactly for Node-RED / poller compatibility) ───
+        "alarm":         reg(7),               # DEPRECATED — 16-bit legacy, remove in v2.10
         "vdc":           reg(8),
         "idc":           reg(9),
         "vac1":          reg(10),
@@ -1431,33 +1393,33 @@ async def read_fast_async(client, unit, ip):
         "minute":        reg(24),
         "second":        reg(25),
         "on_off":        on_off_val,
-        # Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ NEW fields (v2.9.0 Slice A) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+        # ─── NEW fields (v2.9.0 Slice A) ───
         "alarm_32":      alarm_32,              # full 32-bit alarm bitfield
         "fac_hz":        fac_hz,                # grid frequency (Hz)
         "etotal_kwh":    etotal_kwh,            # lifetime kWh counter (UInt32)
         "parce_kwh":     parce_kwh,             # partial kWh counter  (UInt32)
-        # v2.11.x Slice ÃŽÂº Ã¢â‚¬â€ grid-connection cycle counters (K1 contactor wear).
+        # v2.11.x Slice κ — grid-connection cycle counters (K1 contactor wear).
         # `conex_lifetime` is the lifetime grid-connection count since
         # commissioning; `conex_resettable` is the operator-resettable variant.
         # Both are within the existing 0-77 fast-read range so no extra
         # Modbus traffic. Persisted by the poller as the per-slot snapshot;
-        # the dashboard derives ÃŽâ€-cycles/day per node from these snapshots.
+        # the dashboard derives Δ-cycles/day per node from these snapshots.
         "conex_lifetime":   conex_lifetime,
         "conex_resettable": conex_resettable,
         "rtc_iso":       rtc_dt.isoformat() if rtc_dt else None,
         "rtc_ms":        rtc_ms,
         "rtc_valid":     bool(rtc_valid),
         "rtc_drift_s":   rtc_drift_s,
-        # Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ NEW fields (v2.10.x All Parameters Data) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+        # ─── NEW fields (v2.10.x All Parameters Data) ───
         "cosphi":        cosphi_val,            # 0.000 .. 1.000
         "phi_sign":      phi_sign,              # 0=neg, 1=pos
-        # Inverter heatsink temperature (Ã‚Â°C) Ã¢â‚¬â€ sourced from input reg 71,
+        # Inverter heatsink temperature (°C) — sourced from input reg 71,
         # widened block read above to 72 regs to include it. ISM-parity
         # offset (-1) applied during decode; see the temp_raw block. None
         # while the inverter is offline / sleeping (raw 0 sentinel).
         "temp_c":        temp_c_val,
-        # Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ NEW fields (v2.10.x Slice ÃŽÂ² Ã¢â‚¬â€ AAP0016 analog inputs) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-        "analog_in_1":   int(reg(41) or 0),        # 12-bit ADC input 1 (0Ã¢â‚¬â€œ4095)
+        # ─── NEW fields (v2.10.x Slice β — AAP0016 analog inputs) ───
+        "analog_in_1":   int(reg(41) or 0),        # 12-bit ADC input 1 (0–4095)
         "analog_in_2":   int(reg(42) or 0),        # 12-bit ADC input 2
         "analog_in_3":   int(reg(43) or 0),        # 12-bit ADC input 3
         "analog_in_4":   int(reg(44) or 0),        # 12-bit ADC input 4
@@ -1467,7 +1429,7 @@ async def read_fast_async(client, unit, ip):
 
 async def read_slow_async(client, unit, ip):
     """
-    Read 53 diagnostic input registers (addr 64Ã¢â‚¬â€œ116).
+    Read 53 diagnostic input registers (addr 64–116).
     Runs on a slow cadence (default 30 s per SLOW_POLL_INTERVAL_S setting).
 
     Returns a dict keyed to slow-field names, or None on failure.
@@ -1475,30 +1437,30 @@ async def read_slow_async(client, unit, ip):
     the device doesn't support the full range.
 
     Wire format: read_input_registers(address=64, count=53, slave=unit)
-      Modbus addresses 30065Ã¢â‚¬â€œ30117 (PDF Ã‚Â§2 p6Ã¢â‚¬â€œ9)
+      Modbus addresses 30065–30117 (PDF §2 p6–9)
 
-    Field decode (per PDF + plan Ã‚Â§2 register map):
+    Field decode (per PDF + plan §2 register map):
       addr 64-65  30065-30066  Instantaneous alarms        UInt32 hi-lo
       addr 66-67  30067-30068  Maintained alarms            UInt32 hi-lo
-      addr 68     30069        QAC reactive power (signed)  Int16, raw Ãƒâ€” 10 = VAr
-      addr 69     30070        Zpos (impedance POS-EARTH)   UInt16 (assumed kÃŽÂ© Ã¢â‚¬â€ verify vs ISM)
-      addr 70     30071        Zneg (impedance NEG-EARTH)   UInt16 (assumed kÃŽÂ© Ã¢â‚¬â€ verify vs ISM)
+      addr 68     30069        QAC reactive power (signed)  Int16, raw × 10 = VAr
+      addr 69     30070        Zpos (impedance POS-EARTH)   UInt16 (assumed kΩ — verify vs ISM)
+      addr 70     30071        Zneg (impedance NEG-EARTH)   UInt16 (assumed kΩ — verify vs ISM)
       addr 71     30072        (reserved)
-      addr 72     30073        TempINT control electronics  Int16 signed, Ã‚Â°C
+      addr 72     30073        TempINT control electronics  Int16 signed, °C
       addr 73     30074        Estado inverter state        UInt16 bitfield
       addr 74-75  30075-30076  VpvN / VpvP solar voltages   UInt16 each, V
-      addr 76     30077        Nominal power ÃƒÂ·10            UInt16, raw Ãƒâ€” 10 = W
-      addr 77-107 30078-30108  (skip: standard stop-reason history, Slice ÃŽÂµ)
+      addr 76     30077        Nominal power ÷10            UInt16, raw × 10 = W
+      addr 77-107 30078-30108  (skip: standard stop-reason history, Slice ε)
       addr 108    30109        Time-to-connect remaining    UInt16 seconds
       addr 109    30110        Time-to-connect total        UInt16 seconds
       addr 110-115 30111-30115 (skip: MS mirrors, dynamic on this site)
       addr 116    30117        Power-reduction status bits   UInt16 bitfield
 
     Notes:
-      - TempINT (addr 72) threshold 80 Ã‚Â°C; newly captured, not yet surfaced in UI
-      - Estado (addr 73) decoded by Slice ÃŽÂ³; Slice ÃŽÂ² just captures raw bitfield
+      - TempINT (addr 72) threshold 80 °C; newly captured, not yet surfaced in UI
+      - Estado (addr 73) decoded by Slice γ; Slice β just captures raw bitfield
       - Nominal power (addr 76) cross-checks operator-configured ratedKw
-      - Power-reduction bits (addr 116) bit 0 = limited, bit 1 = Modbus reduction (critical for Slice ÃŽÂ´)
+      - Power-reduction bits (addr 116) bit 0 = limited, bit 1 = Modbus reduction (critical for Slice δ)
     """
     if is_write_pending(ip):
         await asyncio.sleep(min(READ_SPACING, 0.01))
@@ -1513,21 +1475,21 @@ async def read_slow_async(client, unit, ip):
 
     # Instantaneous alarms (regs 0-1 in the read, offset 64 in the device)
     try:
-        alarms_inst_32 = _u32_hi_lo(regs, 0)   # regs[0:2] Ã¢â€ â€™ addr 64-65
+        alarms_inst_32 = _u32_hi_lo(regs, 0)   # regs[0:2] → addr 64-65
     except ValueError:
         alarms_inst_32 = 0
 
     # Maintained alarms (regs 2-3 in the read, offset 66 in the device)
     try:
-        alarms_maint_32 = _u32_hi_lo(regs, 2)  # regs[2:4] Ã¢â€ â€™ addr 66-67
+        alarms_maint_32 = _u32_hi_lo(regs, 2)  # regs[2:4] → addr 66-67
     except ValueError:
         alarms_maint_32 = 0
 
-    # QAC reactive power (addr 68, reg index 4 in this read) Ã¢â‚¬â€ Int16 signed.
-    # PDF page 7: "30069 QAC (Reactive power DIV 10)" Ã¢â‚¬â€ same convention as
+    # QAC reactive power (addr 68, reg index 4 in this read) — Int16 signed.
+    # PDF page 7: "30069 QAC (Reactive power DIV 10)" — same convention as
     # 30019 PAC ("in tens of Watt") and 30077 Nominal power ("DIV 10"), both
-    # confirmed as raw Ãƒâ€” 10 = real (W). By symmetry: raw Ãƒâ€” 10 = VAr here.
-    # Earlier code used raw / 10 which under-reported reactive power by 100Ãƒâ€”.
+    # confirmed as raw × 10 = real (W). By symmetry: raw × 10 = VAr here.
+    # Earlier code used raw / 10 which under-reported reactive power by 100×.
     # See audits/2026-05-11/register-decode-traceback.md Finding 1.
     qac_raw = int(reg(4) or 0)
     if qac_raw & 0x8000:
@@ -1538,22 +1500,22 @@ async def read_slow_async(client, unit, ip):
     zpos_kohm = int(reg(5) or 0)   # addr 69, unsigned
     zneg_kohm = int(reg(6) or 0)   # addr 70, unsigned
 
-    # Control electronics temperature (addr 72, reg index 8 in this read) Ã¢â‚¬â€ Int16 signed
+    # Control electronics temperature (addr 72, reg index 8 in this read) — Int16 signed
     tempint_raw = int(reg(8) or 0)
     if tempint_raw & 0x8000:
         tempint_raw -= 0x10000
-    # Threshold: 80 Ã‚Â°C per PDF. Unlike TempCI, no -1 offset or -14 sentinel documented.
+    # Threshold: 80 °C per PDF. Unlike TempCI, no -1 offset or -14 sentinel documented.
     # Store as-is; UI can apply thresholds.
     tempint_c = tempint_raw if tempint_raw != 0 else None
 
-    # Estado inverter state (addr 73, reg index 9) Ã¢â‚¬â€ UInt16 bitfield, decoded by Slice ÃŽÂ³
+    # Estado inverter state (addr 73, reg index 9) — UInt16 bitfield, decoded by Slice γ
     inverter_state_raw = int(reg(9) or 0)
 
     # Solar field voltages (addr 74-75, reg indices 10-11)
     vpv_n_v = int(reg(10) or 0)   # Negative-earth
     vpv_p_v = int(reg(11) or 0)   # Positive-earth
 
-    # Nominal power ÃƒÂ·10 (addr 76, reg index 12) Ã¢â‚¬â€ UInt16, units = tens of W
+    # Nominal power ÷10 (addr 76, reg index 12) — UInt16, units = tens of W
     nominal_power_w = int((reg(12) or 0) * 10)  # Convert tens to watts
 
     # Time-to-connect counters (addr 108-109, reg indices 44-45)
@@ -1565,29 +1527,29 @@ async def read_slow_async(client, unit, ip):
 
     return {
         "ts":                   int(time.time() * 1000),
-        # Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Alarm windows Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+        # ─── Alarm windows ───
         "alarms_inst_32":       alarms_inst_32,     # 1-second reset window
         "alarms_maint_32":      alarms_maint_32,    # Reset on grid reconnect
-        # Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Reactive / diagnostics Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+        # ─── Reactive / diagnostics ───
         "qac_var":              qac_var,            # Reactive W (None if offline)
         "zpos_kohm":            zpos_kohm,          # Impedance POS-EARTH
         "zneg_kohm":            zneg_kohm,          # Impedance NEG-EARTH
-        "tempint_c":            tempint_c,          # Control electronics Ã‚Â°C (threshold 80)
-        # Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ State / capability Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-        "inverter_state_raw":   inverter_state_raw, # Decoded by Slice ÃŽÂ³
+        "tempint_c":            tempint_c,          # Control electronics °C (threshold 80)
+        # ─── State / capability ───
+        "inverter_state_raw":   inverter_state_raw, # Decoded by Slice γ
         "vpv_n_v":              vpv_n_v,            # Solar field voltage NEG-EARTH
         "vpv_p_v":              vpv_p_v,            # Solar field voltage POS-EARTH
         "nominal_power_w":      nominal_power_w,    # Rated power as reported by device
-        # Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Connection / control Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+        # ─── Connection / control ───
         "time_to_connect_s":           time_to_connect_s,
         "time_to_connect_total_s":     time_to_connect_total_s,
-        "power_reduction_bits":        power_reduction_bits,  # Bit 1 = Modbus reduction active (Slice ÃŽÂ´)
+        "power_reduction_bits":        power_reduction_bits,  # Bit 1 = Modbus reduction active (Slice δ)
         "unit":                 unit,  # Pass along for frame merge
     }
 
 async def read_standard_stop_reasons(client, slave, ip):
     """
-    Read 31 input registers (30078Ã¢â‚¬â€œ30108) Ã¢â‚¬â€ standard-Modbus stop-reason ring buffer.
+    Read 31 input registers (30078–30108) — standard-Modbus stop-reason ring buffer.
 
     Returns a dict:
       {
@@ -1595,20 +1557,20 @@ async def read_standard_stop_reasons(client, slave, ip):
         "slave": int,
         "read_at_ms": int,
         "pointer": int,         # 0..4, slot index of most recent event
-        "slots": [ {slot, pointer_points_here, timestamp_iso, motive_code, motive_name, raw} Ãƒâ€” 5 ]
+        "slots": [ {slot, pointer_points_here, timestamp_iso, motive_code, motive_name, raw} × 5 ]
       }
 
     Triggered on-demand from Node via the /stop-reasons/standard FastAPI route.
-    Per-IP lock mirrors Slice ÃŽÂ² (read_slow_async) to avoid concurrent reads.
+    Per-IP lock mirrors Slice β (read_slow_async) to avoid concurrent reads.
 
-    Offline marker: year=0 Ã¢â€ â€™ timestamp_iso="offline", motive_code=-1.
+    Offline marker: year=0 → timestamp_iso="offline", motive_code=-1.
 
-    Wire format (Slice ÃŽÂµ spec Ã‚Â§3):
+    Wire format (Slice ε spec §3):
       read_input_registers(addr=77, count=31, slave=slave)
-      Pointer at reg 30078 Ã¢â€ â€™ most recent slot (0Ã¢â‚¬â€œ4)
+      Pointer at reg 30078 → most recent slot (0–4)
       5 slots of 6 regs each: [year, month, day, hour, minute, motive_code]
 
-    Related plan: plans/2026-05-10-modbus-registers-official-revamp.md Ã‚Â§4 Slice ÃŽÂµ
+    Related plan: plans/2026-05-10-modbus-registers-official-revamp.md §4 Slice ε
     """
     from datetime import datetime as _dt
 
@@ -1699,13 +1661,13 @@ async def read_standard_stop_reasons(client, slave, ip):
 
 def _get_motive_label(code):
     """
-    Get the human-readable label for a motive code (0Ã¢â‚¬â€œ30, or edge cases like -1).
+    Get the human-readable label for a motive code (0–30, or edge cases like -1).
 
     Canonical source: server/motiveLabelsStd.js
     This table is embedded inline here for Python self-containedness.
     Both must stay in sync.
 
-    Related plan: plans/slice-epsilon-implementation.md Ã‚Â§4
+    Related plan: plans/slice-epsilon-implementation.md §4
     """
     motive_labels = {
         0: "MOTIVO_PARO_NONE",
@@ -1749,10 +1711,10 @@ def _get_motive_label(code):
 
 async def slow_poll_inverter(ip):
     """
-    Slow-poll diagnostic registers (addr 64Ã¢â‚¬â€œ116) every SLOW_POLL_INTERVAL_S (default 30 s).
+    Slow-poll diagnostic registers (addr 64–116) every SLOW_POLL_INTERVAL_S (default 30 s).
     Merges slow data into shared[ip] by attaching slow fields to the most recent frame.
 
-    Slice ÃŽÂ² (v2.10.x) Ã¢â‚¬â€ runs in parallel with fast-poll, independent timing.
+    Slice β (v2.10.x) — runs in parallel with fast-poll, independent timing.
 
     Operation:
       1. Wait for a live client (same as poll_inverter)
@@ -1765,7 +1727,7 @@ async def slow_poll_inverter(ip):
       - SLOW_POLL_INTERVAL_S: read once at module load from `ADSI_SLOW_POLL_INTERVAL_S`
         environment variable. Default 30, clamped to [5, 300] (or 0 to disable the
         slow-poll tier entirely). Operator restart required to apply changes.
-        Runtime tuning via the settings API is NOT yet wired Ã¢â‚¬â€ deferred to a
+        Runtime tuning via the settings API is NOT yet wired — deferred to a
         follow-up if operator demand emerges.
     """
     print(f"[SLOW-POLL] Started {ip} every {SLOW_POLL_INTERVAL_S}s")
@@ -1780,27 +1742,27 @@ async def slow_poll_inverter(ip):
             await asyncio.sleep(60)
             continue
 
-        # Ã¢â€â‚¬Ã¢â€â‚¬ Wait for a live client Ã¢â€â‚¬Ã¢â€â‚¬
+        # ── Wait for a live client ──
         client = clients.get(ip)
         if not client:
             await asyncio.sleep(0.5)
             continue
 
         # Skip the whole slow-poll cycle (incl. unit detection probes)
-        # while a firmware flash holds this inverter Ã¢â‚¬â€ see
+        # while a firmware flash holds this inverter — see
         # firmware_flash_active() / poll_inverter().
         if firmware_flash_active(ip):
             await asyncio.sleep(min(slow_interval, 2.0))
             continue
 
-        # Ã¢â€â‚¬Ã¢â€â‚¬ Discover units Ã¢â€â‚¬Ã¢â€â‚¬
+        # ── Discover units ──
         units = await detect_units_async(ip)
 
         if not units:
             await asyncio.sleep(1)
             continue
 
-        # Ã¢â€â‚¬Ã¢â€â‚¬ Slow-poll cycle Ã¢â€â‚¬Ã¢â€â‚¬
+        # ── Slow-poll cycle ──
         try:
             inv_num = inverter_number_from_ip(ip)
 
@@ -1842,13 +1804,13 @@ async def poll_inverter(ip):
     print(f"[POLL] Started  {ip}  every {interval}s")
 
     while True:
-        # Ã¢â€â‚¬Ã¢â€â‚¬ Wait for a live client Ã¢â€â‚¬Ã¢â€â‚¬
+        # ── Wait for a live client ──
         client = clients.get(ip)
         if not client:
             await asyncio.sleep(0.5)
             continue
 
-        # Ã¢â€â‚¬Ã¢â€â‚¬ Firmware-flash backoff (BEFORE unit detection) Ã¢â€â‚¬Ã¢â€â‚¬
+        # ── Firmware-flash backoff (BEFORE unit detection) ──
         # detect_units_async() issues Modbus probe reads. On a COLD engine
         # start while a calibrator flash is already in progress (calibrator
         # opened first, dashboard second), this is the FIRST bus traffic to
@@ -1861,7 +1823,7 @@ async def poll_inverter(ip):
             await asyncio.sleep(min(interval, 1.0))
             continue
 
-        # Ã¢â€â‚¬Ã¢â€â‚¬ Discover units Ã¢â€â‚¬Ã¢â€â‚¬
+        # ── Discover units ──
         units = await detect_units_async(ip)
         print(f"[POLL] {ip}  units: {units}")
 
@@ -1869,7 +1831,7 @@ async def poll_inverter(ip):
             await asyncio.sleep(1)
             continue
 
-        # Ã¢â€â‚¬Ã¢â€â‚¬ Continuous poll Ã¢â€â‚¬Ã¢â€â‚¬
+        # ── Continuous poll ──
         # T3.6 fix (Phase 6, 2026-04-14): wrap inner cycle in try/except so a
         # single bad read (KeyError from a mid-rebuild map flip, transient
         # asyncio.CancelledError edge, decode error from a misbehaving
@@ -1914,7 +1876,7 @@ async def poll_inverter(ip):
                 if not client:
                     break
 
-                # Firmware flash in progress for this inverter Ã¢â‚¬â€ back off
+                # Firmware flash in progress for this inverter — back off
                 # the bus entirely this cycle so the calibrator is the sole
                 # Modbus master (mirrors the is_write_pending skip below).
                 if firmware_flash_active(ip):
@@ -1924,7 +1886,7 @@ async def poll_inverter(ip):
                 out     = []
                 inv_num = inverter_number_from_ip(ip)
                 if inv_num is None:
-                    print(f"[POLL] WARNING: no inverter number for IP {ip} Ã¢â‚¬â€ data will be dropped")
+                    print(f"[POLL] WARNING: no inverter number for IP {ip} — data will be dropped")
                     await asyncio.sleep(1)
                     break  # wait for ip_map to be rebuilt
 
@@ -1933,7 +1895,7 @@ async def poll_inverter(ip):
                         await asyncio.sleep(min(interval, 0.05))
                         break
 
-                    # Ã¢â€â‚¬Ã¢â€â‚¬ Per-unit dead-node backoff Ã¢â€â‚¬Ã¢â€â‚¬
+                    # ── Per-unit dead-node backoff ──
                     # Skip a unit that is in the throttled state until its
                     # re-probe window elapses, so one dead/absent node on this
                     # inverter can't inject a shared-socket reconnect + double
@@ -1962,7 +1924,7 @@ async def poll_inverter(ip):
                             if h["fail"] >= UNIT_DEAD_FAIL_THRESHOLD:
                                 if not h.get("throttled"):
                                     print(
-                                        f"[POLL] {ip} unit {u} unresponsive x{h['fail']} Ã¢â‚¬â€ "
+                                        f"[POLL] {ip} unit {u} unresponsive x{h['fail']} — "
                                         f"throttling its probe to every {UNIT_DEAD_REPROBE_S:.1f}s so "
                                         f"the inverter's other nodes keep polling fast"
                                     )
@@ -1971,11 +1933,11 @@ async def poll_inverter(ip):
                             _unit_health[hk] = h
                         continue
 
-                    # Healthy read Ã¢â‚¬â€ clear any throttle so the unit returns to
+                    # Healthy read — clear any throttle so the unit returns to
                     # the fast every-cycle cadence immediately on recovery.
                     if not DISABLE_UNIT_DEAD_BACKOFF and hk in _unit_health:
                         if _unit_health[hk].get("throttled"):
-                            print(f"[POLL] {ip} unit {u} responsive again Ã¢â‚¬â€ resuming fast polling")
+                            print(f"[POLL] {ip} unit {u} responsive again — resuming fast polling")
                         _unit_health.pop(hk, None)
 
                     data["source_ip"] = ip
@@ -1990,7 +1952,7 @@ async def poll_inverter(ip):
                     if not entry.get("busy"):
                         asyncio.create_task(handle_auto_reset(ip, u, data["alarm"]))
 
-                    # v2.9.0 Slice E Ã¢â‚¬â€ drift / year-invalid clock-sync triggers (non-blocking)
+                    # v2.9.0 Slice E — drift / year-invalid clock-sync triggers (non-blocking)
                     try:
                         if data.get("rtc_valid") and data.get("rtc_drift_s") is not None:
                             if abs(float(data["rtc_drift_s"])) > _DRIFT_TRIGGER_THRESHOLD_S:
@@ -2011,11 +1973,11 @@ async def poll_inverter(ip):
                 if out:
                     shared[ip] = list(out)
 
-                # Ã¢â€â‚¬Ã¢â€â‚¬ Per-IP self-healing client rebuild Ã¢â€â‚¬Ã¢â€â‚¬
+                # ── Per-IP self-healing client rebuild ──
                 # Track whether THIS inverter produced any successful read this
                 # cycle. After IP_REBUILD_AFTER_S of nothing-but-misses, the
                 # cached client/socket is likely wedged in a way close()/connect()
-                # can't clear Ã¢â‚¬â€ rebuild it from scratch (what changing the IP used
+                # can't clear — rebuild it from scratch (what changing the IP used
                 # to do manually). Rate-limited + skipped during writes/flash.
                 now_mono = time.monotonic()
                 h_ip = _ip_health.setdefault(
@@ -2108,14 +2070,14 @@ async def rebuild_global_maps(cfg=None):
     # Phase 8 code-review fix (2026-04-15): use rebind for `static_units` too
     # (was clear()+update() before).  Previously a concurrent reader of
     # `detect_units_async` could observe static_units mid-rebuild as empty
-    # and fall through to Modbus auto-detect for the ~1 Ã‚Âµs window.  Rebind
+    # and fall through to Modbus auto-detect for the ~1 µs window.  Rebind
     # avoids the window entirely, matching `intervals` and `ip_map`.
     ip_map = new_ip_map
     inverters[:] = new_inverters  # in-place because consumers hold the list ref
     intervals = new_intervals
     static_units = new_static_units
 
-    # Ã¢â€â‚¬Ã¢â€â‚¬ Bring up new inverters Ã¢â€â‚¬Ã¢â€â‚¬
+    # ── Bring up new inverters ──
     for ip in inverters:
         if ip not in clients:
             loop = asyncio.get_running_loop()
@@ -2143,7 +2105,7 @@ async def rebuild_global_maps(cfg=None):
             write_threads[ip] = t
             t.start()
 
-    # Ã¢â€â‚¬Ã¢â€â‚¬ Tear down removed inverters Ã¢â€â‚¬Ã¢â€â‚¬
+    # ── Tear down removed inverters ──
     for ip in list(clients.keys()):
         if ip not in inverters:
             if ip in write_queues:
@@ -2166,17 +2128,17 @@ async def rebuild_global_maps(cfg=None):
             for _u in (1, 2, 3, 4):
                 _unit_health.pop((ip, _u), None)  # drop dead-node backoff state for removed IP
 
-    # Ã¢â€â‚¬Ã¢â€â‚¬ Reclaim metrics_state for nodes no longer in the config Ã¢â€â‚¬Ã¢â€â‚¬
+    # ── Reclaim metrics_state for nodes no longer in the config ──
     # PY-POLL-002 fix (2026-05-29): rebuild teardown above prunes clients /
     # shared / locks for a removed IP, but the five metrics_state dicts
     # (pacEnergy, pdcData, uiAlarm, lastUpdate, pacEnergyHistory) are keyed by
-    # `{inverter}_{module}` and were never reclaimed Ã¢â‚¬â€ so a node removed from
+    # `{inverter}_{module}` and were never reclaimed — so a node removed from
     # ipconfig leaked memory (pacEnergyHistory grows one float per day) AND
     # lingered in /metrics output until its 31.5 s offline cutoff every poll.
     #
     # Build the live node-key set "{inverter}_{unit}" from the NEW config,
-    # probing slots 1..27 of ip_map (immune to malformed/extra keys Ã¢â‚¬â€ no int()
-    # on arbitrary dict keys). Identity is the inverter NUMBER, not the IP Ã¢â‚¬â€ so
+    # probing slots 1..27 of ip_map (immune to malformed/extra keys — no int()
+    # on arbitrary dict keys). Identity is the inverter NUMBER, not the IP — so
     # a re-cabled inverter (same number, new IP) keeps its accumulators; only
     # genuinely removed numbers AND units dropped from an inverter's unit list
     # are reclaimed. An inverter with no explicit unit override (auto-detect)
@@ -2207,10 +2169,10 @@ async def rebuild_global_maps(cfg=None):
             if str(_nk) not in configured_nodes:
                 _d.pop(_nk, None)
 
-    print(f"[IPCONFIG] Maps rebuilt Ã¢â‚¬â€ {len(inverters)} inverter(s) active")
+    print(f"[IPCONFIG] Maps rebuilt — {len(inverters)} inverter(s) active")
 
 # -------------------------------------------------
-#   v2.9.0 Slice C/E/F Ã¢â‚¬â€ health gates, crash recovery, clock triggers
+#   v2.9.0 Slice C/E/F — health gates, crash recovery, clock triggers
 # -------------------------------------------------
 
 NODE_API_BASE = os.environ.get("NODE_API_BASE", "http://127.0.0.1:3500")
@@ -2218,11 +2180,11 @@ DISABLE_COUNTER_RECOVERY = os.environ.get("DISABLE_COUNTER_RECOVERY", "").strip(
 
 # Last-sync-attempt throttle for drift trigger: {(inv, unit) -> ts_ms}.
 # PY-C-004 audit flagged this as "unbounded growth" but keys are
-# (inverter_number, unit_number) integers Ã¢â‚¬â€ bounded by fleet size
-# (Ã¢â€°Â¤ 27 Ãƒâ€” 4 + 27 Ãƒâ€” 4 year-keys Ã¢â€°Ë† 216 entries max, not IPs). No TTL needed.
+# (inverter_number, unit_number) integers — bounded by fleet size
+# (≤ 27 × 4 + 27 × 4 year-keys ≈ 216 entries max, not IPs). No TTL needed.
 _last_drift_sync_at = {}
 _DRIFT_SYNC_COOLDOWN_MS = 4 * 3600 * 1000    # 4 h
-_DRIFT_TRIGGER_THRESHOLD_S = 3600.0          # 1 h Ã¢â‚¬â€ overrideable by Node setting
+_DRIFT_TRIGGER_THRESHOLD_S = 3600.0          # 1 h — overrideable by Node setting
 
 def _http_get_json(url: str, timeout_s: float = 5.0):
     """Stdlib HTTP GET returning parsed JSON or None on failure."""
@@ -2255,10 +2217,10 @@ def _http_post_json(url: str, payload: dict, timeout_s: float = 3.0):
     except Exception:
         return None
 
-# Ã¢â€â‚¬Ã¢â€â‚¬ Slice F Ã¢â‚¬â€ health gates Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+# ── Slice F — health gates ────────────────────────────────────────────────
 
 def rtc_year_valid(frame_or_state: dict, server_now=None) -> bool:
-    """Last observed RTC year within Ã‚Â±1 of server year."""
+    """Last observed RTC year within ±1 of server year."""
     from datetime import datetime as _dt
     if not frame_or_state or not frame_or_state.get("rtc_valid"):
         return False
@@ -2275,11 +2237,11 @@ def rtc_year_valid(frame_or_state: dict, server_now=None) -> bool:
 def counter_advancing(history: list, window_s: int = 300,
                        pac_idle_w: int = 500) -> bool:
     """
-    history: list of dicts ordered oldestÃ¢â€ â€™newest, each with keys
+    history: list of dicts ordered oldest→newest, each with keys
              {ts_ms, etotal_kwh, pac_w}.
     Returns True if EITHER:
-      Ã¢â‚¬Â¢ etotal_kwh strictly increased at least once in the window
-      Ã¢â‚¬Â¢ mean(pac_w) over the window < pac_idle_w  (unit idle Ã¢â€ â€™ no tick expected)
+      • etotal_kwh strictly increased at least once in the window
+      • mean(pac_w) over the window < pac_idle_w  (unit idle → no tick expected)
     """
     if not history or len(history) < 2:
         return True
@@ -2313,7 +2275,7 @@ def trust_parce(frame_state, history, pac_wh, server_now=None) -> bool:
             and counter_advancing(history)
             and parce_precision_ok(history, pac_wh))
 
-# Ã¢â€â‚¬Ã¢â€â‚¬ Slice C Ã¢â‚¬â€ crash-recovery seed Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+# ── Slice C — crash-recovery seed ────────────────────────────────────────
 
 async def audit_counter_recovery(inverter, unit, source, recovered_kwh, reason):
     """Best-effort audit-log write to Node for each recovery decision."""
@@ -2345,7 +2307,7 @@ def classify_seed_decision(
     """
     Pure decision function for v2.9.1 crash-recovery seed gating.
 
-    Returns (recovered_kwh, source, reason) where source Ã¢Ë†Ë† {"etotal","parce","zero"}
+    Returns (recovered_kwh, source, reason) where source ∈ {"etotal","parce","zero"}
     and reason is set when source=="zero". Yesterday's snapshot is the primary
     anchor: without it (or if today's baseline is inconsistent with it) the
     function refuses to seed.
@@ -2396,23 +2358,23 @@ def classify_seed_decision(
 
 async def seed_pac_from_baseline():
     """
-    v2.9.0 Slice C Ã¢â‚¬â€ seed PAC integrator per unit from today's baseline +
+    v2.9.0 Slice C — seed PAC integrator per unit from today's baseline +
     first successful poll. Called once during startup before poll loops spin up.
 
     Safe behaviour on failure: PAC starts at 0 (pre-v2.9.0 default).
     Controlled via DISABLE_COUNTER_RECOVERY env var.
     """
     if DISABLE_COUNTER_RECOVERY:
-        print("[RECOVERY] DISABLE_COUNTER_RECOVERY=1 Ã¢â‚¬â€ skipping Etotal/parcE seed")
+        print("[RECOVERY] DISABLE_COUNTER_RECOVERY=1 — skipping Etotal/parcE seed")
         return
 
     from datetime import datetime as _dt
     loop = asyncio.get_running_loop()
     date_key = _dt.now().strftime("%Y-%m-%d")
 
-    # Fetch baselines from Node. Node may not be up yet Ã¢â‚¬â€ retry briefly.
+    # Fetch baselines from Node. Node may not be up yet — retry briefly.
     data = None
-    for attempt in range(6):  # ~30 s max (5 s Ãƒâ€” 6)
+    for attempt in range(6):  # ~30 s max (5 s × 6)
         data = await loop.run_in_executor(
             executor,
             _http_get_json,
@@ -2425,7 +2387,7 @@ async def seed_pac_from_baseline():
         await asyncio.sleep(5)
 
     if data is None:
-        print("[RECOVERY] Node unreachable Ã¢â‚¬â€ PAC starts at 0 for all units")
+        print("[RECOVERY] Node unreachable — PAC starts at 0 for all units")
         return
 
     baselines = {
@@ -2433,7 +2395,7 @@ async def seed_pac_from_baseline():
         for b in (data.get("baselines") or [])
     }
 
-    # v2.9.1 Ã¢â‚¬â€ refuse to seed any unit that lacks a clear snapshot of
+    # v2.9.1 — refuse to seed any unit that lacks a clear snapshot of
     # yesterday's last reading. Without that anchor we cannot confirm today's
     # baseline is consistent (e.g., baseline accidentally captured during a
     # transient bad first-frame read), so the safe path is to start at 0.
@@ -2443,10 +2405,10 @@ async def seed_pac_from_baseline():
     }
 
     if not baselines:
-        print(f"[RECOVERY] No baselines for {date_key} yet Ã¢â‚¬â€ zero-seed + wait for first poll")
+        print(f"[RECOVERY] No baselines for {date_key} yet — zero-seed + wait for first poll")
         return
 
-    # v2.9.1 Ã¢â‚¬â€ gap-ratio crash detector. If solar-window readings are dense
+    # v2.9.1 — gap-ratio crash detector. If solar-window readings are dense
     # (ratio >= threshold), this is a clean restart; PAC should accumulate
     # from the live moment forward and we leave the integrator at 0. Only when
     # readings are sparse (low ratio inside the open solar window) do we seed
@@ -2455,14 +2417,14 @@ async def seed_pac_from_baseline():
     gap_ratio = data.get("gap_ratio")
     gap_thr   = data.get("gap_threshold")
     if not crash_detected:
-        print(f"[RECOVERY] clean restart Ã¢â‚¬â€ gap_ratio={gap_ratio} thr={gap_thr}; "
+        print(f"[RECOVERY] clean restart — gap_ratio={gap_ratio} thr={gap_thr}; "
               "PAC integrator starts at 0 (live accumulation only)")
         # Audit one row so operators can see why we declined to seed.
         await audit_counter_recovery(0, 0, "skip", 0.0,
                                      f"clean_restart gap_ratio={gap_ratio} thr={gap_thr}")
         return
 
-    print(f"[RECOVERY] crash detected Ã¢â‚¬â€ gap_ratio={gap_ratio} thr={gap_thr}; "
+    print(f"[RECOVERY] crash detected — gap_ratio={gap_ratio} thr={gap_thr}; "
           "evaluating per-unit seed decisions")
 
     # Energy that a healthy plant accumulates between yesterday's last RTC-valid
@@ -2534,9 +2496,9 @@ async def seed_pac_from_baseline():
 
             await audit_counter_recovery(inv, unit, source, recovered_kwh, reason)
 
-    print(f"[RECOVERY] done Ã¢â‚¬â€ seeded={seeded} zero-fallback={fallbacks}")
+    print(f"[RECOVERY] done — seeded={seeded} zero-fallback={fallbacks}")
 
-# Ã¢â€â‚¬Ã¢â€â‚¬ Slice E Ã¢â‚¬â€ drift + year-invalid triggers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+# ── Slice E — drift + year-invalid triggers ──────────────────────────────
 
 async def _post_sync_clock_for(inv: int, unit: int, trigger: str):
     """Tell Node to execute a sync-clock for this unit via /api/sync-clock-internal."""
@@ -2567,7 +2529,7 @@ async def maybe_trigger_drift_sync(ip, unit, drift_s):
     await _post_sync_clock_for(inv, unit, "drift")
 
 async def trigger_year_invalid_sync(ip, unit, y_probe):
-    """Year-invalid trigger Ã¢â‚¬â€ light throttle (10 min) to avoid hammering."""
+    """Year-invalid trigger — light throttle (10 min) to avoid hammering."""
     inv = inverter_number_from_ip(ip)
     if inv is None:
         return
@@ -2581,14 +2543,14 @@ async def trigger_year_invalid_sync(ip, unit, y_probe):
     await _post_sync_clock_for(inv, unit, "year_invalid")
 
 # -------------------------------------------------
-#   v2.9.0 Slice D Ã¢â‚¬â€ clock-sync transport
+#   v2.9.0 Slice D — clock-sync transport
 # -------------------------------------------------
 #
 # Wireshark capture of ISM's Isla::Sincronizar (docs/capture-file.pcapng,
 # frame #8017) confirmed the on-wire protocol is plain Modbus FC16
 # (Write Multiple Registers) broadcast to unit 0, starting at register 0,
 # writing six UINT16s [year, month, day, hour, minute, second]. No vendor
-# function code, no template Ã¢â‚¬â€ pymodbus' built-in write_registers is enough.
+# function code, no template — pymodbus' built-in write_registers is enough.
 
 async def sync_clock(ip: str, unit: int, target_dt=None,
                      readback_delay_ms: int = 1000):
@@ -2597,10 +2559,10 @@ async def sync_clock(ip: str, unit: int, target_dt=None,
         { ok, drift_before_s, drift_after_s, accepted, error }.
 
     Per ISM packet capture (docs/capture-file.pcapng frame #8017):
-      Ã¢â‚¬Â¢ Modbus FC16 Write Multiple Registers
-      Ã¢â‚¬Â¢ Unit ID: 0 (broadcast Ã¢â‚¬â€ frame propagates to every unit on the daisy chain)
-      Ã¢â‚¬Â¢ Start address: 0
-      Ã¢â‚¬Â¢ Values: [year, month, day, hour, minute, second] as UINT16
+      • Modbus FC16 Write Multiple Registers
+      • Unit ID: 0 (broadcast — frame propagates to every unit on the daisy chain)
+      • Start address: 0
+      • Values: [year, month, day, hour, minute, second] as UINT16
     For per-unit sync we still pass the slave ID through so a single inverter
     can be targeted explicitly when desired.
     """
@@ -2629,7 +2591,7 @@ async def sync_clock(ip: str, unit: int, target_dt=None,
     def _do_sync():
         import time as _t
         with lock:
-            # 1. read current RTC Ã¢â€ â€™ drift_before
+            # 1. read current RTC → drift_before
             before_regs = read_input(client, 20, 6, unit)
             padded_before = [0] * 20 + list(before_regs or [0] * 6)
             rtc_before_dt, _ = _rtc_from_regs(padded_before, server_year=_server_year)
@@ -2753,7 +2715,7 @@ async def sync_clock_inverter(ip: str, units, target_dt=None,
                 )
 
             # 2. Single FC16 broadcast write (unit=0).  Per Modbus spec,
-            # broadcast slaves do not reply Ã¢â‚¬â€ so a None/error response from
+            # broadcast slaves do not reply — so a None/error response from
             # pymodbus is normal here; we rely on readback for verification.
             values = [
                 int(target_dt.year), int(target_dt.month), int(target_dt.day),
@@ -2806,9 +2768,9 @@ async def sync_clock_inverter(ip: str, units, target_dt=None,
     except Exception as exc:
         return {**base, "error": f"executor_error: {exc}"}
 
-# Ã¢â€â‚¬Ã¢â€â‚¬ Bulk-auth helper (mirrors server/bulkControlAuth.js adsiMM pattern) Ã¢â€â‚¬Ã¢â€â‚¬
+# ── Bulk-auth helper (mirrors server/bulkControlAuth.js adsiMM pattern) ──
 def _check_bulk_auth(header_value: str) -> bool:
-    """Accept `adsiMM` for the prior, current OR next minute (Ã‚Â±1 in both
+    """Accept `adsiMM` for the prior, current OR next minute (±1 in both
     directions), padded or unpadded. Case-insensitive. The next-minute offset
     keeps this in lock-step with the Node gates (getPlantWideAuthKeys,
     requireTopologyAuth) so a key the operator typed off a slightly-fast clock
@@ -2872,13 +2834,13 @@ async def ipconfig_watcher():
     last_poll_sig = ""
     loop = asyncio.get_running_loop()
     while True:
-        # Ã¢â€â‚¬Ã¢â€â‚¬ Check ipconfig Ã¢â€â‚¬Ã¢â€â‚¬
+        # ── Check ipconfig ──
         try:
             cfg = await load_ipconfig()
             signature = json.dumps(cfg, sort_keys=True, separators=(",", ":"))
             if signature != last_signature:
                 if last_signature is not None:
-                    print("[WATCH] ipconfig changed Ã¢â‚¬â€ reloading")
+                    print("[WATCH] ipconfig changed — reloading")
                 last_signature = signature
                 await rebuild_global_maps(cfg)
                 # Reconcile RS485 bridge buses on ipconfig change
@@ -2890,7 +2852,7 @@ async def ipconfig_watcher():
         except Exception:
             pass
 
-        # Ã¢â€â‚¬Ã¢â€â‚¬ Check poll config (inverterPollConfig) Ã¢â€â‚¬Ã¢â€â‚¬
+        # ── Check poll config (inverterPollConfig) ──
         try:
             poll_cfg = await loop.run_in_executor(executor, _load_poll_config_sync)
             poll_sig = json.dumps(poll_cfg, sort_keys=True, separators=(",", ":"))
@@ -2901,11 +2863,11 @@ async def ipconfig_watcher():
                 if _modbus_timeout != old_timeout:
                     # Fix B (2026-06-08): rebuild_global_maps() only builds a
                     # client for an IP NOT already in `clients`, so calling it
-                    # here never recreated existing clients Ã¢â‚¬â€ the new timeout
+                    # here never recreated existing clients — the new timeout
                     # silently never applied. Explicitly rebuild each existing
                     # inverter's client (fresh object carries the new timeout),
                     # which also gives operators a no-IP-change recovery lever.
-                    print(f"[WATCH] modbusTimeout changed to {_modbus_timeout}s Ã¢â‚¬â€ rebuilding {len(inverters)} client(s)")
+                    print(f"[WATCH] modbusTimeout changed to {_modbus_timeout}s — rebuilding {len(inverters)} client(s)")
                     for _ip in list(inverters):
                         await rebuild_ip_client(_ip, "modbusTimeout change")
                 elif last_poll_sig != "{}":
@@ -2968,7 +2930,7 @@ def _update_metrics_from_frame(frame: dict):
             _pac_clamp_notified.add(_clamp_key)
     pac_cand = _pac_scaled if _pac_scaled <= 260_000 else 0
 
-    # Zero-coherence guard Ã¢â‚¬â€ per-leg, noise-tolerant. Mirrors the Node-side
+    # Zero-coherence guard — per-leg, noise-tolerant. Mirrors the Node-side
     # guard in server/poller.js parseRow. The inverter exposes Vdc, Idc, and
     # the three AC phase currents as independent registers; analog scaling
     # and quantization noise can leave a leg sitting just above zero even
@@ -2976,29 +2938,29 @@ def _update_metrics_from_frame(frame: dict):
     # floor instead of strict ==0, and evaluate each leg INDEPENDENTLY
     # rather than relying on the multiplied Vdc*Idc product.
     #
-    # Register units (raw, before scaling) Ã¢â‚¬â€ verified 1 A/LSB for this PowerMax
+    # Register units (raw, before scaling) — verified 1 A/LSB for this PowerMax
     # hardware (audits/2026-05-11/register-decode-traceback.md Finding 3; the
-    # safePdc 265 kW clamp only reconciles with vdcÃ‚Â·idc at 1 A/LSB). Earlier
+    # safePdc 265 kW clamp only reconciles with vdc·idc at 1 A/LSB). Earlier
     # "0.1 A/LSB" comments here were stale and contradicted the live thresholds.
-    #   vdc  Ã¢â‚¬â€ 1 V/LSB
-    #   idc  Ã¢â‚¬â€ 1 A/LSB
-    #   iac* Ã¢â‚¬â€ 1 A/LSB
+    #   vdc  — 1 V/LSB
+    #   idc  — 1 A/LSB
+    #   iac* — 1 A/LSB
     #
     # Force pac_raw to 0 if ANY leg is at/below its noise floor:
-    #   Ã¢â‚¬Â¢ Vdc at noise floor       Ã¢â€ â€™ no real DC bus voltage
-    #   Ã¢â‚¬Â¢ Idc at noise floor       Ã¢â€ â€™ no real DC current
-    #   Ã¢â‚¬Â¢ iac1/iac2/iac3 at noise  Ã¢â€ â€™ that phase carries no current,
+    #   • Vdc at noise floor       → no real DC bus voltage
+    #   • Idc at noise floor       → no real DC current
+    #   • iac1/iac2/iac3 at noise  → that phase carries no current,
     #                                 3-phase output incomplete
     # Voltages on the AC side are intentionally ignored per operator
     # guidance (grid voltage can be present without the inverter exporting).
     #
     # Without this guard, the 50ms PAC integrator below would accumulate
     # phantom Wh into pacEnergy.totalWh whenever a leg drops to noise floor
-    # while pac_reg still reports a small residual Ã¢â‚¬â€ that totalWh becomes
+    # while pac_reg still reports a small residual — that totalWh becomes
     # kwh_today, which Node prefers over its own trapezoid integrator.
-    NOISE_VDC = 1.0   # Ã¢â€°Â¤1 V on the DC bus is noise floor
-    NOISE_IDC = 1.0   # Ã¢â€°Â¤1 A DC is noise floor (idc is 1 A/LSB on this hardware)
-    NOISE_IAC = 1.0   # Ã¢â€°Â¤1 A on a phase is noise floor (iac is 1 A/LSB)
+    NOISE_VDC = 1.0   # ≤1 V on the DC bus is noise floor
+    NOISE_IDC = 1.0   # ≤1 A DC is noise floor (idc is 1 A/LSB on this hardware)
+    NOISE_IAC = 1.0   # ≤1 A on a phase is noise floor (iac is 1 A/LSB)
     iac1_raw = float(frame.get("iac1") or 0)
     iac2_raw = float(frame.get("iac2") or 0)
     iac3_raw = float(frame.get("iac3") or 0)
@@ -3129,7 +3091,7 @@ def _build_metrics() -> list:
 # Electron parent and external monitors.  Returns both coarse liveness
 # (process responding) and functional health (recent polls, connected
 # clients).  `stale=true` when the newest frame across all inverters is
-# older than 30 s Ã¢â‚¬â€ the "process alive but stuck" failure mode.
+# older than 30 s — the "process alive but stuck" failure mode.
 @app.get("/health")
 def get_health():
     now_ms = int(time.time() * 1000)
@@ -3163,7 +3125,7 @@ def get_data():
     Frames older than STALE_FRAME_MAX_AGE_MS are excluded so Node sees no frame
     (and naturally marks the inverter offline) when Modbus is down.
 
-    Energy enrichment: each fresh frame is enriched with `kwh_today` Ã¢â‚¬â€ the
+    Energy enrichment: each fresh frame is enriched with `kwh_today` — the
     per-unit accumulated kWh from Python's high-frequency (50ms) integrator.
     Node uses this value directly instead of re-integrating PAC at 200ms.
     """
@@ -3191,7 +3153,7 @@ def get_data():
 @app.get("/metrics")
 def get_metrics():
     """
-    Return processed inverter metrics Ã¢â‚¬â€ mirrors Node-RED engine output.
+    Return processed inverter metrics — mirrors Node-RED engine output.
     Fields per node: Inverter, Module, Date, Time, Pac(W), Pdc(W),
                      ONLINE, AlarmValue, Alarm, on_off
     """
@@ -3223,7 +3185,7 @@ async def write_command(cmd: WriteCommand):
     """Queue a single-register write (address 16) for the specified inverter/unit."""
 
     # T3.1 fix: validate unit range at the API boundary.
-    # Ingeteam nodes are 1..4 (see SKILL.md Ã‚Â§Current Metrics Ã¢â‚¬â€ 4 nodes per inverter).
+    # Ingeteam nodes are 1..4 (see SKILL.md §Current Metrics — 4 nodes per inverter).
     if not isinstance(cmd.unit, int) or not (1 <= cmd.unit <= 4):
         return JSONResponse({"status": "error", "msg": "invalid unit (must be 1..4)"}, 400)
 
@@ -3362,7 +3324,7 @@ async def write_batch_command(cmd: WriteBatchCommand):
         500,
     )
 
-# Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ v2.9.0 Slice D Ã¢â‚¬â€ clock-sync endpoints Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+# ─── v2.9.0 Slice D — clock-sync endpoints ────────────────────────────────
 
 def _extract_auth_header(request):
     """Return the best-available bulk-auth header value (lowercased, trimmed)."""
@@ -3439,7 +3401,7 @@ async def api_sync_clock_inverter(inverter: int, request: Request):
 
 @app.post("/sync-clock/broadcast")
 async def api_sync_clock_all(request: Request):
-    """Fan out per-inverter broadcasts across the whole fleet Ã¢â‚¬â€ one Modbus
+    """Fan out per-inverter broadcasts across the whole fleet — one Modbus
     FC16 frame per inverter (NOT per unit). Used by the daily auto-sync cron.
     """
     auth = _extract_auth_header(request)
@@ -3490,13 +3452,13 @@ async def api_sync_clock_all(request: Request):
         "results":    flat_results,
     }
 
-# Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ 2026-06-08 Ã¢â‚¬â€ Manual comms reconnect (force fresh Modbus client) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+# ─── 2026-06-08 — Manual comms reconnect (force fresh Modbus client) ────────
 
 @app.post("/reconnect/{inverter}")
 async def api_reconnect_inverter(inverter: int, request: Request):
     """Force a fresh per-IP Modbus client for one inverter (operator action).
 
-    Equivalent to what changing the inverter's IP used to do by accident Ã¢â‚¬â€ it
+    Equivalent to what changing the inverter's IP used to do by accident — it
     discards a wedged cached client/socket and builds a brand-new one, without
     touching the inverter's IP or any inverter state. Bulk-auth gated (the Node
     proxy injects the rolling adsiMM key); no Modbus write is performed.
@@ -3515,19 +3477,19 @@ async def api_reconnect_inverter(inverter: int, request: Request):
     ok = await rebuild_ip_client(ip, "operator reconnect")
     return {"inverter": inv_int, "ip": ip, "ok": bool(ok)}
 
-# Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ v2.10.0 Slice B Ã¢â‚¬â€ Stop Reasons (vendor FC 0x71 SCOPE peek) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+# ─── v2.10.0 Slice B — Stop Reasons (vendor FC 0x71 SCOPE peek) ────────────
 
 @app.post("/stop-reasons/{inverter}/{slave}")
 async def api_stop_reasons_read(inverter: int, slave: int, request: Request):
     """Read StopReason snapshots for one inverter+slave via vendor FC 0x71.
 
-    Returns JSON-ready dicts. No persistence side-effect Ã¢â‚¬â€ Node's route
+    Returns JSON-ready dicts. No persistence side-effect — Node's route
     handler decides whether to write rows into inverter_stop_reasons.
 
     Query / body knobs:
-      Ã¢â‚¬Â¢ nodes:              CSV list "1,2,3"  (default: all 1..3)
-      Ã¢â‚¬Â¢ include_histogram:  bool (default false)
-    Bulk-auth gated Ã¢â‚¬â€ same key as clock-sync broadcast since this drives
+      • nodes:              CSV list "1,2,3"  (default: all 1..3)
+      • include_histogram:  bool (default false)
+    Bulk-auth gated — same key as clock-sync broadcast since this drives
     Modbus traffic on the shared bus.
     """
     auth = _extract_auth_header(request)
@@ -3577,6 +3539,8 @@ async def api_stop_reasons_read(inverter: int, slave: int, request: Request):
         or qp.get("include_histogram") in ("1", "true", "True", "yes")
     )
 
+    from services.stop_reason import read_with_lock as _read_with_lock
+
     loop = asyncio.get_running_loop()
     try:
         result = await loop.run_in_executor(
@@ -3599,15 +3563,15 @@ async def api_stop_reasons_read(inverter: int, slave: int, request: Request):
         "histogram": result.get("histogram"),
     }
 
-# Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ v2.10.x Slice ÃŽÂµ Ã¢â‚¬â€ Standard-Modbus Stop-Reason Cross-Check Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+# ─── v2.10.x Slice ε — Standard-Modbus Stop-Reason Cross-Check ──────────────
 
 @app.post("/stop-reasons/standard/{inverter}/{slave}")
 async def api_stop_reasons_standard(inverter: int, slave: int, request: Request):
     """
-    Read standard-Modbus stop-reason ring buffer (regs 30078Ã¢â‚¬â€œ30108) on-demand.
+    Read standard-Modbus stop-reason ring buffer (regs 30078–30108) on-demand.
 
     Returns JSON-ready dict with 5-slot history decoded. No persistence side-effect
-    Ã¢â‚¬â€ Node's internal endpoint `/api/stop-reasons/internal/standard-save` decides
+    — Node's internal endpoint `/api/stop-reasons/internal/standard-save` decides
     whether to write rows.
 
     Bulk-auth gated (same as vendor SCOPE read).
@@ -3647,7 +3611,7 @@ async def api_stop_reasons_standard(inverter: int, slave: int, request: Request)
         **result,  # inverter_ip, read_at_ms, pointer, slots
     }
 
-# Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ v2.10.0 Slice C Ã¢â‚¬â€ Serial Number Read / Edit / Send Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+# ─── v2.10.0 Slice C — Serial Number Read / Edit / Send ────────────────────
 
 @app.get("/serial/ports")
 async def api_serial_ports():
@@ -3710,6 +3674,8 @@ async def api_serial_read(inverter: int, slave: int, request: Request):
     if timeout_s <= 0:
         timeout_s = 3.0
     timeout_s = max(1.0, min(15.0, timeout_s))
+
+    from services.serial_io import read_serial_with_lock as _read_serial
 
     loop = asyncio.get_running_loop()
     try:
@@ -3776,6 +3742,8 @@ async def api_serial_write(inverter: int, slave: int, request: Request):
         raise HTTPException(400, "fmt must be 'motorola' or 'tx'")
     verify_delay_s = float(body.get("verify_delay_s") or 1.0)
 
+    from services.serial_io import write_serial_with_lock as _write_serial
+
     loop = asyncio.get_running_loop()
     try:
         result = await loop.run_in_executor(
@@ -3799,66 +3767,53 @@ async def api_serial_write(inverter: int, slave: int, request: Request):
         **result,
     }
 
-# Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Active Power Control (APC) Ã¢â‚¬â€ Continuous %P Setpoint Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+# ─── Active Power Control (APC) — Continuous %P Setpoint ────────────────────
 # Transport-agnostic core exported from calibration_io.py (2026-05-17 C1 move).
-# Verified protocol 2026-05-04: FC16 Ã¢â€ â€™ reg 0x03E8 (1000)
+# Verified protocol 2026-05-04: FC16 → reg 0x03E8 (1000)
 #   opcode 0x0005 = STOP  |  0x0006 = START  |  0x0003 = SET-ACTIVE-PCT
-#   reg[1001] = Q15 setpoint = (pct/100) Ãƒâ€” 0x7FFF  (only when opcode=0x0003)
-# Wire test: PAC 143 kW Ã¢â€ â€™ 125 kW within 8 s at 50 % on inverter .126 slave 1.
-# See plans/2026-05-04-curtailment-control.md Ã‚Â§1 for full verification record.
-try:
-    from calibration_io import (
-        APC_REG,
-        APC_OPCODE_SET_P,
-        APC_OPCODE_STOP,
-        APC_OPCODE_START,
-        APC_Q15_MAX,
-        consign_apc_with_lock,
-    )
-except ImportError:
-    try:
-        from services.calibration_io import (
-            APC_REG,
-            APC_OPCODE_SET_P,
-            APC_OPCODE_STOP,
-            APC_OPCODE_START,
-            APC_Q15_MAX,
-            consign_apc_with_lock,
-        )
-    except ImportError:
-        APC_REG = APC_OPCODE_SET_P = APC_OPCODE_STOP = APC_OPCODE_START = APC_Q15_MAX = consign_apc_with_lock = None
+#   reg[1001] = Q15 setpoint = (pct/100) × 0x7FFF  (only when opcode=0x0003)
+# Wire test: PAC 143 kW → 125 kW within 8 s at 50 % on inverter .126 slave 1.
+# See plans/2026-05-04-curtailment-control.md §1 for full verification record.
+from services.calibration_io import (
+    APC_REG,
+    APC_OPCODE_SET_P,
+    APC_OPCODE_STOP,
+    APC_OPCODE_START,
+    APC_Q15_MAX,
+    consign_apc_with_lock,
+)
 
-# Per-slave setpoint state Ã¢â‚¬â€ updated on each confirmed write.
+# Per-slave setpoint state — updated on each confirmed write.
 # Key: (ip, slave)  Value: {active_pct, opcode, applied_ts, job_id, source}
 curtailment_state: dict = {}
 
-# In-flight and completed ramp job snapshots Ã¢â‚¬â€ keyed by job_id (UUID str).
+# In-flight and completed ramp job snapshots — keyed by job_id (UUID str).
 ramp_jobs: dict = {}
 
 # Serializes job creation; ramp execution itself is per-job async.
 ramp_lock = threading.Lock()
 
-# Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-# Slice ÃŽÂ¶ Ã¢â‚¬â€ Reactive power + grid-code controls (PDF Ã‚Â§3 cmd 1, 9, 11 + read-back).
-# Implementation reference: plans/2026-05-10-modbus-registers-official-revamp.md Ã‚Â§4 Slice ÃŽÂ¶
-# Reference card: docs/Inverter-Modbus-Reference.md Ã‚Â§6.
+# ───────────────────────────────────────────────────────────────────────────
+# Slice ζ — Reactive power + grid-code controls (PDF §3 cmd 1, 9, 11 + read-back).
+# Implementation reference: plans/2026-05-10-modbus-registers-official-revamp.md §4 Slice ζ
+# Reference card: docs/Inverter-Modbus-Reference.md §6.
 #
 # Risk gating: ALL writes here REQUIRE
 #   1. operator-typed adsiMM bulk auth key (server-side gate)
 #   2. featureFlag `gridControlEnabled` = "1" in settings (default "0")
 #   3. security-reviewer agent pass on the diff
 #   4. 2-week single-inverter soak before fleet-wide enable
-# Read-back endpoint is auth-gated but flag-free Ã¢â‚¬â€ visibility is always safe.
-# Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+# Read-back endpoint is auth-gated but flag-free — visibility is always safe.
+# ───────────────────────────────────────────────────────────────────────────
 
-# Command codes per PDF Ã‚Â§3 pg 15-17:
+# Command codes per PDF §3 pg 15-17:
 _GC_OPCODE_PHI_TANGENT  = 0x0001  # Change phi tangent target (PF control)
 _GC_OPCODE_REACTIVE_KVAR = 0x0009  # Change reactive power ref (kVAr)
 _GC_OPCODE_DISABLE_REACTIVE = 0x000B  # Disable reactive ref (restore default)
 
-# Limits per PDF Ã‚Â§3 pg 15-17:
-_GC_PHI_TANGENT_MAX = 15870  # Ã‚Â±0.484 tan(Ãâ€ ) Ã¢â€°Ë† PF 0.90 lag/lead.
-                              # NGCP PGC GCR 4.4.4.1 requires PF 0.95 Ã¢â€ â€™ Ã‚Â±10780.
+# Limits per PDF §3 pg 15-17:
+_GC_PHI_TANGENT_MAX = 15870  # ±0.484 tan(φ) ≈ PF 0.90 lag/lead.
+                              # NGCP PGC GCR 4.4.4.1 requires PF 0.95 → ±10780.
 
 # Read-back of all five grid-control holding registers (41006-41010):
 _GC_READ_BASE_ADDR = 0x03ED   # 1005 = 41006
@@ -3866,18 +3821,18 @@ _GC_READ_COUNT     = 5         # 41006, 41007, 41008, 41009 (reserved), 41010
 
 def _signed16_to_raw(value: int) -> int:
     """Encode a signed Int16 as the raw UInt16 the Modbus wire expects.
-    Mirror of `_signed_int16` (decode side) at module top. Clamps to Ã‚Â±0x7FFF."""
+    Mirror of `_signed_int16` (decode side) at module top. Clamps to ±0x7FFF."""
     v = max(-0x8000, min(0x7FFF, int(value)))
     return v & 0xFFFF
 
 async def set_phi_tangent(ip: str, slave: int, phi_raw: int) -> dict:
-    """Cmd 1 Ã¢â‚¬â€ set tan(Ãâ€ ) target. `phi_raw` is the Int16 wire value (NOT a PF
-    or tan(Ãâ€ ) float Ã¢â‚¬â€ caller must convert). Returns {ok, raw, error?}.
-    NGCP PF 0.95 lag/lead Ã¢â€ â€™ tan(Ãâ€ ) = Ã‚Â±0.329 Ã¢â€ â€™ raw Ã‚Â±10780."""
+    """Cmd 1 — set tan(φ) target. `phi_raw` is the Int16 wire value (NOT a PF
+    or tan(φ) float — caller must convert). Returns {ok, raw, error?}.
+    NGCP PF 0.95 lag/lead → tan(φ) = ±0.329 → raw ±10780."""
     raw = _signed16_to_raw(phi_raw)
     if abs(int(phi_raw)) > _GC_PHI_TANGENT_MAX:
-        print(f"[grid-control] {ip}/{slave} cmd 1 REJECTED: phi_raw {phi_raw} exceeds Ã‚Â±{_GC_PHI_TANGENT_MAX}")
-        return {"ok": False, "error": f"phi_raw {phi_raw} exceeds Ã‚Â±{_GC_PHI_TANGENT_MAX}"}
+        print(f"[grid-control] {ip}/{slave} cmd 1 REJECTED: phi_raw {phi_raw} exceeds ±{_GC_PHI_TANGENT_MAX}")
+        return {"ok": False, "error": f"phi_raw {phi_raw} exceeds ±{_GC_PHI_TANGENT_MAX}"}
     result = await write_command_register(ip, slave, _GC_OPCODE_PHI_TANGENT, raw)
     if result.get("ok"):
         print(f"[grid-control] {ip}/{slave} cmd 1 (phi-tangent) OK raw={raw}")
@@ -3886,11 +3841,11 @@ async def set_phi_tangent(ip: str, slave: int, phi_raw: int) -> dict:
     return {**result, "raw": raw}
 
 async def set_reactive_kvar(ip: str, slave: int, kvar_div10: int) -> dict:
-    """Cmd 9 Ã¢â‚¬â€ set reactive power reference.
+    """Cmd 9 — set reactive power reference.
     `kvar_div10` is the raw Int16 written to the inverter. Wire convention
-    per PDF Ã‚Â§3 cmd 9 (cross-checked with reg 30069 + 30077): raw Ãƒâ€” 10 = VAr,
-    therefore kVAr = raw / 100. Caller (UI) computes raw = round(kVAr Ãƒâ€” 100).
-    Earlier code+UI used the /10 convention which under-wrote by 10Ãƒâ€”.
+    per PDF §3 cmd 9 (cross-checked with reg 30069 + 30077): raw × 10 = VAr,
+    therefore kVAr = raw / 100. Caller (UI) computes raw = round(kVAr × 100).
+    Earlier code+UI used the /10 convention which under-wrote by 10×.
     See audits/2026-05-11/register-decode-traceback.md Finding 2.
     Returns {ok, raw, error?}."""
     raw = _signed16_to_raw(kvar_div10)
@@ -3903,17 +3858,17 @@ async def set_reactive_kvar(ip: str, slave: int, kvar_div10: int) -> dict:
     return {**result, "raw": raw}
 
 async def disable_reactive(ip: str, slave: int) -> dict:
-    """Cmd 11 Ã¢â‚¬â€ disable reactive reference, restore device default."""
+    """Cmd 11 — disable reactive reference, restore device default."""
     result = await write_command_register(ip, slave, _GC_OPCODE_DISABLE_REACTIVE)
     if result.get("ok"):
-        print(f"[grid-control] {ip}/{slave} cmd 11 (disable-reactive) OK Ã¢â‚¬â€ restored default")
+        print(f"[grid-control] {ip}/{slave} cmd 11 (disable-reactive) OK — restored default")
     else:
         print(f"[grid-control] {ip}/{slave} cmd 11 (disable-reactive) FAIL: {result.get('error')}")
     return result
 
 def _read_grid_control_state_sync(client, lock, slave: int) -> dict:
     """Blocking holding-register read for 41006-41010. Returns the raw decoded
-    UInt16 list under `regs` plus per-field convenience names. Ã‚Â±sign handling
+    UInt16 list under `regs` plus per-field convenience names. ±sign handling
     for phi_tangent and reactive_target is left to the caller (Node side)."""
     try:
         with lock:
@@ -3927,8 +3882,8 @@ def _read_grid_control_state_sync(client, lock, slave: int) -> dict:
         if len(regs) < _GC_READ_COUNT:
             return {"ok": False, "error": f"short_frame: got {len(regs)}/{_GC_READ_COUNT}"}
         # 41006 = power-reduction Q15 (UInt16, 0..32767)
-        # 41007 = phi-tangent target  (Int16 Ã¢â‚¬â€ caller must cast)
-        # 41008 = reactive target     (Int16 Ã¢â‚¬â€ caller must cast)
+        # 41007 = phi-tangent target  (Int16 — caller must cast)
+        # 41008 = reactive target     (Int16 — caller must cast)
         # 41009 = reserved
         # 41010 = restrictive freq limits flag (UInt16, 0/1)
         return {
@@ -3944,7 +3899,7 @@ def _read_grid_control_state_sync(client, lock, slave: int) -> dict:
 
 async def read_grid_control_state(ip: str, slave: int) -> dict:
     """Single-transaction read of holding 41006-41010 (5 regs). Used by the
-    Slice ÃŽÂ¶ read-back UI chip and by Slice ÃŽÂ¸ Test T3 step capture."""
+    Slice ζ read-back UI chip and by Slice θ Test T3 step capture."""
     client = clients.get(ip)
     if not client:
         return {"ok": False, "error": "no_client"}
@@ -3987,7 +3942,7 @@ async def _execute_ramp(job_id: str, targets: list, sub_setpoints: list,
                         batches: list, opcode_str: str,
                         substep_hold_s: float, batch_spacing_ms: float,
                         jitter_ms: float) -> None:
-    """Background coroutine Ã¢â‚¬â€ drives the two-axis ramp, updates curtailment_state."""
+    """Background coroutine — drives the two-axis ramp, updates curtailment_state."""
     job = ramp_jobs.get(job_id)
     if job is None:
         return
@@ -4244,7 +4199,7 @@ async def curtail_job_view(job_id: str):
         raise HTTPException(404, f"job {job_id} not found")
     return {"ok": True, "job": dict(job)}
 
-# Ã¢â€â‚¬Ã¢â€â‚¬ Slice ÃŽÂ¶ Ã¢â‚¬â€ Grid-control endpoints (reactive + PF + read-back) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+# ── Slice ζ — Grid-control endpoints (reactive + PF + read-back) ─────────
 # All write paths are auth-gated by Node-side `gridControlEnabled` flag +
 # adsiMM key. Python service trusts upstream auth (loopback-only call site)
 # but enforces argument validation. Read-back (`/grid-control/state`) is safe
@@ -4253,7 +4208,7 @@ async def curtail_job_view(job_id: str):
 class GridControlPhiReq(BaseModel):
     ip:    str
     slave: int
-    phi_raw: int   # Int16 wire value; NGCP PF 0.95 Ã¢â€ â€™ Ã‚Â±10780
+    phi_raw: int   # Int16 wire value; NGCP PF 0.95 → ±10780
 
 class GridControlReactiveReq(BaseModel):
     ip:    str
@@ -4266,17 +4221,17 @@ class GridControlDisableReq(BaseModel):
 
 @app.post("/grid-control/phi")
 async def api_grid_control_phi(req: GridControlPhiReq):
-    """Cmd 1 Ã¢â‚¬â€ set tan(Ãâ€ ) target. Caller passes raw Int16 (already scaled)."""
+    """Cmd 1 — set tan(φ) target. Caller passes raw Int16 (already scaled)."""
     return await set_phi_tangent(req.ip, int(req.slave), int(req.phi_raw))
 
 @app.post("/grid-control/reactive")
 async def api_grid_control_reactive(req: GridControlReactiveReq):
-    """Cmd 9 Ã¢â‚¬â€ set reactive power reference. Caller passes raw Int16 (kVAr ÃƒÂ· 10)."""
+    """Cmd 9 — set reactive power reference. Caller passes raw Int16 (kVAr ÷ 10)."""
     return await set_reactive_kvar(req.ip, int(req.slave), int(req.kvar_div10))
 
 @app.post("/grid-control/disable")
 async def api_grid_control_disable(req: GridControlDisableReq):
-    """Cmd 11 Ã¢â‚¬â€ disable reactive reference, restore default."""
+    """Cmd 11 — disable reactive reference, restore default."""
     return await disable_reactive(req.ip, int(req.slave))
 
 @app.get("/grid-control/state/{ip}/{slave}")
@@ -4285,23 +4240,17 @@ async def api_grid_control_state(ip: str, slave: int):
     convenience-decoded fields. Sign-cast for phi/reactive is left to Node."""
     return await read_grid_control_state(ip, int(slave))
 
-# Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-# Field Calibration (Phase 1 Ã¢â‚¬â€ read-only) Ã¢â‚¬â€ display-bypass calibration tool.
+# ───────────────────────────────────────────────────────────────────────────
+# Field Calibration (Phase 1 — read-only) — display-bypass calibration tool.
 # Plan: plans/2026-05-12-inverter-calibration-tool.md
 # Decoder + register map: services/calibration_decoder.py
 # Block geometry: 15 holding regs at offsets 0x0050..0x005E (decimal 80-94).
 # Sentinel: offset 80 ValidCfgCode must read 0x1F1F.
-# Phase 1 has NO writes Ã¢â‚¬â€ see Phase 2 for the future calibration_io module.
-# Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+# Phase 1 has NO writes — see Phase 2 for the future calibration_io module.
+# ───────────────────────────────────────────────────────────────────────────
 
 try:
     import calibration_decoder as _calib_dec
-except ImportError:
-    try:
-        from services import calibration_decoder as _calib_dec
-    except ImportError:
-        _calib_dec = None
-try:
     from calibration_core import (
         _read_calibration_block_sync,
         _read_live_for_calibration_sync,
@@ -4310,16 +4259,21 @@ try:
     )
 except ImportError:
     try:
-        from .calibration_core import (
+        from services import calibration_decoder as _calib_dec
+        from services.calibration_core import (
             _read_calibration_block_sync,
             _read_live_for_calibration_sync,
             _CALIB_READ_BASE,
             _CALIB_READ_COUNT,
         )
     except ImportError:
-        _read_calibration_block_sync = _read_live_for_calibration_sync = None
-        _CALIB_READ_BASE = 0x50
-        _CALIB_READ_COUNT = 15
+        from . import calibration_decoder as _calib_dec
+        from .calibration_core import (
+            _read_calibration_block_sync,
+            _read_live_for_calibration_sync,
+            _CALIB_READ_BASE,
+            _CALIB_READ_COUNT,
+        )
 
 async def read_calibration_block(ip: str, slave: int) -> dict:
     """Single-transaction FC03 read of holding 0x50..0x5E (15 regs)."""
@@ -4357,7 +4311,7 @@ async def api_calibration_state(ip: str, slave: int):
 
     Returns {ok, regs, calibration: {fields, valid_cfg_code_*}, live: {...}}
     or {ok: False, error}.  No auth here (Node enforces topology auth before
-    proxying Ã¢â‚¬â€ same pattern as /grid-control/state).
+    proxying — same pattern as /grid-control/state).
 
     `live` mirrors the LCD's calibration screen: Vac1-3, Iac1-3, Vdc, Idc,
     Pac, Qac, VpvP, VpvN. Each value pairs with one or more scale factors
@@ -4394,7 +4348,7 @@ async def api_calibration_write(req: Request):
         max_delta_pct:  50.0,           # optional, null disables guard
       }
 
-    No auth here Ã¢â‚¬â€ Node enforces adsiMM + topology + session-id before
+    No auth here — Node enforces adsiMM + topology + session-id before
     proxying.  Returns the full write-result dict for audit logging.
     """
     try:
@@ -4414,6 +4368,8 @@ async def api_calibration_write(req: Request):
     if not client:    raise HTTPException(503, f"no client for {ip}")
     lock = thread_locks.get(ip)
     if lock is None:  raise HTTPException(503, f"no lock for {ip}")
+
+    from services.calibration_io import write_one_with_lock
     loop = asyncio.get_running_loop()
     try:
         result = await loop.run_in_executor(
@@ -4472,6 +4428,8 @@ async def api_calibration_write_bulk(req: Request):
     if not client:   raise HTTPException(503, f"no client for {ip}")
     lock = thread_locks.get(ip)
     if lock is None: raise HTTPException(503, f"no lock for {ip}")
+
+    from services.calibration_io import write_bulk_with_lock
     loop = asyncio.get_running_loop()
     try:
         result = await loop.run_in_executor(
@@ -4503,7 +4461,7 @@ def _is_under_calibration(inverter: int, unit: int) -> bool:
 
 @app.post("/calibration/lockdown")
 async def api_calibration_lockdown(req: Request):
-    """NodeÃ¢â€ â€™Python lockdown sync. Set `active=false` to release."""
+    """Node→Python lockdown sync. Set `active=false` to release."""
     try:
         body = await req.json()
     except Exception:
@@ -4569,12 +4527,9 @@ async def api_calibration_config_write(req: Request):
         return {"ok": False, "error": "firmware_flash_in_progress", "ip": ip}
 
     try:
-        import cfg_trif_map as _cfg_map
-    except ImportError:
-        try:
-            from services import cfg_trif_map as _cfg_map
-        except Exception as exc:
-            raise HTTPException(500, f"cfg_trif_map unavailable: {exc}")
+        from services import cfg_trif_map as _cfg_map
+    except Exception as exc:
+        raise HTTPException(500, f"cfg_trif_map unavailable: {exc}")
     field_meta = None
     for f in (getattr(_cfg_map, "FIELDS", None) or []):
         if str(f.get("field") or "") == field_name:
@@ -4582,6 +4537,8 @@ async def api_calibration_config_write(req: Request):
             break
     if field_meta is None:
         raise HTTPException(400, f"unknown field '{field_name}'")
+
+    from services.calibration_io import write_cfg_field_with_lock
     loop = asyncio.get_running_loop()
     try:
         result = await loop.run_in_executor(
@@ -4647,6 +4604,8 @@ async def api_calibration_preflight(ip: str, slave: int):
     if not client:   return {"ok": False, "error": "no_client"}
     lock = thread_locks.get(ip)
     if lock is None: return {"ok": False, "error": "no_lock"}
+
+    from services.calibration_io import preflight_read_with_lock
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(
         executor,
@@ -4656,7 +4615,7 @@ async def api_calibration_preflight(ip: str, slave: int):
 @app.get("/calibration/cfg-map")
 async def api_calibration_cfg_map():
     """Return the STATIC Utility Tool field map (offsets, kinds, groups,
-    labels, units). No transport, no Modbus Ã¢â‚¬â€ lets the dashboard render
+    labels, units). No transport, no Modbus — lets the dashboard render
     the Utility Tool tab layout even before a successful Read."""
     try:
         try:
@@ -4673,7 +4632,7 @@ async def api_calibration_cfg_map():
 
 @app.get("/calibration/full-config/{ip}/{slave}")
 async def api_calibration_full_config(ip: str, slave: int):
-    """Diagnostic-only Ã¢â‚¬â€ read the full 177-register config block and decode
+    """Diagnostic-only — read the full 177-register config block and decode
     RTC + context fields alongside the calibration sub-block.  Slow (one
     big FC03), so only used by the 'Full Config Dump' button in the UI,
     not by the at-a-glance read."""
@@ -4733,13 +4692,13 @@ async def api_calibration_full_config(ip: str, slave: int):
 
 @app.get("/calibration/scan/{ip}/{slave}")
 async def api_calibration_scan(ip: str, slave: int):
-    """Read-only fleet-scan probe Ã¢â‚¬â€ TCP only, TRANSIENT socket.
+    """Read-only fleet-scan probe — TCP only, TRANSIENT socket.
 
     Mirrors the calibrator_app.py endpoint of the same name so the
     Utility Tool's "Fleet Scan" tab can iterate ipconfig and decode the
     full 177-register config block per node REGARDLESS of whether that
     inverter is currently in the dashboard poller's rotation. Opens a
-    SHORT-LIVED Modbus-TCP client, reads, decodes, closes Ã¢â‚¬â€ deliberately
+    SHORT-LIVED Modbus-TCP client, reads, decodes, closes — deliberately
     does NOT touch `clients`/`thread_locks` (the shared poller state) so
     an active poll on a different inverter is never disturbed and there
     is no per-IP lock contention with the poller.
@@ -4856,14 +4815,14 @@ async def main():
             "until an inverter IP is configured.  Check %PROGRAMDATA%\\Inverter-Dashboard\\db\\ipconfig.json."
         )
 
-    # v2.9.0 Slice C Ã¢â‚¬â€ crash-recovery seed before polling begins.
+    # v2.9.0 Slice C — crash-recovery seed before polling begins.
     # Runs in background so a stuck Node call never blocks engine startup.
     try:
         asyncio.create_task(seed_pac_from_baseline())
     except Exception as exc:
         print(f"[RECOVERY] could not schedule seed_pac_from_baseline: {exc}")
 
-    # RS485-USB bridge (Option A) Ã¢â‚¬â€ start if configured.
+    # RS485-USB bridge (Option A) — start if configured.
     # Runs in background so a missing pyserial or port error never blocks engine startup.
     if rs485_bridge is not None:
         try:
@@ -4875,7 +4834,7 @@ async def main():
     asyncio.create_task(ipconfig_watcher())
     asyncio.create_task(start_polling_manager())
 
-    print(f"[ENGINE] Hybrid engine started Ã¢â‚¬â€ listening on {ENGINE_HOST}:{ENGINE_PORT}")
+    print(f"[ENGINE] Hybrid engine started — listening on {ENGINE_HOST}:{ENGINE_PORT}")
 
     config = uvicorn.Config(
         app,

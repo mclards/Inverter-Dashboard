@@ -1,15 +1,15 @@
 """Serial Number Read / Edit / Send (Slice C of v2.10.0).
 
 Mirrors ISM's `frmSetSerial` form:
-  â€¢ READ â€” FC11 Report Slave ID  (returns SlaveIdInfo with serial + model + fw)
-  â€¢ UNLOCK â€” FC16 to register 0xFFFA with magic [0x0065, 0x07A7]
-  â€¢ WRITE â€” FC16 to register 0x9C74 with the ASCII serial bytes
-  â€¢ VERIFY â€” Sleep(1000) then re-read via FC11
+  • READ — FC11 Report Slave ID  (returns SlaveIdInfo with serial + model + fw)
+  • UNLOCK — FC16 to register 0xFFFA with magic [0x0065, 0x07A7]
+  • WRITE — FC16 to register 0x9C74 with the ASCII serial bytes
+  • VERIFY — Sleep(1000) then re-read via FC11
 
 All three transports proven on hardware 2026-04-27 (comm board AND EKI fallback).
 
 Per the v2.9.0 counter-recovery / v2.10.0 Slice B pattern, this module is
-**read-only for SQLite** â€” Python returns dicts, Node persists.  Fleet-wide
+**read-only for SQLite** — Python returns dicts, Node persists.  Fleet-wide
 uniqueness scan is orchestrated by Node (which already knows the topology
 + owns the cache) by calling our `read_serial_with_lock` once per
 (inverter, slave) pair.
@@ -30,17 +30,14 @@ try:
         read_slave_id,
     )
 except ImportError:
-    try:
-        from services.vendor_pdu import (
-            SlaveIdInfo,
-            VendorPduError,
-            parse_fc11_slave_id,
-            read_slave_id,
-        )
-    except ImportError:
-        pass
+    from services.vendor_pdu import (
+        SlaveIdInfo,
+        VendorPduError,
+        parse_fc11_slave_id,
+        read_slave_id,
+    )
 
-# â”€â”€â”€ Wire constants (decompiled from frmSetSerial.SetMotorola/TexasSerialNumber) â”€
+# ─── Wire constants (decompiled from frmSetSerial.SetMotorola/TexasSerialNumber) ─
 
 UNLOCK_REGISTER = 0xFFFA
 UNLOCK_VALUES = (0x0065, 0x07A7)
@@ -67,7 +64,7 @@ class SerialIoError(Exception):
 class SerialFormatError(SerialIoError):
     """Operator-supplied serial doesn't match the chosen format."""
 
-# â”€â”€â”€ Small helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Small helpers ─────────────────────────────────────────────────────────
 
 def validate_serial_format(new_serial: str, fmt: str) -> None:
     """Raise SerialFormatError if `new_serial` is wrong length / non-ASCII."""
@@ -82,7 +79,7 @@ def validate_serial_format(new_serial: str, fmt: str) -> None:
         )
     if not new_serial.isascii():
         raise SerialFormatError("serial must be ASCII-only")
-    # Match what ISM uses on the wire â€” printable, no control characters.
+    # Match what ISM uses on the wire — printable, no control characters.
     for ch in new_serial:
         if ord(ch) < 0x20 or ord(ch) >= 0x7F:
             raise SerialFormatError(
@@ -91,18 +88,31 @@ def validate_serial_format(new_serial: str, fmt: str) -> None:
 
 def serial_to_registers(new_serial: str, fmt: str) -> list:
     """Pack an ASCII serial into Modbus UINT16 registers (big-endian byte
-    pairs, exactly as ISM frames it on the wire â€” see Field[1297]/[1299])."""
+    pairs, exactly as ISM frames it on the wire — see Field[1297]/[1299])."""
     validate_serial_format(new_serial, fmt)
     n_regs = SERIAL_REG_COUNT[fmt]
     payload = new_serial.encode("ascii")
     return [(payload[2 * i] << 8) | payload[2 * i + 1] for i in range(n_regs)]
 
-# â”€â”€â”€ Modbus operations (sync â€” caller MUST hold thread_locks[ip]) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Modbus operations (sync — caller MUST hold thread_locks[ip]) ──────────
+
+def _call_client(fn, *args, **kwargs):
+    slave = kwargs.pop("slave", None)
+    if slave is not None:
+        try:
+            return fn(*args, slave=slave, **kwargs)
+        except TypeError:
+            try:
+                return fn(*args, device_id=slave, **kwargs)
+            except TypeError:
+                return fn(*args, **kwargs)
+    return fn(*args, **kwargs)
 
 def _do_unlock(client, slave: int) -> None:
     """Send the FC16 unlock frame.  Raises SerialIoError on failure."""
     try:
-        r = client.write_registers(
+        r = _call_client(
+            client.write_registers,
             address=UNLOCK_REGISTER,
             values=list(UNLOCK_VALUES),
             slave=int(slave),
@@ -115,7 +125,8 @@ def _do_unlock(client, slave: int) -> None:
 def _do_write(client, slave: int, regs: list) -> None:
     """Send the FC16 serial-write frame.  Raises SerialIoError on failure."""
     try:
-        r = client.write_registers(
+        r = _call_client(
+            client.write_registers,
             address=SERIAL_REGISTER,
             values=regs,
             slave=int(slave),
@@ -196,7 +207,7 @@ def write_serial_with_lock(
     timeout_s: float = DEFAULT_TIMEOUT_S,
     verify_delay_s: float = VERIFY_DELAY_S,
 ) -> dict:
-    """Three-stage operator pipeline: UNLOCK â†’ WRITE â†’ VERIFY (single lock).
+    """Three-stage operator pipeline: UNLOCK → WRITE → VERIFY (single lock).
 
     Returns:
       { status:        'success' | 'unlock_failed' | 'write_failed' |
@@ -208,11 +219,11 @@ def write_serial_with_lock(
         unlock_done:   bool,
         write_done:    bool,
         verify_passed: bool,
-        write_ack_lost: bool,         # True â‡’ FC16 ack lost but read-back
+        write_ack_lost: bool,         # True ⇒ FC16 ack lost but read-back
                                       #        confirmed the serial applied
       }
 
-    'success' is decided SOLELY by the read-back equalling new_serial â€” a
+    'success' is decided SOLELY by the read-back equalling new_serial — a
     lost write ACK with a confirming read-back is success (write_ack_lost
     flagged).  'write_unconfirmed' means neither the write ACK nor the
     read-back could be obtained: the change may or may not have landed and
@@ -221,7 +232,7 @@ def write_serial_with_lock(
     All three Modbus exchanges happen under one lock acquisition so the
     poller cannot interleave between unlock and write.  ISM does the same.
     """
-    # Format gate first â€” fail before touching the bus.
+    # Format gate first — fail before touching the bus.
     try:
         regs = serial_to_registers(new_serial, fmt)
     except SerialFormatError as exc:
@@ -246,7 +257,7 @@ def write_serial_with_lock(
     }
 
     with lock:
-        # â”€â”€ Stage 1: UNLOCK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # ── Stage 1: UNLOCK ──────────────────────────────────────────
         try:
             _do_unlock(client, slave)
             out["unlock_done"] = True
@@ -254,13 +265,13 @@ def write_serial_with_lock(
             out["error"] = str(exc)
             return out
 
-        # â”€â”€ Stage 2: WRITE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # ── Stage 2: WRITE ────────────────────────────────────────────
         # CRITICAL: do NOT bail on a write error here.  Writing the serial
         # makes the inverter's Modbus stack re-init, so the FC16 *response*
         # is routinely dropped even though the write physically landed
         # (operator-confirmed 2026-05-19: a rescan showed the new serial
         # after a "write_failed").  The read-back in Stage 3 is the single
-        # source of truth â€” mirrors ISM's frmSetSerial.  Only a genuine
+        # source of truth — mirrors ISM's frmSetSerial.  Only a genuine
         # mismatch on read-back is a real failure.
         write_err = None
         try:
@@ -270,7 +281,7 @@ def write_serial_with_lock(
             write_err = str(exc)
             out["error"] = write_err  # kept for diagnostics; not terminal
 
-        # â”€â”€ Stage 3: VERIFY (authoritative) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # ── Stage 3: VERIFY (authoritative) ───────────────────────────
         # Settle longer when the write wasn't ACKed (the unit needs a beat
         # to answer FC11 again), and retry the read-back a few times.  All
         # inside the lock so a poller burst can't race the readback.
@@ -286,19 +297,19 @@ def write_serial_with_lock(
             try:
                 info = read_slave_id(client, int(slave), timeout_s=timeout_s)
                 break
-            except Exception as exc:  # noqa: BLE001 â€” transient bus, retry
+            except Exception as exc:  # noqa: BLE001 — transient bus, retry
                 last_verify_err = exc
                 time.sleep(max(0.0, VERIFY_READ_BACKOFF_S))
 
         if info is None:
-            # Could not confirm either way.  Explicitly NOT success â€” the
+            # Could not confirm either way.  Explicitly NOT success — the
             # write may or may not have landed; operator must rescan.
             out["status"] = "write_unconfirmed"
             out["error"] = (
                 f"write response lost AND read-back unavailable after "
                 f"{VERIFY_READ_ATTEMPTS} tries "
                 f"(write_err={write_err}; verify_err={last_verify_err}) "
-                f"â€” rescan to confirm"
+                f"— rescan to confirm"
                 if write_err else
                 f"verify_read_exception after {VERIFY_READ_ATTEMPTS} tries: "
                 f"{last_verify_err}"
@@ -307,7 +318,7 @@ def write_serial_with_lock(
 
         out["readback"] = info.serial
         if info.serial == new_serial:
-            # Read-back proves the write applied â€” success even if the
+            # Read-back proves the write applied — success even if the
             # FC16 ACK was lost in transit.
             out["status"] = "success"
             out["verify_passed"] = True
@@ -321,7 +332,7 @@ def write_serial_with_lock(
             else:
                 out["error"] = None
         else:
-            # Serial did not change â€” a real failure.  Distinguish a write
+            # Serial did not change — a real failure.  Distinguish a write
             # that errored from a clean write that simply didn't take.
             out["status"] = "write_failed" if write_err else "verify_failed"
             out["error"] = (
@@ -331,10 +342,10 @@ def write_serial_with_lock(
             )
     return out
 
-# â”€â”€â”€ Convenience wrappers used by the FastAPI handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Convenience wrappers used by the FastAPI handlers ─────────────────────
 
 def info_to_dict(info: SlaveIdInfo) -> dict:
-    """Serialize a SlaveIdInfo for HTTP response (raw bytes â†’ hex strings)."""
+    """Serialize a SlaveIdInfo for HTTP response (raw bytes → hex strings)."""
     return {
         "serial": info.serial,
         "serial_format": info.serial_format,

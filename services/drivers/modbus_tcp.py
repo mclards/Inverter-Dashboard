@@ -26,10 +26,7 @@ Register Decoding Rules (Modbus standard):
 See services/inverter_engine.py for frame assembly and v2.10.x sign extension.
 """
 
-try:
-    from pymodbus.client import ModbusTcpClient
-except ImportError:
-    from pymodbus.client.sync import ModbusTcpClient
+from pymodbus.client import ModbusTcpClient
 import time
 
 # T3.7 + T3.10 fix (Phase 6, 2026-04-14):
@@ -93,15 +90,18 @@ def create_client(ip, port=502, timeout=1.0):
     return client
 
 def _call_modbus(fn, *args, **kwargs):
-    unit = kwargs.pop("unit", None)
-    if unit is not None:
+    slave = kwargs.pop("slave", kwargs.pop("unit", kwargs.pop("device_id", None)))
+    if slave is not None:
         try:
-            return fn(*args, device_id=unit, **kwargs)
+            return fn(*args, slave=slave, **kwargs)
         except TypeError:
             try:
-                return fn(*args, slave=unit, **kwargs)
+                return fn(*args, device_id=slave, **kwargs)
             except TypeError:
-                return fn(*args, unit=unit, **kwargs)
+                try:
+                    return fn(*args, unit=slave, **kwargs)
+                except TypeError:
+                    return fn(*args, **kwargs)
     return fn(*args, **kwargs)
 
 def read_input(client, address, count, unit):
@@ -110,7 +110,7 @@ def read_input(client, address, count, unit):
         if hasattr(client, "connected") and not client.connected:
             try: client.connect()
             except Exception: pass
-        r = _call_modbus(client.read_input_registers, address=address, count=count, unit=unit)
+        r = _call_modbus(client.read_input_registers, address=address, count=count, slave=unit)
         if r and not r.isError() and hasattr(r, "registers"):
             return r.registers
     except Exception:
@@ -124,7 +124,7 @@ def read_holding(client, address, count, unit):
         if hasattr(client, "connected") and not client.connected:
             try: client.connect()
             except Exception: pass
-        r = _call_modbus(client.read_holding_registers, address=address, count=count, unit=unit)
+        r = _call_modbus(client.read_holding_registers, address=address, count=count, slave=unit)
         if r and not r.isError() and hasattr(r, "registers"):
             return r.registers
     except Exception:
@@ -136,7 +136,7 @@ def write_single(client, address, value, unit):
     Safe FC6 single register write. Returns True on success.
     """
     try:
-        r = _call_modbus(client.write_register, address, value, unit=unit)
+        r = _call_modbus(client.write_register, address, value, slave=unit)
         if r and not r.isError():
             return True
     except Exception:
@@ -158,7 +158,7 @@ def write_single(client, address, value, unit):
     time.sleep(0.1)
 
     try:
-        r = _call_modbus(client.write_register, address, value, unit=unit)
+        r = _call_modbus(client.write_register, address, value, slave=unit)
         if r and not r.isError():
             return True
     except Exception:

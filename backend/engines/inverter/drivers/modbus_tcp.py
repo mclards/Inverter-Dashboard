@@ -90,7 +90,7 @@ def create_client(ip, port=502, timeout=1.0):
     return client
 
 def _call_modbus(fn, *args, **kwargs):
-    slave = kwargs.pop("slave", None)
+    slave = kwargs.pop("slave", kwargs.pop("unit", kwargs.pop("device_id", None)))
     if slave is not None:
         try:
             return fn(*args, slave=slave, **kwargs)
@@ -98,7 +98,10 @@ def _call_modbus(fn, *args, **kwargs):
             try:
                 return fn(*args, device_id=slave, **kwargs)
             except TypeError:
-                return fn(*args, **kwargs)
+                try:
+                    return fn(*args, unit=slave, **kwargs)
+                except TypeError:
+                    return fn(*args, **kwargs)
     return fn(*args, **kwargs)
 
 def read_input(client, address, count, unit):

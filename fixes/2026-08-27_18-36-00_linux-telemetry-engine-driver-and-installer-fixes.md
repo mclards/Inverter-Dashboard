@@ -127,3 +127,4 @@ Configured non-blocking socket parameters (`retries=0`, `reconnect_delay=0.0`) a
 1. **Inverter Topology:** All 27 inverter records and sparse node assignments (`[2, 4]` on Inv 8, `[3, 4]` on Inv 23/27) remain preserved in `/var/lib/inverter-dashboard/db/ipconfig.json`.
 2. **Service State Truthfulness:** Live polling health accurately reports `26/27 connected` when INV-19 is physically down.
 3. **One-Command Setup:** Both fresh installs (`install.sh`) and updates (`update.sh`) execute end-to-end idempotently with zero manual permission fixes required.
+

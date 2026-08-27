@@ -72,7 +72,7 @@ On a fresh Ubuntu or Debian installation, the complete dashboard installation
 is one command:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/mclards/Inverter-Dashboard/main/deploy/linux/install.sh | sudo bash
+sudo bash -c 'apt-get update -qq && apt-get install -y -qq ca-certificates curl && curl -fsSL https://raw.githubusercontent.com/mclards/Inverter-Dashboard/main/deploy/linux/install.sh | bash'
 ```
 
 This bootstrap installs Git, downloads the dashboard, and runs the complete
@@ -85,7 +85,7 @@ For unattended enrollment, supply a pre-authorized Tailscale auth key without
 storing it in the repository:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/mclards/Inverter-Dashboard/main/deploy/linux/install.sh | sudo TAILSCALE_AUTH_KEY='tskey-auth-REPLACE' bash
+sudo TAILSCALE_AUTH_KEY='tskey-auth-REPLACE' bash -c 'apt-get update -qq && apt-get install -y -qq ca-certificates curl && curl -fsSL https://raw.githubusercontent.com/mclards/Inverter-Dashboard/main/deploy/linux/install.sh | bash'
 ```
 
 The equivalent manual workflow is:

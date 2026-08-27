@@ -34,7 +34,7 @@
 Fresh install:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/mclards/Inverter-Dashboard/main/deploy/linux/install.sh | sudo bash
+sudo bash -c 'apt-get update -qq && apt-get install -y -qq ca-certificates curl && curl -fsSL https://raw.githubusercontent.com/mclards/Inverter-Dashboard/main/deploy/linux/install.sh | bash'
 ```
 
 Equivalent manual install:

@@ -128,7 +128,7 @@ Before changing any runtime configuration, confirm the exact target path. Never 
 ### Canonical Linux appliance installation
 
 - The supported fresh Debian/Ubuntu installation is one pasted command:
-  `sudo bash -c 'apt-get update -qq && apt-get install -y -qq ca-certificates curl && curl -fsSL https://raw.githubusercontent.com/mclards/Inverter-Dashboard/main/deploy/linux/install.sh | bash'`.
+  `sudo bash -c 'command -v curl >/dev/null || { apt-get update -qq && apt-get install -y -qq ca-certificates curl; }; curl -fsSL https://raw.githubusercontent.com/mclards/Inverter-Dashboard/main/deploy/linux/install.sh | bash'`.
 - Preserve `deploy/linux/install.sh` as the minimal bootstrap and
   `deploy/linux/setup.sh` as the complete idempotent installer. The bootstrap
   must install its prerequisites, safely clone or fast-forward the canonical
@@ -138,6 +138,12 @@ Before changing any runtime configuration, confirm the exact target path. Never 
   initialization/repair, runtime ownership, Tailscale, and final component
   health verification. Never report success when a required service or probe
   is degraded.
+- NodeSource provisioning must keep its signing key at
+  `/usr/share/keyrings/nodesource.gpg` with explicit `0644` permissions and use
+  the deb822 `nodesource.sources` definition. Preserve bootstrap cleanup for
+  the exact unreadable `/etc/apt/keyrings/nodesource.gpg` repository artifact
+  created by installer revisions through `11479af`; recovery must happen before
+  the first `apt-get update`.
 - Tailscale setup must detect and preserve an existing installation and node
   identity, install and enable `tailscaled` when absent, enable Tailscale SSH,
   and verify tailnet connectivity. A new device requires exactly one initial

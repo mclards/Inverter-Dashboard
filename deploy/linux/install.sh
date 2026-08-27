@@ -6,6 +6,8 @@ umask 027
 
 APP_DIR="/opt/inverter-dashboard"
 REPO_URL="https://github.com/mclards/Inverter-Dashboard.git"
+LEGACY_NODESOURCE_LIST="/etc/apt/sources.list.d/nodesource.list"
+LEGACY_NODESOURCE_KEY="/etc/apt/keyrings/nodesource.gpg"
 
 fail() {
     echo "[install] ERROR: $1" >&2
@@ -15,6 +17,13 @@ fail() {
 [ "$(id -u)" -eq 0 ] || fail "Run through sudo: curl ... | sudo bash"
 command -v apt-get >/dev/null 2>&1 \
     || fail "This installer currently supports Debian and Ubuntu systems with apt-get."
+
+if grep -Fqs \
+    'signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main' \
+    "${LEGACY_NODESOURCE_LIST}" 2>/dev/null; then
+    echo "[install] Removing the unreadable NodeSource repository left by an older installer..."
+    rm -f -- "${LEGACY_NODESOURCE_LIST}" "${LEGACY_NODESOURCE_KEY}"
+fi
 
 echo "[install] Preparing Git bootstrap prerequisites..."
 export DEBIAN_FRONTEND=noninteractive

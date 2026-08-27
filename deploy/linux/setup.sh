@@ -31,6 +31,16 @@ ENV_FILE="/etc/default/inverter-dashboard"
 APP_USER="inverter"
 APP_GROUP="inverter"
 GO2RTC_VERSION="1.9.14"
+NODESOURCE_KEYRING="/usr/share/keyrings/nodesource.gpg"
+NODESOURCE_SOURCES="/etc/apt/sources.list.d/nodesource.sources"
+LEGACY_NODESOURCE_LIST="/etc/apt/sources.list.d/nodesource.list"
+LEGACY_NODESOURCE_KEY="/etc/apt/keyrings/nodesource.gpg"
+
+if grep -Fqs \
+    'signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main' \
+    "${LEGACY_NODESOURCE_LIST}" 2>/dev/null; then
+    rm -f -- "${LEGACY_NODESOURCE_LIST}" "${LEGACY_NODESOURCE_KEY}"
+fi
 
 echo -e "\n${BOLD}${CYAN}================================================================${NC}"
 echo -e "${BOLD}  ADSI INVERTER DASHBOARD 2.0 - LINUX APPLIANCE SETUP${NC}"
@@ -62,12 +72,32 @@ if command -v node >/dev/null 2>&1; then
     NODE_MAJOR="$(node -p 'Number(process.versions.node.split(".")[0])' 2>/dev/null || echo 0)"
 fi
 if [ "${NODE_MAJOR}" -lt 20 ]; then
-    install -d -m 755 /etc/apt/keyrings
+    case "$(dpkg --print-architecture)" in
+        amd64|arm64) NODE_ARCH="$(dpkg --print-architecture)" ;;
+        *) error "NodeSource Node.js 22 supports only amd64 and arm64 on this installer." ;;
+    esac
+    install -d -m 755 /usr/share/keyrings
+    NODE_KEY_ASC="$(mktemp)"
+    NODE_KEY_GPG="$(mktemp)"
+    trap 'rm -f "${NODE_KEY_ASC:-}" "${NODE_KEY_GPG:-}"' EXIT
     curl --proto '=https' --tlsv1.2 -fsSL \
         https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
-        | gpg --dearmor --yes -o /etc/apt/keyrings/nodesource.gpg
-    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" \
-        > /etc/apt/sources.list.d/nodesource.list
+        -o "${NODE_KEY_ASC}"
+    gpg --batch --yes --dearmor --output "${NODE_KEY_GPG}" "${NODE_KEY_ASC}"
+    gpg --batch --no-default-keyring --keyring "${NODE_KEY_GPG}" --list-keys >/dev/null
+    install -m 644 -o root -g root "${NODE_KEY_GPG}" "${NODESOURCE_KEYRING}"
+    rm -f "${NODE_KEY_ASC}" "${NODE_KEY_GPG}"
+    trap - EXIT
+    rm -f -- "${LEGACY_NODESOURCE_LIST}" "${LEGACY_NODESOURCE_KEY}"
+    cat > "${NODESOURCE_SOURCES}" <<EOF
+Types: deb
+URIs: https://deb.nodesource.com/node_22.x
+Suites: nodistro
+Components: main
+Architectures: ${NODE_ARCH}
+Signed-By: ${NODESOURCE_KEYRING}
+EOF
+    chmod 644 "${NODESOURCE_SOURCES}"
     apt-get update -qq
     apt-get install -y -qq nodejs >/dev/null
 fi

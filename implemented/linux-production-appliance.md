@@ -22,6 +22,10 @@
   enabled at boot, enrolled once (interactively or with an operator-supplied
   auth key), and checked as part of appliance health. Tailscale SSH is enabled
   without modifying an already-active Tailscale SSH session.
+- NodeSource is configured with its official deb822 repository definition and
+  a validated `0644` keyring under `/usr/share/keyrings`. Both the bootstrap
+  and full setup remove the exact unreadable legacy repository artifact before
+  APT runs, allowing an interrupted older installation to recover on rerun.
 - Runtime settings, credentials, topology, databases, camera configuration,
   forecast artifacts, and logs are preserved on reruns and Git updates.
 - The production backup restore path no longer depends on the vulnerable
@@ -34,7 +38,7 @@
 Fresh install:
 
 ```bash
-sudo bash -c 'apt-get update -qq && apt-get install -y -qq ca-certificates curl && curl -fsSL https://raw.githubusercontent.com/mclards/Inverter-Dashboard/main/deploy/linux/install.sh | bash'
+sudo bash -c 'command -v curl >/dev/null || { apt-get update -qq && apt-get install -y -qq ca-certificates curl; }; curl -fsSL https://raw.githubusercontent.com/mclards/Inverter-Dashboard/main/deploy/linux/install.sh | bash'
 ```
 
 Equivalent manual install:

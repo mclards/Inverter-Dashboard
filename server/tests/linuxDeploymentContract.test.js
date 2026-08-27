@@ -62,6 +62,11 @@ assert.match(setup, /inverter-health-check\.sh" --wait 30/);
 assert.match(setup, /error "Installation completed, but one or more services are not healthy\."/);
 assert.match(setup, /cp -a "\$\{ENV_FILE\}" "\$\{ENV_FILE\}\.pre-db-layout"/);
 assert.match(setup, /sed -i[\s\S]*INVERTER_PORTABLE_DATA_DIR/);
+assert.match(setup, /NODESOURCE_KEYRING="\/usr\/share\/keyrings\/nodesource\.gpg"/);
+assert.match(setup, /install -m 644 -o root -g root "\$\{NODE_KEY_GPG\}" "\$\{NODESOURCE_KEYRING\}"/);
+assert.match(setup, /gpg --batch --no-default-keyring --keyring "\$\{NODE_KEY_GPG\}" --list-keys/);
+assert.match(setup, /Signed-By: \$\{NODESOURCE_KEYRING\}/);
+assert.doesNotMatch(setup, /gpg --dearmor --yes -o \/etc\/apt\/keyrings\/nodesource\.gpg/);
 
 const bootstrap = read("deploy/linux/install.sh");
 assert.match(bootstrap, /apt-get install -y -qq ca-certificates git/);
@@ -69,6 +74,7 @@ assert.match(bootstrap, /git clone --depth 1 --branch main/);
 assert.match(bootstrap, /status --porcelain/);
 assert.match(bootstrap, /merge --ff-only origin\/main/);
 assert.match(bootstrap, /exec "\$\{APP_DIR\}\/deploy\/linux\/setup\.sh"/);
+assert.match(bootstrap, /Removing the unreadable NodeSource repository left by an older installer/);
 
 const tailscaleSetup = read("deploy/linux/scripts/tailscale-setup.sh");
 assert.match(tailscaleSetup, /command -v tailscale/);

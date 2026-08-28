@@ -1169,8 +1169,10 @@ function bindAutoUpdaterEventsOnce() {
   // If the check can't be run (PowerShell missing, unexpected error), we fall
   // back to the prior behaviour of logging and accepting (SHA-512 remains
   // authoritative).
-  const EXPECTED_SIGNER_THUMBPRINT =
-    "44CD054E69D04011DAA8FB2B60127F1F6EB99C0E";
+  const EXPECTED_SIGNER_THUMBPRINTS = new Set([
+    "7A3DE7F937C44A2A7EE1C0B51745EE2189CC0958",
+    "44CD054E69D04011DAA8FB2B60127F1F6EB99C0E",
+  ]);
   autoUpdater.verifyUpdateCodeSignature = async (publisherNames, tempUpdateFile) => {
     try {
       const psCmd =
@@ -1201,16 +1203,17 @@ function bindAutoUpdaterEventsOnce() {
         lastVerifiedInstallerPath = tempUpdateFile;
         return null;
       }
-      if (actual === EXPECTED_SIGNER_THUMBPRINT.toUpperCase()) {
+      if (EXPECTED_SIGNER_THUMBPRINTS.has(actual)) {
         autoUpdater.logger?.info?.(
           `verifyUpdateCodeSignature: thumbprint match (${actual}) file=${tempUpdateFile}`,
         );
         lastVerifiedInstallerPath = tempUpdateFile;
         return null;
       }
+      const expectedList = Array.from(EXPECTED_SIGNER_THUMBPRINTS).join(", ");
       const msg =
         `verifyUpdateCodeSignature: THUMBPRINT MISMATCH — refusing update.  ` +
-        `actual=${actual} expected=${EXPECTED_SIGNER_THUMBPRINT.toUpperCase()} file=${tempUpdateFile}`;
+        `actual=${actual} expected=[${expectedList}] file=${tempUpdateFile}`;
       autoUpdater.logger?.error?.(msg);
       return msg;
     } catch (err) {

@@ -6013,6 +6013,12 @@ const PROXY_TIMEOUT_RULES = [
   ["/api/export/",       600000],  // 10 min — large CSV/Excel exports
   ["/api/report/",        45000],  // 45 s  — daily report generation
   ["/api/replication/",    45000],  // 45 s  — replication sync
+  ["/api/forecast/backfill-qa", 180000], // 3 min — backfill QA evaluation across up to 30 days
+  ["/api/forecast/",       60000],  // 60 s  — Solcast testing, toolkit preview, ML generation over Tailscale
+  ["/api/solcast/",        60000],  // 60 s  — Solcast snapshot reads/refreshes
+  ["/api/settings",        30000],  // 30 s  — settings save with retention/clock sync
+  ["/api/compliance/",     60000],  // 60 s  — compliance tests / reporting
+  ["/api/grid-control/",   60000],  // 60 s  — grid control parameter sets
   ["/api/write",          60000],  // 60 s  — control writes, including batched inverter actions
   ["/api/plant-cap/",      60000],  // 60 s  — sequential plant cap release/control actions
   // Analytics + energy range queries can scan 1-month-wide blocks of

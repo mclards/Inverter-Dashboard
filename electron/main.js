@@ -1171,10 +1171,6 @@ function bindAutoUpdaterEventsOnce() {
   // authoritative).
   const EXPECTED_SIGNER_THUMBPRINTS = new Set([
     "7A3DE7F937C44A2A7EE1C0B51745EE2189CC0958",
-    "44CD054E69D04011DAA8FB2B60127F1F6EB99C0E",
-  ]);
-  autoUpdater.verifyUpdateCodeSignature = async (publisherNames, tempUpdateFile) => {
-    try {
       const psCmd =
         `Get-AuthenticodeSignature -FilePath '${String(tempUpdateFile).replace(/'/g, "''")}' ` +
         `| Select-Object -ExpandProperty SignerCertificate ` +
@@ -1206,18 +1202,15 @@ function bindAutoUpdaterEventsOnce() {
       if (EXPECTED_SIGNER_THUMBPRINTS.has(actual)) {
         autoUpdater.logger?.info?.(
           `verifyUpdateCodeSignature: thumbprint match (${actual}) file=${tempUpdateFile}`,
-        );
         lastVerifiedInstallerPath = tempUpdateFile;
         return null;
       }
       const expectedList = Array.from(EXPECTED_SIGNER_THUMBPRINTS).join(", ");
       const msg =
         `verifyUpdateCodeSignature: THUMBPRINT MISMATCH — refusing update.  ` +
-        `actual=${actual} expected=[${expectedList}] file=${tempUpdateFile}`;
       autoUpdater.logger?.error?.(msg);
       return msg;
     } catch (err) {
-      autoUpdater.logger?.warn?.(
         `verifyUpdateCodeSignature: check errored — accepting (SHA-512 remains authoritative): ${err?.message || err}`,
       );
       return null;

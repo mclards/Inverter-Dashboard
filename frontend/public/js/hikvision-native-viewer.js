@@ -11,6 +11,7 @@
   let nativeRunning = false;
   let hlsInstance = null;
   let updateQueued = false;
+  let stallWatchdog = null;
 
   const requestedTheme = new URLSearchParams(window.location.search).get("theme") || "dark";
   if (["dark", "light", "classic", "midnight"].includes(requestedTheme)) {
@@ -43,6 +44,10 @@
   }
 
   function stopHls() {
+    if (stallWatchdog) {
+      clearInterval(stallWatchdog);
+      stallWatchdog = null;
+    }
     if (hlsInstance) {
       try { hlsInstance.destroy(); } catch (_) {}
       hlsInstance = null;
@@ -112,7 +117,51 @@
       video.addEventListener("error", () => showError("Hikvision HLS playback failed"), { once: true });
     } else {
       showError("HLS playback is unavailable in this runtime.");
+      return;
     }
+
+    if (stallWatchdog) {
+      clearInterval(stallWatchdog);
+      stallWatchdog = null;
+    }
+    let lastTime = -1;
+    let stallCount = 0;
+    stallWatchdog = setInterval(() => {
+      if (!video || video.style.display === "none") {
+        clearInterval(stallWatchdog);
+        stallWatchdog = null;
+        return;
+      }
+      if (document.hidden) return;
+      const cur = video.currentTime;
+      if (cur > 0 && cur === lastTime && !video.paused) {
+        stallCount++;
+        if (stallCount >= 2) {
+          if (hlsInstance) {
+            try {
+              const b = video.buffered;
+              if (b && b.length > 0) {
+                const liveEnd = b.end(b.length - 1);
+                if (liveEnd > cur + 1) {
+                  video.currentTime = Math.max(0, liveEnd - 0.5);
+                }
+              }
+              hlsInstance.startLoad();
+              video.play().catch(() => {});
+            } catch (_) {}
+          }
+        }
+        if (stallCount >= 5) {
+          console.warn("[hikvision popout] Persistent playback stall, recovering stream...");
+          clearInterval(stallWatchdog);
+          stallWatchdog = null;
+          showError("Playback stalled");
+        }
+      } else {
+        lastTime = cur;
+        stallCount = 0;
+      }
+    }, 3500);
   }
 
   async function startPlayback() {

@@ -5,6 +5,7 @@ const crypto = require("crypto");
 const fs = require("fs");
 const http = require("http");
 const net = require("net");
+const os = require("os");
 const path = require("path");
 
 function resolveRuntimeRoot() {
@@ -12,6 +13,26 @@ function resolveRuntimeRoot() {
     return path.join(process.env.PROGRAMDATA || "C:\\ProgramData", "Inverter-Dashboard", "hikvision");
   }
   if (String(process.env.INVERTER_STORAGE_DIR || "").trim()) {
+    return path.join(path.resolve(String(process.env.INVERTER_STORAGE_DIR).trim()), "hikvision");
+  }
+  const explicitDbDir = String(process.env.INVERTER_DATA_DIR || "").trim();
+  if (explicitDbDir) {
+    const resolved = path.resolve(explicitDbDir);
+    const base = path.basename(resolved) === "db" ? path.dirname(resolved) : resolved;
+    return path.join(base, "hikvision");
+  }
+  return path.resolve(
+    String(process.env.ADSI_PORTABLE_DATA_DIR || "").trim() ||
+      path.join(os.homedir(), ".inverter-dashboard", "hikvision"),
+  );
+}
+
+const PROGRAMDATA_ROOT = resolveRuntimeRoot();
+const API_HOST = "127.0.0.1";
+const API_PORT = 1994;
+// go2rtc's FFmpeg source publishes its transcoded output back through the
+// embedded RTSP module. The general Tapo go2rtc instance owns the default
+// 8554 port, so the Hikvision instance needs an isolated loopback listener.
 // If this listener cannot bind, go2rtc otherwise stays alive while returning
 // an empty HTTP 200 HLS manifest for hikvision_browser.
 const RTSP_PORT = 8564;
@@ -129,43 +150,88 @@ function buildRtspUrl(cfgRaw) {
 }
 
 function resolveGo2rtcPath() {
+  const binaryNames =
+    process.platform === "win32"
+      ? ["go2rtc.exe"]
+      : ["go2rtc", "go2rtc_linux_amd64", "go2rtc_linux_arm64", "go2rtc.exe"];
+
   if (process.resourcesPath) {
     for (const name of binaryNames) {
       const packaged = path.join(process.resourcesPath, "backend", "go2rtc", name);
+      if (fs.existsSync(packaged)) return packaged;
+    }
+  }
+
   for (const name of binaryNames) {
     const dev = path.join(__dirname, "go2rtc", name);
     if (fs.existsSync(dev)) return dev;
+    const backendDev = path.join(__dirname, "..", "server", "go2rtc", name);
+    if (fs.existsSync(backendDev)) return backendDev;
+  }
+
+  if (process.platform !== "win32") {
+    const systemPaths = [
+      "/usr/local/bin/go2rtc",
+      "/usr/bin/go2rtc",
+      "/opt/inverter-dashboard/go2rtc",
+      "/opt/inverter-dashboard/backend/engines/go2rtc/go2rtc",
+      "/opt/inverter-dashboard/server/go2rtc/go2rtc",
+    ];
+    for (const p of systemPaths) {
+      if (fs.existsSync(p)) return p;
+    }
+  }
+  return "";
+}
+
+function resolveFfmpegDir() {
+  if (process.platform === "win32") {
     if (process.resourcesPath) {
       const packaged = path.join(process.resourcesPath, "backend", "ffmpeg");
       if (fs.existsSync(path.join(packaged, "ffmpeg.exe"))) return packaged;
     }
     const dev = path.join(__dirname, "ffmpeg");
     if (fs.existsSync(path.join(dev, "ffmpeg.exe"))) return dev;
+    const rootDev = path.join(__dirname, "..", "ffmpeg");
+    if (fs.existsSync(path.join(rootDev, "ffmpeg.exe"))) return rootDev;
+    return "";
+  }
+  const linuxDirs = ["/usr/bin", "/usr/local/bin"];
+  for (const dir of linuxDirs) {
+    if (fs.existsSync(path.join(dir, "ffmpeg"))) return dir;
+  }
+  return "";
+}
 
 function runtimeConfigPath() {
   return path.join(PROGRAMDATA_ROOT, "go2rtc.runtime.json");
+}
+
+function writeRuntimeConfig(cfg) {
+  fs.mkdirSync(PROGRAMDATA_ROOT, { recursive: true });
+  const rtspUrl = buildRtspUrl(cfg);
   // Hikvision compatibility is a DVR-native secondary profile, not a decode /
   // re-encode of the malformed HEVC source. Channel xx02 can be prepared as
-  // H.264 while xx01 remains the recorder-quality H.265 stream.
+  // H.264 while xx01 remains the high-resolution stream.
   const compatibleUrl = buildRtspUrl({ ...cfg, stream: "sub" });
   const ffmpegInputUrl = rtspUrl.replace(/\?transport=(?:tcp|udp)$/i, "");
   // Keep HEVC decoding on the stable software decoder and accelerate only the
-  // H.264 encode. go2rtc's `#hardware=cuda` preset also forces CUDA decoding,
-  // which stalls on this DVR's HEVC main stream even though NVENC itself works.
-  // The configured DVR main profile is 12 fps. A one-second GOP reduces
-  // WebRTC join/recovery delay without inventing duplicate frames.
-  const commonEncode = "-r:v 12 -fps_mode cfr -g:v 12 -forced-idr 1 -bf 0 -b:v 5M -maxrate:v 6M -bufsize:v 8M";
+  // H.264 encode when transcoding is required.
+  // When the source is already native H.264, direct RTSP passthrough is used (0% CPU).
+  // Audio is stripped (-an) to prevent G.711 non-monotonic DTS timestamp stalls.
+  const commonEncode = "-r:v 12 -fps_mode cfr -g:v 12 -forced-idr 1 -bf 0 -b:v 5M -maxrate:v 6M -bufsize:v 8M -an";
   const h264Template = cfg.transcodeHardware === "software" || (process.platform !== "win32" && (cfg.transcodeHardware === "auto" || cfg.transcodeHardware === "cuda"))
+    ? `-c:v libx264 ${commonEncode} -profile:v high -level:v 5.1 -preset:v veryfast -tune:v zerolatency -pix_fmt:v yuv420p`
     : cfg.transcodeHardware === "dxva2"
       ? `-c:v h264_qsv ${commonEncode} -profile:v high -level:v 5.1 -preset:v veryfast -async_depth:v 1`
       : cfg.transcodeHardware === "amf"
         ? `-c:v h264_amf ${commonEncode} -profile:v high -level:v auto -quality speed`
         : `-c:v h264_nvenc ${commonEncode} -profile:v high -level:v auto -preset:v p2 -tune:v ll`;
-  const browserUrl = `ffmpeg:${ffmpegInputUrl}#video=h264`;
+  const browserUrl = `ffmpeg:${ffmpegInputUrl}#video=h264#audio=none`;
   const doc = {
     streams: {
       [STREAM_DIRECT]: [rtspUrl],
-      [STREAM_BROWSER]: [browserUrl],
+      [STREAM_BROWSER]: [rtspUrl, browserUrl],
       [STREAM_COMPAT]: [compatibleUrl],
     },
     // The dashboard is served from localhost:3500 while this isolated player
@@ -174,11 +240,17 @@ function runtimeConfigPath() {
     rtsp: { listen: `${API_HOST}:${RTSP_PORT}` },
     webrtc: { listen: `${API_HOST}:${WEBRTC_PORT}` },
     ffmpeg: {
+      // The DVR's stream benefits from explicit packet timestamp generation and error discarding.
+      rtsp: "-rtsp_transport tcp -timeout {timeout} -user_agent go2rtc/ffmpeg -fflags +genpts+discardcorrupt -i {input}",
       h264: h264Template,
     },
   };
   const file = runtimeConfigPath();
   fs.writeFileSync(file, JSON.stringify(doc, null, 2), { encoding: "utf8", mode: 0o600 });
+  return file;
+}
+
+function requestLocal(pathname, timeoutMs = 3000) {
   return new Promise((resolve, reject) => {
     const req = http.get(
       { host: API_HOST, port: API_PORT, path: pathname, timeout: timeoutMs },
@@ -316,6 +388,29 @@ function getSubstreamProfile(configRaw) {
   return getStreamProfile(configRaw, "02");
 }
 
+async function optimizeMainstream(configRaw) {
+  const cfg = sanitizeConfig(configRaw);
+  const profile = await getMainstreamProfile(cfg);
+  if (/^H\.264$/i.test(profile.codec)) {
+    return { ok: true, already: true, ...profile, xml: undefined };
+  }
+  const xml = profile.xml.replace(
+    /<videoCodecType>[^<]*<\/videoCodecType>/i,
+    "<videoCodecType>H.264</videoCodecType>",
+  )
+    .replace(
+      /<SmartCodec>[\s\S]*?<enabled>[^<]*<\/enabled>/i,
+      (smart) => smart.replace(/<enabled>[^<]*<\/enabled>/i, "<enabled>false</enabled>"),
+    );
+  if (xml === profile.xml) throw new Error("DVR profile did not contain a writable video codec field");
+  const r = await isapiRequest(cfg, "PUT", `/ISAPI/Streaming/channels/${profile.channelId}`, xml);
+  if (r.statusCode < 200 || r.statusCode >= 300) {
+    throw new Error(`DVR rejected the H.264 mainstream update (HTTP ${r.statusCode})`);
+  }
+  const verified = await getMainstreamProfile(cfg);
+  return { ok: true, changed: true, ...verified, xml: undefined };
+}
+
 async function optimizeSubstream(configRaw) {
   const cfg = sanitizeConfig(configRaw);
   const profile = await getSubstreamProfile(cfg);
@@ -451,6 +546,8 @@ async function performStart(cfg) {
   status = "starting";
   stopping = false;
   activeConfig = cfg;
+  child = spawn(exe, ["-config", configPath], {
+    stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
     env,
   });
@@ -651,11 +748,36 @@ function proxyMedia(req, res, configRaw) {
           const fallbackPath = `/api/stream.m3u8?src=${encodeURIComponent(STREAM_COMPAT)}&mp4`;
           const fbReq = http.get(
             { host: API_HOST, port: API_PORT, path: fallbackPath, timeout: 8000 },
+            (fbRes) => {
+              const fbChunks = [];
+              fbRes.on("data", (c) => fbChunks.push(c));
+              fbRes.on("end", () => {
+                const fbBody = rewriteHikvisionPlaylist(Buffer.concat(fbChunks).toString("utf8"));
+                res.status(fbRes.statusCode || 200);
+                res.set("Content-Type", fbRes.headers["content-type"] || "application/vnd.apple.mpegurl");
+                res.set("Content-Length", String(Buffer.byteLength(fbBody)));
+                res.send(fbBody);
+              });
+            },
+          );
+          fbReq.on("error", () => {
+            const playlist = rewriteHikvisionPlaylist(rawBody);
+            res.set("Content-Length", String(Buffer.byteLength(playlist)));
+            res.send(playlist);
+          });
+          return;
+        }
+        // go2rtc emits absolute child-playlist and segment paths under
+        // /api/hls/*. Keep every hop inside this authenticated dashboard
+        // route; otherwise Remote mode asks Express for /api/hls/* and Hls.js
+        // receives the dashboard HTML instead of an HLS manifest.
+        const playlist = rewriteHikvisionPlaylist(rawBody);
         res.set("Content-Length", String(Buffer.byteLength(playlist)));
         res.send(playlist);
       });
     },
   );
+  upstream.on("timeout", () => upstream.destroy(new Error("Hikvision media proxy timed out")));
   upstream.on("error", (err) => {
     if (!res.headersSent) res.status(502).json({ ok: false, error: err.message });
     else res.end();
@@ -677,6 +799,7 @@ module.exports = {
   getMainstreamProfile,
   getSubstreamProfile,
   getSnapshot,
+  optimizeMainstream,
   optimizeSubstream,
   getStatus,
   proxyMedia,

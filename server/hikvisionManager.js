@@ -212,15 +212,14 @@ function writeRuntimeConfig(cfg) {
   const rtspUrl = buildRtspUrl(cfg);
   // Hikvision compatibility is a DVR-native secondary profile, not a decode /
   // re-encode of the malformed HEVC source. Channel xx02 can be prepared as
-  // H.264 while xx01 remains the recorder-quality H.265 stream.
+  // H.264 while xx01 remains the high-resolution stream.
   const compatibleUrl = buildRtspUrl({ ...cfg, stream: "sub" });
   const ffmpegInputUrl = rtspUrl.replace(/\?transport=(?:tcp|udp)$/i, "");
   // Keep HEVC decoding on the stable software decoder and accelerate only the
-  // H.264 encode. go2rtc's `#hardware=cuda` preset also forces CUDA decoding,
-  // which stalls on this DVR's HEVC main stream even though NVENC itself works.
-  // The configured DVR main profile is 12 fps. A one-second GOP reduces
-  // WebRTC join/recovery delay without inventing duplicate frames.
-  const commonEncode = "-r:v 12 -fps_mode cfr -g:v 12 -forced-idr 1 -bf 0 -b:v 5M -maxrate:v 6M -bufsize:v 8M";
+  // H.264 encode when transcoding is required.
+  // When the source is already native H.264, direct RTSP passthrough is used (0% CPU).
+  // Audio is stripped (-an) to prevent G.711 non-monotonic DTS timestamp stalls.
+  const commonEncode = "-r:v 12 -fps_mode cfr -g:v 12 -forced-idr 1 -bf 0 -b:v 5M -maxrate:v 6M -bufsize:v 8M -an";
   const h264Template = cfg.transcodeHardware === "software" || (process.platform !== "win32" && (cfg.transcodeHardware === "auto" || cfg.transcodeHardware === "cuda"))
     ? `-c:v libx264 ${commonEncode} -profile:v high -level:v 5.1 -preset:v veryfast -tune:v zerolatency -pix_fmt:v yuv420p`
     : cfg.transcodeHardware === "dxva2"
@@ -228,11 +227,11 @@ function writeRuntimeConfig(cfg) {
       : cfg.transcodeHardware === "amf"
         ? `-c:v h264_amf ${commonEncode} -profile:v high -level:v auto -quality speed`
         : `-c:v h264_nvenc ${commonEncode} -profile:v high -level:v auto -preset:v p2 -tune:v ll`;
-  const browserUrl = `ffmpeg:${ffmpegInputUrl}#video=h264`;
+  const browserUrl = `ffmpeg:${ffmpegInputUrl}#video=h264#audio=none`;
   const doc = {
     streams: {
       [STREAM_DIRECT]: [rtspUrl],
-      [STREAM_BROWSER]: [browserUrl],
+      [STREAM_BROWSER]: [rtspUrl, browserUrl],
       [STREAM_COMPAT]: [compatibleUrl],
     },
     // The dashboard is served from localhost:3500 while this isolated player
@@ -241,9 +240,8 @@ function writeRuntimeConfig(cfg) {
     rtsp: { listen: `${API_HOST}:${RTSP_PORT}` },
     webrtc: { listen: `${API_HOST}:${WEBRTC_PORT}` },
     ffmpeg: {
-      // The DVR's HEVC stream does not tolerate go2rtc's default
-      // `-fflags nobuffer` RTSP input template. TCP without that flag is stable.
-      rtsp: "-rtsp_transport tcp -timeout {timeout} -user_agent go2rtc/ffmpeg -i {input}",
+      // The DVR's stream benefits from explicit packet timestamp generation and error discarding.
+      rtsp: "-rtsp_transport tcp -timeout {timeout} -user_agent go2rtc/ffmpeg -fflags +genpts+discardcorrupt -i {input}",
       h264: h264Template,
     },
   };
@@ -388,6 +386,29 @@ function getMainstreamProfile(configRaw) {
 
 function getSubstreamProfile(configRaw) {
   return getStreamProfile(configRaw, "02");
+}
+
+async function optimizeMainstream(configRaw) {
+  const cfg = sanitizeConfig(configRaw);
+  const profile = await getMainstreamProfile(cfg);
+  if (/^H\.264$/i.test(profile.codec)) {
+    return { ok: true, already: true, ...profile, xml: undefined };
+  }
+  const xml = profile.xml.replace(
+    /<videoCodecType>[^<]*<\/videoCodecType>/i,
+    "<videoCodecType>H.264</videoCodecType>",
+  )
+    .replace(
+      /<SmartCodec>[\s\S]*?<enabled>[^<]*<\/enabled>/i,
+      (smart) => smart.replace(/<enabled>[^<]*<\/enabled>/i, "<enabled>false</enabled>"),
+    );
+  if (xml === profile.xml) throw new Error("DVR profile did not contain a writable video codec field");
+  const r = await isapiRequest(cfg, "PUT", `/ISAPI/Streaming/channels/${profile.channelId}`, xml);
+  if (r.statusCode < 200 || r.statusCode >= 300) {
+    throw new Error(`DVR rejected the H.264 mainstream update (HTTP ${r.statusCode})`);
+  }
+  const verified = await getMainstreamProfile(cfg);
+  return { ok: true, changed: true, ...verified, xml: undefined };
 }
 
 async function optimizeSubstream(configRaw) {
@@ -778,6 +799,7 @@ module.exports = {
   getMainstreamProfile,
   getSubstreamProfile,
   getSnapshot,
+  optimizeMainstream,
   optimizeSubstream,
   getStatus,
   proxyMedia,

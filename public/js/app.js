@@ -16660,7 +16660,51 @@ class CameraPlayer {
     } else {
       this._showOverlay("HLS not supported", "mdi-alert-circle-outline");
       this._showRetry();
+      return;
     }
+
+    if (this.stallWatchdog) {
+      clearInterval(this.stallWatchdog);
+      this.stallWatchdog = null;
+    }
+    let lastTime = -1;
+    let stallCount = 0;
+    this.stallWatchdog = setInterval(() => {
+      if (!this.active || !video || video.style.display === "none") {
+        clearInterval(this.stallWatchdog);
+        this.stallWatchdog = null;
+        return;
+      }
+      if (document.hidden) return;
+      const cur = video.currentTime;
+      if (cur > 0 && cur === lastTime && !video.paused) {
+        stallCount++;
+        if (stallCount >= 2) {
+          if (this.hlsInstance) {
+            try {
+              const b = video.buffered;
+              if (b && b.length > 0) {
+                const liveEnd = b.end(b.length - 1);
+                if (liveEnd > cur + 1) {
+                  video.currentTime = Math.max(0, liveEnd - 0.5);
+                }
+              }
+              this.hlsInstance.startLoad();
+              video.play().catch(() => {});
+            } catch (_) {}
+          }
+        }
+        if (stallCount >= 5) {
+          console.warn("[camera] Persistent playback stall, reconnecting stream...");
+          clearInterval(this.stallWatchdog);
+          this.stallWatchdog = null;
+          this._onStreamError("Playback stalled");
+        }
+      } else {
+        lastTime = cur;
+        stallCount = 0;
+      }
+    }, 3500);
   }
 
   /* ── WebRTC via go2rtc ───────────────────────── */
@@ -16804,6 +16848,10 @@ class CameraPlayer {
 
   /* ── Teardown helpers ────────────────────────── */
   _teardown() {
+    if (this.stallWatchdog) {
+      clearInterval(this.stallWatchdog);
+      this.stallWatchdog = null;
+    }
     if (this.hlsInstance) {
       try { this.hlsInstance.destroy(); } catch (_) {}
       this.hlsInstance = null;
@@ -17391,6 +17439,50 @@ class HikVisionPlayer {
       return;
     }
 
+    if (this.stallWatchdog) {
+      clearInterval(this.stallWatchdog);
+      this.stallWatchdog = null;
+    }
+    let lastTime = -1;
+    let stallCount = 0;
+    this.stallWatchdog = setInterval(() => {
+      if (!this._isCurrent(generation) || !this.video || this.video.style.display === "none") {
+        clearInterval(this.stallWatchdog);
+        this.stallWatchdog = null;
+        return;
+      }
+      if (document.hidden) return;
+      const cur = this.video.currentTime;
+      if (cur > 0 && cur === lastTime && !this.video.paused) {
+        stallCount++;
+        if (stallCount >= 2) {
+          console.warn("[hikvision] Playback stall detected, recovering live edge...");
+          if (this.hls) {
+            try {
+              const b = this.video.buffered;
+              if (b && b.length > 0) {
+                const liveEnd = b.end(b.length - 1);
+                if (liveEnd > cur + 1) {
+                  this.video.currentTime = Math.max(0, liveEnd - 0.5);
+                }
+              }
+              this.hls.startLoad();
+              this.video.play().catch(() => {});
+            } catch (_) {}
+          }
+        }
+        if (stallCount >= 5) {
+          console.warn("[hikvision] Persistent playback stall, reconnecting stream...");
+          clearInterval(this.stallWatchdog);
+          this.stallWatchdog = null;
+          this._onError("Playback stalled", generation);
+        }
+      } else {
+        lastTime = cur;
+        stallCount = 0;
+      }
+    }, 3500);
+
     this.playTimeout = setTimeout(() => {
       if (this._isCurrent(generation) && !this.card.querySelector("#hikvisionLiveDot")?.classList.contains("active")) {
         this._onError("Hikvision browser video did not begin playing", generation);
@@ -17435,6 +17527,10 @@ class HikVisionPlayer {
   }
 
   _teardownMediaOnly() {
+    if (this.stallWatchdog) {
+      clearInterval(this.stallWatchdog);
+      this.stallWatchdog = null;
+    }
     if (this.hls) {
       try { this.hls.destroy(); } catch (_) {}
       this.hls = null;

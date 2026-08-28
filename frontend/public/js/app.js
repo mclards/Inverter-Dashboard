@@ -16397,10 +16397,22 @@ function isHikvisionFullscreen(card = $("hikvisionCard")) {
 
 function openHikvisionViewer(card = $("hikvisionCard")) {
   const requestedMode = State.settings?.hikvisionConfig?.playbackMode || "localservice";
-  if (requestedMode === "localservice" && window.electronAPI?.openHikvisionNativeViewer) {
-    const theme = document.documentElement.getAttribute("data-theme") || "dark";
+  const theme = document.documentElement.getAttribute("data-theme") || "dark";
+  if (window.electronAPI?.openHikvisionNativeViewer || (requestedMode === "localservice" && window.electronAPI?.openHikvisionNativeViewer)) {
     return window.electronAPI.openHikvisionNativeViewer(theme);
   }
+  // Browser popup window
+  const viewerUrl = `/hikvision-native-viewer.html?theme=${encodeURIComponent(theme)}`;
+  const win = window.open(
+    viewerUrl,
+    "hikvision_native_viewer",
+    "width=1280,height=820,menubar=no,toolbar=no,location=no,status=no,resizable=yes"
+  );
+  if (win) {
+    try { win.focus(); } catch (_) {}
+    return Promise.resolve({ ok: true });
+  }
+  // Fallback if popup blocker prevented opening a new window
   if (!card) return Promise.resolve();
   if (isHikvisionFullscreen(card)) return document.exitFullscreen();
   if (document.fullscreenElement) return Promise.reject(new Error("Another fullscreen view is active"));

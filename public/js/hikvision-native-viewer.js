@@ -184,7 +184,8 @@
     const isRemote = delivery?.operationMode === "remote" || !delivery?.localFallback && delivery?.compactPath === "gateway-relay";
     if (isRemote || !api?.hikvisionNativeStart) {
       await fetch("/api/hikvision/start", { method: "POST" }).catch(() => {});
-      return startHls("compatible");
+      const streamMode = config?.playbackMode === "compatible" ? "compatible" : "browser";
+      return startHls(streamMode);
     }
 
     await nextLayoutFrame();

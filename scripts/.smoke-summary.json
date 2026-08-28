@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-08-28T00:22:47.779Z",
+  "startedAt": "2026-08-28T00:46:19.956Z",
   "args": [
     "--skip-python",
     "--no-rebuild"
@@ -9,7 +9,7 @@
     {
       "file": "acContactorHealthCore.test.js",
       "status": 0,
-      "durationMs": 718,
+      "durationMs": 606,
       "ok": true,
       "error": null,
       "stdoutTail": "  ✓ computeCycleRatePerDay: empty/null → no rate\n  ✓ computeCycleRatePerDay: single sample → no rate (need ≥2)\n  ✓ computeCycleRatePerDay: 5 cycles over exactly 1 day → 5/day\n  ✓ computeCycleRatePerDay: monotone counter — ignores regressions\n  ✓ computeCycleRatePerDay: < 1 h span → no rate (not statistically meaningful)\n  ✓ computeCycleRatePerDay: skips zero / non-finite samples\n  ✓ computeContactorScore: cycle_rate=null → phase1 weights, no cycle score\n  ✓ computeContactorScore: cycle_rate finite → phase2 weights, cycle score present\n  ✓ computeContactorScore: cycle_rate below floor (3/day) contributes 0\n  ✓ computeContactorScore: cycle_rate at ceil (20/day) → cycle_score=100\n  ✓ computeContactorScore: cycle_rate at midpoint maps linearly\n  ✓ computeContactorScore: phase2 weights sum to 1.0\n  ✓ computeContactorScore: phase2 high cycle alone → mid-aging tier\n  ✓ computeContactorScore: phase2 max everything → score 100, eol\n  ✓ correlateWithIgbt: act severity sticks even if later watch rule fires\n\n──────────────────────────────────────────────────────────\n  acContactorHealthCore.test.js complete\n\n",
@@ -18,16 +18,16 @@
     {
       "file": "alarmAckPersistenceCore.test.js",
       "status": 0,
-      "durationMs": 928,
+      "durationMs": 250,
       "ok": true,
       "error": null,
       "stdoutTail": "[DB] Post-open quick_check: ok\n[pac_w_repair] repaired 0 rows in inverter_5min_param (one-shot)\nalarmAckPersistenceCore.test.js: PASS\n",
-      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-alarm-ack-MP0lTM\\db\\adsi.db — fresh DB will be created on open\n"
+      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-alarm-ack-RPh9Mn\\db\\adsi.db — fresh DB will be created on open\n"
     },
     {
       "file": "alarmAckSyncSource.test.js",
       "status": 0,
-      "durationMs": 100,
+      "durationMs": 104,
       "ok": true,
       "error": null,
       "stdoutTail": "alarmAckSyncSource.test.js: PASS\n",
@@ -36,7 +36,7 @@
     {
       "file": "alarmArchiveContractShape.test.js",
       "status": 0,
-      "durationMs": 96,
+      "durationMs": 104,
       "ok": true,
       "error": null,
       "stdoutTail": "  ✓ archive schema declares an alarms table DDL\n  ✓ ensureArchiveSchema creates alarms table on every shard\n  ✓ createArchiveEntry always runs ensureArchiveSchema (covers pre-existing shards)\n  ✓ archive entry exposes alarm insert + range statements\n  ✓ pruner now ARCHIVES alarms instead of permanently deleting them\n  ✓ archiveRowsByMonth dispatches the alarms type\n  ✓ queryAlarmsRangeArchiveAware merges hot + archive shards\n  ✓ findAlarmByIdArchiveAware checks hot then iterates archives\n  ✓ module.exports surfaces the new helpers\n  ✓ /api/alarms uses the archive-aware reader\n  ✓ /api/alarms/:alarm_id/stop-reason uses archive-aware single-id lookup\n  ✓ exportAlarms uses archive-aware reader for past-month exports\nalarmArchiveContractShape.test.js: PASS (schema + write-path + read-path + wire-up locked)\n",
@@ -45,7 +45,7 @@
     {
       "file": "alarmArchiveRoundtripCore.test.js",
       "status": 0,
-      "durationMs": 133,
+      "durationMs": 149,
       "ok": true,
       "error": null,
       "stdoutTail": "alarmArchiveRoundtripCore.test.js: PASS (write → migrate → archive-aware read + by-inverter + LIMIT + by-id all green)\n",
@@ -54,7 +54,7 @@
     {
       "file": "alarmEpisodeCore.test.js",
       "status": 0,
-      "durationMs": 86,
+      "durationMs": 94,
       "ok": true,
       "error": null,
       "stdoutTail": "alarmEpisodeCore.test.js: PASS\n",
@@ -63,7 +63,7 @@
     {
       "file": "alarmPerCompositionRowCore.test.js",
       "status": 0,
-      "durationMs": 117,
+      "durationMs": 119,
       "ok": true,
       "error": null,
       "stdoutTail": "alarmPerCompositionRowCore.test.js: PASS (3 distinct rows, bit-4 transient preserved, zero-gap timeline, no fictional supersets)\n",
@@ -72,7 +72,7 @@
     {
       "file": "alarmPerCompositionRowShape.test.js",
       "status": 0,
-      "durationMs": 99,
+      "durationMs": 91,
       "ok": true,
       "error": null,
       "stdoutTail": "  ✓ close-and-reopen wrapped in db.transaction (atomic — no race window)\n  ✓ updateActiveAlarmValue delegates to the atomic transaction wrapper\n  ✓ REGRESSION: must NOT OR-accumulate (no `prevValue | cur` pattern)\n  ✓ REGRESSION: must NOT call stmts.updateActiveAlarm.run (in-place UPDATE = original bug)\n  ✓ pure-clear short-circuit: newCur === 0 returns inside the transaction\n  ✓ raiseActiveAlarm still writes initial bitmask as-is\n  ✓ checkAlarms isolates per-row errors so a malformed frame can't abort the batch\nalarmPerCompositionRowShape.test.js: PASS (insert-on-change contract locked; OR-accumulate explicitly forbidden)\n",
@@ -81,7 +81,7 @@
     {
       "file": "alarmReferenceShape.test.js",
       "status": 0,
-      "durationMs": 91,
+      "durationMs": 118,
       "ok": true,
       "error": null,
       "stdoutTail": "alarmReferenceShape.test.js: PASS (16 bits validated)\n",
@@ -90,7 +90,7 @@
     {
       "file": "alarmRowSlimShape.test.js",
       "status": 0,
-      "durationMs": 96,
+      "durationMs": 92,
       "ok": true,
       "error": null,
       "stdoutTail": "alarmRowSlimShape.test.js: PASS (slim projection locked + worst-case <2 KB)\n",
@@ -99,16 +99,16 @@
     {
       "file": "alarmWidthDecodeCore.test.js",
       "status": 0,
-      "durationMs": 206,
+      "durationMs": 228,
       "ok": true,
       "error": null,
       "stdoutTail": "[DB] Post-open quick_check: ok\n[pac_w_repair] repaired 0 rows in inverter_5min_param (one-shot)\n[Test] alarmWidthDecodeCore\n  (catalogue max bit = 15; high-word case skipped)\n[Test] alarmWidthDecodeCore: PASS\n",
-      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-alarm-width-UMyRXB\\db\\adsi.db — fresh DB will be created on open\n"
+      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-alarm-width-QK7tUy\\db\\adsi.db — fresh DB will be created on open\n"
     },
     {
       "file": "apcRampLimiterCore.test.js",
       "status": 0,
-      "durationMs": 89,
+      "durationMs": 93,
       "ok": true,
       "error": null,
       "stdoutTail": "\n──────────────────────────────────────────────────────────\n  apcRampLimiterCore.test.js — pure ramp pacer\n──────────────────────────────────────────────────────────\n\n  ✓ disabled when rate ≤ 0\n  ✓ disabled when rate non-finite\n  ✓ missing current → single immediate step\n  ✓ delta within one step → single immediate\n  ✓ large downward step → plan multiple paced steps\n  ✓ upward ramp also throttles\n  ✓ respects MAX_PLAN_STEPS cap (huge delta + tiny rate)\n  ✓ respects ABSOLUTE_MIN_STEP_PCT for impossibly tiny rate\n  ✓ clamps target and current to [0..100]\n  ✓ zero-delta returns immediate without throttle flag\n  ✓ DEFAULT_STEP_INTERVAL_MS is used when interval omitted\n\n  ✓ apcRampLimiterCore tests passed\n\n",
@@ -117,7 +117,7 @@
     {
       "file": "apcSetpointHardeningCore.test.js",
       "status": 0,
-      "durationMs": 87,
+      "durationMs": 94,
       "ok": true,
       "error": null,
       "stdoutTail": "  ✓ plant scope: empty targets array is OK (engine fans out)\n  ✓ node scope: empty targets array is rejected\n  ✓ node scope: missing ip is rejected\n  ✓ node scope: malformed ip is rejected\n  ✓ node scope: slave must be 1..4\n  ✓ node scope: valid single target normalizes\n  ✓ multiple identical targets dedupe to one\n  ✓ mixed valid + invalid: first invalid wins, no partial pass\n  ✓ ipv4 trims whitespace then validates\n  ✓ dedup: two rapid identical writes are rejected\n  ✓ dedup: writes outside window are accepted\n  ✓ dedup: different opcodes on same node are independent\n  ✓ dedup: different nodes are independent\n  ✓ audit: plant scope produces single summary row with empty ip\n  ✓ audit: node scope with one target → one row with ip+slave\n  ✓ audit: inverter scope with 4 targets → 4 rows, each with own slave\n  ✓ audit: failed result writes 'failed' label\n  ✓ audit: stop opcode produces 'plantCap.setpoint.stop' action label\n  ✓ audit: abort opcode produces 'plantCap.setpoint.abort' action label\n",
@@ -126,7 +126,7 @@
     {
       "file": "apcVerifyCore.test.js",
       "status": 0,
-      "durationMs": 87,
+      "durationMs": 91,
       "ok": true,
       "error": null,
       "stdoutTail": "\n  apcVerifyCore.test.js — Slice δ\n\n  ✓ constants exposed\n  ✓ _decodeRow handles null row → all nulls\n  ✓ _decodeRow handles full row → observed_pct\n  ✓ _decodeRow handles bit 1 = 0 explicitly\n  ✓ _decodeRow handles missing pwr_red_bits → null\n  ✓ _classify returns 'no_response' when observed_pct null\n  ✓ _classify returns 'ok' when observed within tolerance\n  ✓ _classify returns 'mismatch' when observed exceeds tolerance\n  ✓ _classify returns 'mismatch' when within tolerance but bit 1 explicitly 0 for non-100% setpoint\n  ✓ _classify returns 'ok' when within tolerance and requested = 100% (bit 1 not required)\n  ✓ scheduleVerify inserts pending row + schedules timer\n  ✓ scheduleVerify cancels prior pending verify for same node (anti-thrash)\n  ✓ scheduleVerify with missing required args returns null\n  ✓ end-to-end: scheduleVerify → fired → ok result\n  ✓ end-to-end: stale sample (older than 5 min) → no_response\n  ✓ end-to-end: timeout when current time exceeds timeoutMs\n",
@@ -135,16 +135,16 @@
     {
       "file": "archiveCacheLru.test.js",
       "status": 0,
-      "durationMs": 466,
+      "durationMs": 449,
       "ok": true,
       "error": null,
       "stdoutTail": "[archiveCacheLru] start\n[DB] Post-open quick_check: ok\n[pac_w_repair] repaired 0 rows in inverter_5min_param (one-shot)\n  ✓ T1 LRU eviction: cache has 6/6 after 7 inserts, oldest evicted\n  ✓ T3 handle closure: evictionCount=1, evicted month re-readable\n  ✓ T2 LRU bump: cache=2026-02,2026-03,2026-04,2026-05,2025-12,2026-06\n  ✓ T4 closeArchiveDbForMonth integrates cleanly\n  ✓ T5 telemetry: evictionCount=2, lastEvictedKey=2026-01\n[archiveCacheLru] all assertions passed\n",
-      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-archive-lru-i30NgL\\adsi.db — fresh DB will be created on open\n"
+      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-archive-lru-gc5q8m\\adsi.db — fresh DB will be created on open\n"
     },
     {
       "file": "archiveUniversalContractShape.test.js",
       "status": 0,
-      "durationMs": 98,
+      "durationMs": 90,
       "ok": true,
       "error": null,
       "stdoutTail": "  ✓ archiveTableBeforeCutoff has monthKeyKind parameter\n  ✓ Uses ARCHIVE_RUNNING_LOCK concurrency guard\n  ✓ Enforces ARCHIVE_MAX_BATCHES_PER_CALL batch ceiling\n  ✓ Uses ARCHIVE_HOT_STMT_CACHE statement cache\n  ✓ Uses ARCHIVE_PER_SHARD_INSERT_CACHE shard cache\n  ✓ Discovers schema via sqlite_master\n  ✓ Detects WITHOUT ROWID semantics\n  ✓ Yields event loop between batches\n  ✓ pruneSnapshotHistory archives snapshot_history\n  ✓ pruneApcVerifyLog archives apc_verify_log\n  ✓ pruneGridControlVerifyLog archives grid_control_verify_log\n  ✓ pruneRampLog archives inverter_curtailment_ramp_log\n  ✓ pruneIgbtThermalBaseline archives igbt_thermal_baseline\n  ✓ pruneOldRows archives inverter_stop_histogram\n  ✓ pruneRetention archives inverter_5min_param\n  ✓ pruneFirmwareDriftLog archives firmware_drift_log\n  ✓ archiveTableBeforeCutoff is exported from db.js\n\narchiveUniversalContractShape.test.js: PASS (archive helper contract locked)\n",
@@ -153,7 +153,7 @@
     {
       "file": "auditArchiveContractShape.test.js",
       "status": 0,
-      "durationMs": 107,
+      "durationMs": 99,
       "ok": true,
       "error": null,
       "stdoutTail": "  ✓ archive schema declares an audit_log table DDL\n  ✓ ensureArchiveSchema creates audit_log table on every shard\n  ✓ archive entry exposes audit insert + range statements\n  ✓ pruner now ARCHIVES audit_log instead of permanently deleting it\n  ✓ archiveRowsByMonth dispatches the audit type\n  ✓ queryAuditRangeArchiveAware merges hot + archive shards\n  ✓ module.exports surfaces queryAuditRangeArchiveAware\n  ✓ auditRetainDays floor bumped from 1 to ≥ 90\n  ✓ stopReasonsRetainDays floor bumped from 7 to ≥ 90 (matches alarm hot retention)\n  ✓ alarms.js getAuditLog uses the archive-aware reader\n  ✓ alarms.js imports queryAuditRangeArchiveAware from db\nauditArchiveContractShape.test.js: PASS (schema + write-path + read-path + floors + wire-up locked)\n",
@@ -162,7 +162,7 @@
     {
       "file": "auditArchiveRoundtripCore.test.js",
       "status": 0,
-      "durationMs": 134,
+      "durationMs": 135,
       "ok": true,
       "error": null,
       "stdoutTail": "auditArchiveRoundtripCore.test.js: PASS (selector + archive-write + delete + archive-aware-read + by-inverter + LIMIT all green)\n",
@@ -171,7 +171,7 @@
     {
       "file": "backupHealthRegistry.test.js",
       "status": 0,
-      "durationMs": 195,
+      "durationMs": 218,
       "ok": true,
       "error": null,
       "stdoutTail": "backupHealthRegistry.test.js: PASS\n",
@@ -180,16 +180,16 @@
     {
       "file": "baselineAnchorDecisionCore.test.js",
       "status": 0,
-      "durationMs": 112,
+      "durationMs": 127,
       "ok": true,
       "error": null,
-      "stdoutTail": "# Subtest: PAC fallback: past-day with no baseline at all → fills from PAC\nok 16 - PAC fallback: past-day with no baseline at all → fills from PAC\n  ---\n  duration_ms: 0.0877\n  ...\n# Subtest: Normal HW path is preferred over PAC fallback when baseline is healthy\nok 17 - Normal HW path is preferred over PAC fallback when baseline is healthy\n  ---\n  duration_ms: 0.0829\n  ...\n1..17\n# tests 17\n# suites 0\n# pass 17\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 12.3683\n",
+      "stdoutTail": "# Subtest: PAC fallback: past-day with no baseline at all → fills from PAC\nok 16 - PAC fallback: past-day with no baseline at all → fills from PAC\n  ---\n  duration_ms: 1.3695\n  ...\n# Subtest: Normal HW path is preferred over PAC fallback when baseline is healthy\nok 17 - Normal HW path is preferred over PAC fallback when baseline is healthy\n  ---\n  duration_ms: 0.1185\n  ...\n1..17\n# tests 17\n# suites 0\n# pass 17\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 21.4478\n",
       "stderrTail": ""
     },
     {
       "file": "baselineUpgradeCore.test.js",
       "status": 0,
-      "durationMs": 87,
+      "durationMs": 90,
       "ok": true,
       "error": null,
       "stdoutTail": "baselineUpgradeCore.test.js — all 12 scenarios passed.\n",
@@ -198,7 +198,7 @@
     {
       "file": "browserAuthDevLogin.test.js",
       "status": 0,
-      "durationMs": 7391,
+      "durationMs": 281,
       "ok": true,
       "error": null,
       "stdoutTail": "browserAuthDevLogin.test.js: passed\n",
@@ -207,7 +207,7 @@
     {
       "file": "browserRoleRestriction.test.js",
       "status": 0,
-      "durationMs": 410,
+      "durationMs": 290,
       "ok": true,
       "error": null,
       "stdoutTail": "browserRoleRestriction.test.js: passed\n",
@@ -216,7 +216,7 @@
     {
       "file": "bulkControlAuth.test.js",
       "status": 0,
-      "durationMs": 119,
+      "durationMs": 96,
       "ok": true,
       "error": null,
       "stdoutTail": "bulkControlAuth.test.js: PASS\n",
@@ -225,7 +225,7 @@
     {
       "file": "calibrationSafety.test.js",
       "status": 0,
-      "durationMs": 134,
+      "durationMs": 91,
       "ok": true,
       "error": null,
       "stdoutTail": "  PASS Fesc_ipv: allows across the 55–65 % band\n  PASS Fesc_ipv: refuses ABOVE the band (70 % is now the wrong target)\n  PASS Fesc_ipv: refuses just outside the 65 % upper bound\n  PASS Fesc_ipv: refuses when nominal power read failed (pct_of_pn null)\n  PASS Reactive X1Y1: refuses at 0 % Pn (consign not engaged)\n  PASS Reactive X1Y1: allows in 15-25 % Pn band\n  PASS Reactive X1Y1: refuses just outside 25 % upper bound\n  PASS Reactive Y1 (offset 92) same gate as X1\n  PASS Reactive X2Y2: refuses at 20 % Pn (wrong consign target)\n  PASS Reactive X2Y2: allows in 65-75 % Pn band\n  PASS Reactive Y2 (offset 94) same gate as X2\n  PASS Fesc_vac_1 (81): no Pac/Pn band — passes at any pct when state OK\n  PASS comp_per_vacio (90): allows at 0 % Pn (inverter not generating)\n  PASS comp_per_vacio (90): allows within the 0 % band (incl. slight -ve no-load)\n  PASS comp_per_vacio (90): BLOCKS when generating (50 % — wrong consign)\n  PASS comp_per_vacio (90): blocks just above the band (e.g. 6 %)\n  PASS buildWriteSafetyMap: returns one verdict per requested offset\n  PASS buildWriteSafetyMap: state error blocks everything\ncalibrationSafety.test.js: done\n",
@@ -234,61 +234,61 @@
     {
       "file": "calibrationSessionRecovery.test.js",
       "status": 0,
-      "durationMs": 177,
+      "durationMs": 116,
       "ok": true,
       "error": null,
-      "stdoutTail": "[calibration-session] BEGIN 66033074d7e1 inv=1/2 op=op1\n  PASS begin: creates a session and reflects in isActive/currentSession\n[calibration-session] BEGIN 6fe33df2e95a inv=1/2 op=op1\n  PASS second begin() throws SESSION_ACTIVE\n[calibration-session] BEGIN e0392c170148 inv=1/2 op=op1\n[calibration-session] BEGIN 1de24817f610 inv=1/2 op=op1\n  PASS abortAll then begin: same target succeeds (route case A)\n[calibration-session] BEGIN 901f0aac249d inv=1/2 op=op1\n[calibration-session] BEGIN dd535430a042 inv=3/4 op=op2\n  PASS abortAll then begin: different target succeeds (route case B)\n[calibration-session] BEGIN f18107607805 inv=1/2 op=op1\n  PASS currentSession idle_ms / idle_timeout_ms surface for route's staleness check\n[calibration-session] BEGIN 851dc24647e8 inv=1/2 op=op1\n  PASS heartbeat updates last_heartbeat_ms so idle_ms shrinks back to ~0\n  PASS abortAll on no-session is a noop (route can call it unconditionally)\ncalibrationSessionRecovery.test.js: done\n",
-      "stderrTail": "[calibration-session] ABORT 66033074d7e1 reason=teardown\n[calibration-session] ABORT 6fe33df2e95a reason=teardown\n[calibration-session] ABORT e0392c170148 reason=operator_restart\n[calibration-session] ABORT 1de24817f610 reason=teardown\n[calibration-session] ABORT 901f0aac249d reason=stale_takeover\n[calibration-session] ABORT dd535430a042 reason=teardown\n[calibration-session] ABORT f18107607805 reason=teardown\n[calibration-session] ABORT 851dc24647e8 reason=teardown\n"
+      "stdoutTail": "[calibration-session] BEGIN 5b05dddecd29 inv=1/2 op=op1\n  PASS begin: creates a session and reflects in isActive/currentSession\n[calibration-session] BEGIN 93ed97cae813 inv=1/2 op=op1\n  PASS second begin() throws SESSION_ACTIVE\n[calibration-session] BEGIN 9835f2f5a3d5 inv=1/2 op=op1\n[calibration-session] BEGIN 4954b3f66b43 inv=1/2 op=op1\n  PASS abortAll then begin: same target succeeds (route case A)\n[calibration-session] BEGIN 52619363c60e inv=1/2 op=op1\n[calibration-session] BEGIN d530ba7f84cd inv=3/4 op=op2\n  PASS abortAll then begin: different target succeeds (route case B)\n[calibration-session] BEGIN 2f9958bc998c inv=1/2 op=op1\n  PASS currentSession idle_ms / idle_timeout_ms surface for route's staleness check\n[calibration-session] BEGIN b5e476e55e3b inv=1/2 op=op1\n  PASS heartbeat updates last_heartbeat_ms so idle_ms shrinks back to ~0\n  PASS abortAll on no-session is a noop (route can call it unconditionally)\ncalibrationSessionRecovery.test.js: done\n",
+      "stderrTail": "[calibration-session] ABORT 5b05dddecd29 reason=teardown\n[calibration-session] ABORT 93ed97cae813 reason=teardown\n[calibration-session] ABORT 9835f2f5a3d5 reason=operator_restart\n[calibration-session] ABORT 4954b3f66b43 reason=teardown\n[calibration-session] ABORT 52619363c60e reason=stale_takeover\n[calibration-session] ABORT d530ba7f84cd reason=teardown\n[calibration-session] ABORT 2f9958bc998c reason=teardown\n[calibration-session] ABORT b5e476e55e3b reason=teardown\n"
     },
     {
       "file": "calibratorServer.test.js",
       "status": 0,
-      "durationMs": 858,
+      "durationMs": 245,
       "ok": true,
       "error": null,
-      "stdoutTail": "testCalibrationFilesUnchanged: PASS\n[calibrator-db] opening C:\\Users\\User\\AppData\\Local\\Temp\\calibrator-test-ARaeRQ\\test.db\ntestCalibratorDbPersistence: PASS\ntestServerDoesNotImportFleetIndex: PASS\n[calibrator-db] opening C:\\Users\\User\\AppData\\Local\\Temp\\calibrator-auth-test-lYmAry\\test.db\ntestTopologyAuthMiddleware: PASS\n[calibrator-db] opening C:\\Users\\User\\AppData\\Local\\Temp\\calibrator-python-test-MHllFW\\test.db\ntestCallPythonContract: PASS\ntestPublicAssetsServed: PASS\ntestReuseProof: PASS\n[calibrator-db] opening C:\\Users\\User\\AppData\\Local\\Temp\\calibrator-transport-test-KRtArf\\test.db\ntestTransportSelectorRoutes: PASS\n\ncalibratorServer.test.js: ALL TESTS PASSED\n\n",
+      "stdoutTail": "testCalibrationFilesUnchanged: PASS\n[calibrator-db] opening C:\\Users\\User\\AppData\\Local\\Temp\\calibrator-test-c7S1WO\\test.db\ntestCalibratorDbPersistence: PASS\ntestServerDoesNotImportFleetIndex: PASS\n[calibrator-db] opening C:\\Users\\User\\AppData\\Local\\Temp\\calibrator-auth-test-ne76Vk\\test.db\ntestTopologyAuthMiddleware: PASS\n[calibrator-db] opening C:\\Users\\User\\AppData\\Local\\Temp\\calibrator-python-test-YZbrQD\\test.db\ntestCallPythonContract: PASS\ntestPublicAssetsServed: PASS\ntestReuseProof: PASS\n[calibrator-db] opening C:\\Users\\User\\AppData\\Local\\Temp\\calibrator-transport-test-Qy4mUq\\test.db\ntestTransportSelectorRoutes: PASS\n\ncalibratorServer.test.js: ALL TESTS PASSED\n\n",
       "stderrTail": ""
     },
     {
       "file": "cloudBackupForecastData.test.js",
       "status": 0,
-      "durationMs": 7632,
+      "durationMs": 417,
       "ok": true,
       "error": null,
-      "stdoutTail": "[CloudBackup] Created local package: inverter-backup-2026-08-28T00-23-08-510Z\n[CloudBackup] Database restored from: C:\\Users\\User\\AppData\\Local\\Temp\\adsi-cloud-backup-uN9tOc\\cloud_backups\\inverter-backup-2026-08-28T00-23-08-510Z\\adsi.db\n[CloudBackup] Restore complete from: inverter-backup-2026-08-28T00-23-08-510Z\ncloudBackupForecastData.test.js: PASS\n",
+      "stdoutTail": "[CloudBackup] Created local package: inverter-backup-2026-08-28T00-46-24-741Z\n[CloudBackup] Database restored from: C:\\Users\\User\\AppData\\Local\\Temp\\adsi-cloud-backup-twXbeb\\cloud_backups\\inverter-backup-2026-08-28T00-46-24-741Z\\adsi.db\n[CloudBackup] Restore complete from: inverter-backup-2026-08-28T00-46-24-741Z\ncloudBackupForecastData.test.js: PASS\n",
       "stderrTail": "[CloudBackup] pre-backup WAL checkpoint skipped: this.db.pragma is not a function\n"
     },
     {
       "file": "cloudBackupResilience.test.js",
       "status": 0,
-      "durationMs": 6649,
+      "durationMs": 5054,
       "ok": true,
       "error": null,
       "stdoutTail": "cloudBackupResilience.test.js: PASS\n",
-      "stderrTail": "[CloudBackup] test-upload transient failure (attempt 1/3): temporary 503 from provider; retrying in 815ms\n[CloudBackup] test-upload transient failure (attempt 2/3): temporary 503 from provider; retrying in 162ms\n[CloudBackup] test-upload transient failure (attempt 1/3): read ECONNRESET; retrying in 657ms\n[CloudBackup] test-upload transient failure (attempt 2/3): read ECONNRESET; retrying in 1741ms\n[CloudBackup] test-upload transient failure (attempt 3/3): read ECONNRESET; retrying in 2971ms\n"
+      "stderrTail": "[CloudBackup] test-upload transient failure (attempt 1/3): temporary 503 from provider; retrying in 471ms\n[CloudBackup] test-upload transient failure (attempt 2/3): temporary 503 from provider; retrying in 1490ms\n[CloudBackup] test-upload transient failure (attempt 1/3): read ECONNRESET; retrying in 86ms\n[CloudBackup] test-upload transient failure (attempt 2/3): read ECONNRESET; retrying in 1988ms\n[CloudBackup] test-upload transient failure (attempt 3/3): read ECONNRESET; retrying in 737ms\n"
     },
     {
       "file": "cloudBackupRestoreSafety.test.js",
       "status": 0,
-      "durationMs": 1050,
+      "durationMs": 969,
       "ok": true,
       "error": null,
-      "stdoutTail": "[CloudBackup] Created local package: inverter-backup-2026-08-28T00-23-15-747Z\n  • R6 recovery.log included in backup (from programDataDir): PASS\n[CloudBackup] Created local package: inverter-backup-2026-08-28T00-23-15-815Z\n[CloudBackup] Created local package: inverter-backup-2026-08-28T00-23-15-842Z\n  • R3 manifest row counts: PASS\n[CloudBackup] Created local package: inverter-backup-2026-08-28T00-23-15-881Z\n[CloudBackup] Database restored from: C:\\Users\\User\\AppData\\Local\\Temp\\adsi-paths-eaGtGV\\cloud_backups\\inverter-backup-2026-08-28T00-23-15-881Z\\adsi.db\n[CloudBackup] Restore complete from: inverter-backup-2026-08-28T00-23-15-881Z\n  • Restore destination paths round-trip correctly: PASS\n[CloudBackup] Created local package: inverter-backup-2026-08-28T00-23-16-039Z\n  • Pre-restore writability probe aborts cleanly: PASS\n[CloudBackup] Created local package: inverter-backup-2026-08-28T00-23-16-101Z\n[CloudBackup] Database restored from: C:\\Users\\User\\AppData\\Local\\Temp\\adsi-scopefilter-dNMzK1\\cloud_backups\\inverter-backup-2026-08-28T00-23-16-101Z\\adsi.db\n[CloudBackup] Restore complete from: inverter-backup-2026-08-28T00-23-16-101Z\n  • Scope filter selective restore: PASS\n[CloudBackup] Created local package: inverter-backup-2026-08-28T00-23-16-235Z\n[CloudBackup] Restore complete from: inverter-backup-2026-08-28T00-23-16-235Z\n  • Scope filter empty array blocks all scopes: PASS\ncloudBackupRestoreSafety.test.js: PASS\n",
-      "stderrTail": "[CloudBackup] Restore failed mid-flight; attempting auto-rollback to safety backup: inverter-backup-2026-08-28T00-23-15-688Z\n[CloudBackup] Auto-rollback succeeded.\n"
+      "stdoutTail": "[CloudBackup] Created local package: inverter-backup-2026-08-28T00-46-30-412Z\n  • R6 recovery.log included in backup (from programDataDir): PASS\n[CloudBackup] Created local package: inverter-backup-2026-08-28T00-46-30-502Z\n[CloudBackup] Created local package: inverter-backup-2026-08-28T00-46-30-530Z\n  • R3 manifest row counts: PASS\n[CloudBackup] Created local package: inverter-backup-2026-08-28T00-46-30-571Z\n[CloudBackup] Database restored from: C:\\Users\\User\\AppData\\Local\\Temp\\adsi-paths-cMYy33\\cloud_backups\\inverter-backup-2026-08-28T00-46-30-571Z\\adsi.db\n[CloudBackup] Restore complete from: inverter-backup-2026-08-28T00-46-30-571Z\n  • Restore destination paths round-trip correctly: PASS\n[CloudBackup] Created local package: inverter-backup-2026-08-28T00-46-30-722Z\n  • Pre-restore writability probe aborts cleanly: PASS\n[CloudBackup] Created local package: inverter-backup-2026-08-28T00-46-30-777Z\n[CloudBackup] Database restored from: C:\\Users\\User\\AppData\\Local\\Temp\\adsi-scopefilter-F9h5nZ\\cloud_backups\\inverter-backup-2026-08-28T00-46-30-777Z\\adsi.db\n[CloudBackup] Restore complete from: inverter-backup-2026-08-28T00-46-30-777Z\n  • Scope filter selective restore: PASS\n[CloudBackup] Created local package: inverter-backup-2026-08-28T00-46-30-894Z\n[CloudBackup] Restore complete from: inverter-backup-2026-08-28T00-46-30-894Z\n  • Scope filter empty array blocks all scopes: PASS\ncloudBackupRestoreSafety.test.js: PASS\n",
+      "stderrTail": "[CloudBackup] Restore failed mid-flight; attempting auto-rollback to safety backup: inverter-backup-2026-08-28T00-46-30-339Z\n[CloudBackup] Auto-rollback succeeded.\n"
     },
     {
       "file": "cloudBackupS3Dedupe.test.js",
       "status": 0,
-      "durationMs": 495,
+      "durationMs": 601,
       "ok": true,
       "error": null,
-      "stdoutTail": "[CloudBackup] Created local package: inverter-backup-2026-08-28T00-23-16-568Z\n[CloudBackup] Uploaded inverter-backup-2026-08-28T00-23-16-568Z → s3\n[CloudBackup] Created local package: inverter-backup-2026-08-28T00-23-16-693Z\n[CloudBackup] Uploaded inverter-backup-2026-08-28T00-23-16-693Z → s3\n[CloudBackup] Pulled inverter-backup-2026-08-28T00-23-16-693Z from s3\n[CloudBackup] Database restored from: C:\\Users\\User\\AppData\\Local\\Temp\\adsi-cloud-s3-dedupe-GqQjUo\\pull\\data\\cloud_backups\\inverter-backup-2026-08-28T00-23-16-693Z\\adsi.db\n[CloudBackup] Restore complete from: inverter-backup-2026-08-28T00-23-16-693Z\ncloudBackupS3Dedupe.test.js: PASS\n",
+      "stdoutTail": "[CloudBackup] Created local package: inverter-backup-2026-08-28T00-46-31-220Z\n[CloudBackup] Uploaded inverter-backup-2026-08-28T00-46-31-220Z → s3\n[CloudBackup] Created local package: inverter-backup-2026-08-28T00-46-31-368Z\n[CloudBackup] Uploaded inverter-backup-2026-08-28T00-46-31-368Z → s3\n[CloudBackup] Pulled inverter-backup-2026-08-28T00-46-31-368Z from s3\n[CloudBackup] Database restored from: C:\\Users\\User\\AppData\\Local\\Temp\\adsi-cloud-s3-dedupe-LI722N\\pull\\data\\cloud_backups\\inverter-backup-2026-08-28T00-46-31-368Z\\adsi.db\n[CloudBackup] Restore complete from: inverter-backup-2026-08-28T00-46-31-368Z\ncloudBackupS3Dedupe.test.js: PASS\n",
       "stderrTail": "[CloudBackup] pre-backup WAL checkpoint skipped: this.db.pragma is not a function\n[CloudBackup] pre-backup WAL checkpoint skipped: this.db.pragma is not a function\n"
     },
     {
       "file": "complianceOrchestratorCore.test.js",
       "status": 0,
-      "durationMs": 107,
+      "durationMs": 115,
       "ok": true,
       "error": null,
       "stdoutTail": "\n  complianceOrchestratorCore.test.js — Slice θ.1\n\n  ✓ CaptureBuffer.push + drain — basic round-trip\n  ✓ CaptureBuffer respects maxSamples limit + tracks dropped\n  ✓ CaptureBuffer.tail returns trailing N samples\n  ✓ CaptureBuffer rejects null + non-object inputs gracefully\n  ✓ ComplianceRun rejects unknown test_kind\n  ✓ OrchestratorRegistry.start creates a run + invokes db.insertComplianceRun\n  ✓ ComplianceRun beginStep/endStep persists step + flips pass\n  ✓ ComplianceRun.finalize is idempotent\n  ✓ OrchestratorRegistry.abort flips run.abortRequested\n  ✓ OrchestratorRegistry.list reports per-run stats\n  ✓ OrchestratorRegistry.reapStaleRuns drops finalized runs older than maxAge\n  ✓ VALID_KINDS contains the three planned kinds\n  ✓ VALID_STATUSES includes completed_with_warnings (T3/T5 restoration-fail surface)\n",
@@ -297,7 +297,7 @@
     {
       "file": "complianceReportGenCore.test.js",
       "status": 0,
-      "durationMs": 165,
+      "durationMs": 173,
       "ok": true,
       "error": null,
       "stdoutTail": "\n  complianceReportGenCore.test.js — Slice θ.6\n\n  ✓ generateCsvBundle writes a UTF-8 BOM file containing meta + steps + samples\n  ✓ _buildReportHtml escapes injection-prone characters\n  ✓ _buildReportHtml shows pass + fail counts visually\n  ✓ _buildReportHtml includes the witness sign-off block\n  ✓ _buildReportHtml handles empty steps + samples gracefully\n  ✓ generateCsvBundle handles empty steps + samples\n  ✓ generateCsvBundle: data rows are properly column-split (regression guard)\n",
@@ -306,7 +306,7 @@
     {
       "file": "complianceSampleSourceCore.test.js",
       "status": 0,
-      "durationMs": 92,
+      "durationMs": 93,
       "ok": true,
       "error": null,
       "stdoutTail": "\n  complianceSampleSourceCore.test.js — Slice θ live-source priority\n\n  ✓ buildIpToInverterMap walks the object-map ipconfig shape\n  ✓ buildIpToInverterMap tolerates null/undefined/wrong-shape ipconfig\n  ✓ liveFrameToSample maps every compliance field correctly\n  ✓ liveFrameToSample propagates null cleanly (slow-poll-only fields)\n  ✓ liveFrameToSample returns null for null/non-object input\n  ✓ fiveMinRowToSample maps qac_var_avg → qac_var (Slice β migration column name)\n  ✓ resolveComplianceSample PREFERS live frame when fresh\n  ✓ resolveComplianceSample FALLS BACK to 5-min row when live is stale\n  ✓ resolveComplianceSample FALLS BACK when live frame missing\n  ✓ resolveComplianceSample returns null when ip not in ipconfig AND no fallback\n  ✓ resolveComplianceSample tolerates fetchFiveMinRow throw\n  ✓ resolveComplianceSample rejects bad ip/slave inputs\n  ✓ LIVE_FRESH_MS_DEFAULT matches server-side LIVE_FRESH_MS contract (15 s)\n",
@@ -315,16 +315,16 @@
     {
       "file": "complianceTestT2Core.test.js",
       "status": 0,
-      "durationMs": 107,
+      "durationMs": 99,
       "ok": true,
       "error": null,
-      "stdoutTail": "[compliance][T2] run_id=t2-1787876597343-bfb166 starting 1-min frequency-withstand observation on 1 target(s) (sample every 1s, NGCP envelope continuous=59.7-60.3Hz withstand=58.2-61.8Hz)\n[compliance][T2] run_id=t2-1787876597343-bfb166 COMPLETED — 60 samples, mean 59.958Hz, min/max 58.5/60, 58 in-continuous / 2 in-withstand / 0 outside, pass=false\n  ✓ withstand-band excursions → completed + pass=false + non-zero longest excursion\n[compliance][T2] run_id=t2-1787876597343-b84ddd starting 1-min frequency-withstand observation on 1 target(s) (sample every 1s, NGCP envelope continuous=59.7-60.3Hz withstand=58.2-61.8Hz)\n[compliance][T2] run_id=t2-1787876597343-b84ddd COMPLETED — 60 samples, mean 59.992Hz, min/max 57/62.5, 58 in-continuous / 0 in-withstand / 2 outside, pass=false\n  ✓ outside-withstand frequencies counted separately\n[compliance][T2] run_id=t2-1787876597344-e119f0 starting 1-min frequency-withstand observation on 1 target(s) (sample every 1s, NGCP envelope continuous=59.7-60.3Hz withstand=58.2-61.8Hz)\n[compliance][T2] run_id=t2-1787876597344-e119f0 COMPLETED — 60 samples, mean 60.000Hz, min/max 60/60, 60 in-continuous / 0 in-withstand / 0 outside, pass=true\n  ✓ alarm transition counted in summary\n[compliance][T2] run_id=t2-1787876597345-31816e starting 1-min frequency-withstand observation on 1 target(s) (sample every 1s, NGCP envelope continuous=59.7-60.3Hz withstand=58.2-61.8Hz)\n[compliance][T2] run_id=t2-1787876597345-31816e COMPLETED — 60 samples, mean 60.000Hz, min/max 60/60, 60 in-continuous / 0 in-withstand / 0 outside, pass=true\n  ✓ state changes counted across samples\n[compliance][T2] run_id=t2-1787876597345-3a71de starting 10-min frequency-withstand observation on 1 target(s) (sample every 1s, NGCP envelope continuous=59.7-60.3Hz withstand=58.2-61.8Hz)\n[compliance][T2] run_id=t2-1787876597345-3a71de ABORTED — 3 samples, mean 60.000Hz, min/max 60/60, 3 in-continuous / 0 in-withstand / 0 outside, pass=true\n  ✓ abort flag stops mid-stream + final status='aborted'\n  ✓ empty target list → finalize failed without I/O\n[compliance][T2] run_id=t2-1787876597345-7a79e5 starting 1-min frequency-withstand observation on 1 target(s) (sample every 1s, NGCP envelope continuous=59.7-60.3Hz withstand=58.2-61.8Hz)\n[compliance][T2] run_id=t2-1787876597345-7a79e5 COMPLETED — 60 samples, mean 60.000Hz, min/max 60/60, 58 in-continuous / 0 in-withstand / 0 outside, pass=true\n  ✓ missing freq_hz in samples handled (not counted in tallies)\n",
-      "stderrTail": "[compliance][T2] run_id=t2-1787876597345-3a71de abort requested mid-observation\n[compliance][T2] run_id=t2-1787876597345-e78d04 aborted: no target inverters\n"
+      "stdoutTail": "[compliance][T2] run_id=t2-1787877992073-a77a14 starting 1-min frequency-withstand observation on 1 target(s) (sample every 1s, NGCP envelope continuous=59.7-60.3Hz withstand=58.2-61.8Hz)\n[compliance][T2] run_id=t2-1787877992073-a77a14 COMPLETED — 60 samples, mean 59.958Hz, min/max 58.5/60, 58 in-continuous / 2 in-withstand / 0 outside, pass=false\n  ✓ withstand-band excursions → completed + pass=false + non-zero longest excursion\n[compliance][T2] run_id=t2-1787877992073-9b38a4 starting 1-min frequency-withstand observation on 1 target(s) (sample every 1s, NGCP envelope continuous=59.7-60.3Hz withstand=58.2-61.8Hz)\n[compliance][T2] run_id=t2-1787877992073-9b38a4 COMPLETED — 60 samples, mean 59.992Hz, min/max 57/62.5, 58 in-continuous / 0 in-withstand / 2 outside, pass=false\n  ✓ outside-withstand frequencies counted separately\n[compliance][T2] run_id=t2-1787877992074-6493c1 starting 1-min frequency-withstand observation on 1 target(s) (sample every 1s, NGCP envelope continuous=59.7-60.3Hz withstand=58.2-61.8Hz)\n[compliance][T2] run_id=t2-1787877992074-6493c1 COMPLETED — 60 samples, mean 60.000Hz, min/max 60/60, 60 in-continuous / 0 in-withstand / 0 outside, pass=true\n  ✓ alarm transition counted in summary\n[compliance][T2] run_id=t2-1787877992075-955653 starting 1-min frequency-withstand observation on 1 target(s) (sample every 1s, NGCP envelope continuous=59.7-60.3Hz withstand=58.2-61.8Hz)\n[compliance][T2] run_id=t2-1787877992075-955653 COMPLETED — 60 samples, mean 60.000Hz, min/max 60/60, 60 in-continuous / 0 in-withstand / 0 outside, pass=true\n  ✓ state changes counted across samples\n[compliance][T2] run_id=t2-1787877992075-82d197 starting 10-min frequency-withstand observation on 1 target(s) (sample every 1s, NGCP envelope continuous=59.7-60.3Hz withstand=58.2-61.8Hz)\n[compliance][T2] run_id=t2-1787877992075-82d197 ABORTED — 3 samples, mean 60.000Hz, min/max 60/60, 3 in-continuous / 0 in-withstand / 0 outside, pass=true\n  ✓ abort flag stops mid-stream + final status='aborted'\n  ✓ empty target list → finalize failed without I/O\n[compliance][T2] run_id=t2-1787877992076-ae8149 starting 1-min frequency-withstand observation on 1 target(s) (sample every 1s, NGCP envelope continuous=59.7-60.3Hz withstand=58.2-61.8Hz)\n[compliance][T2] run_id=t2-1787877992076-ae8149 COMPLETED — 60 samples, mean 60.000Hz, min/max 60/60, 58 in-continuous / 0 in-withstand / 0 outside, pass=true\n  ✓ missing freq_hz in samples handled (not counted in tallies)\n",
+      "stderrTail": "[compliance][T2] run_id=t2-1787877992075-82d197 abort requested mid-observation\n[compliance][T2] run_id=t2-1787877992076-03a3f1 aborted: no target inverters\n"
     },
     {
       "file": "complianceTestT3Core.test.js",
       "status": 0,
-      "durationMs": 102,
+      "durationMs": 91,
       "ok": true,
       "error": null,
       "stdoutTail": "[compliance][T3] step 2/2 → target PF 0.95 lag (phi_raw=10770)\n[compliance][T3] run_id=? FAILED — 0 pass / 1 fail / 0 skip; restoration=ok\n[compliance][T3] run_id=? FAILED — 0 pass / 0 fail / 1 skip; restoration=ok\n[compliance][T3] step 1 PASS — observed PF 1.000 (dev 0.00pp, 12 post-settle samples)\n[compliance][T3] step 2/3 → target PF 0.95 lag (phi_raw=10770)\n[compliance][T3] step 1 PASS — observed PF 1.000 (dev 0.00pp, 12 post-settle samples)\n[compliance][T3] step 2/21 → target PF 0.99 lag (phi_raw=4669)\n[compliance][T3] step 2 PASS — observed PF 0.950 (dev 0.00pp, 7 post-settle samples)\n[compliance][T3] step 2 PASS — observed PF 0.950 (dev 0.00pp, 7 post-settle samples)\n[compliance][T3] run_id=? COMPLETED — 2 pass / 0 fail / 0 skip; restoration=ok\n[compliance][T3] run_id=? COMPLETED_WITH_WARNINGS — 2 pass / 0 fail / 0 skip; restoration=PARTIAL\n[compliance][T3] step 2 PASS — observed PF 0.950 (dev 0.00pp, 12 post-settle samples)\n[compliance][T3] step 3/3 → target PF 1 0 (phi_raw=0)\n[compliance][T3] step 2 PASS — observed PF 1.000 (dev 1.00pp, 12 post-settle samples)\n[compliance][T3] step 3/21 → target PF 0.98 lag (phi_raw=6654)\n[compliance][T3] step 3 SKIP — observed PF — (dev —, 0 post-settle samples)\n[compliance][T3] run_id=? ABORTED — 2 pass / 0 fail / 1 skip; restoration=ok\n[compliance][T3] step 3 PASS — observed PF 1.000 (dev 0.00pp, 12 post-settle samples)\n[compliance][T3] run_id=? COMPLETED — 3 pass / 0 fail / 0 skip; restoration=ok\n",
@@ -333,16 +333,16 @@
     {
       "file": "complianceTestT5Core.test.js",
       "status": 0,
-      "durationMs": 102,
+      "durationMs": 99,
       "ok": true,
       "error": null,
-      "stdoutTail": "[compliance][T5] run_id=t5-1787876597548-b1ef59 COMPLETED_WITH_WARNINGS — 0 pass / 0 fail / 0 skip; restoration=PARTIAL\n  ✓ runApcSweep — failed setpoint write marks step fail without samples\n[compliance][T5] run_id=t5-1787876597549-119b45 starting 4-step ramp [100→75→50→25]% on 1 target(s) — hold=30s settle=30s tol=±5%\n[compliance][T5] step 1/4 → 100%\n[compliance][T5] step 1 FAIL — observed 0.00% (dev 100.00%, 0 post-settle samples)\n[compliance][T5] step 2/4 → 75%\n[compliance][T5] step 2 FAIL — observed 0.00% (dev 75.00%, 0 post-settle samples)\n[compliance][T5] run_id=t5-1787876597549-119b45 ABORTED — 0 pass / 2 fail / 0 skip; restoration=ok\n  ✓ runApcSweep — abort flag stops mid-sequence + final status='aborted'\n  ✓ runApcSweep — empty target list → finalize failed without I/O\n[compliance][T5] run_id=t5-1787876597549-df3c8d starting 3-step ramp [100→50→100]% on 1 target(s) — hold=30s settle=5s tol=±5%\n[compliance][T5] step 1/3 → 100%\n[compliance][T5] step 1 PASS — observed 100.00% (dev 0.00%, 25 post-settle samples)\n[compliance][T5] step 2/3 → 50%\n[compliance][T5] step 2 PASS — observed 50.00% (dev 0.00%, 25 post-settle samples)\n[compliance][T5] step 3/3 → 100%\n[compliance][T5] step 3 PASS — observed 100.00% (dev 0.00%, 25 post-settle samples)\n[compliance][T5] run_id=t5-1787876597549-df3c8d COMPLETED_WITH_WARNINGS — 3 pass / 0 fail / 0 skip; restoration=PARTIAL\n  ✓ runApcSweep — restoration failure flips status to completed_with_warnings\n",
-      "stderrTail": "[compliance][T5] step 1 setpoint write failed (target 50%); marking FAIL and continuing\n[compliance][T5] restoration to 100% partially failed — operator must verify holding 41006 reads 32767 on all 1 target(s)\n[compliance][T5] run_id=t5-1787876597549-119b45 abort requested at step 2/4\n[compliance][T5] run_id=t5-1787876597549-20f448 aborted: no target inverters\n[compliance][T5] restoration to 100% partially failed — operator must verify holding 41006 reads 32767 on all 1 target(s)\n"
+      "stdoutTail": "[compliance][T5] run_id=t5-1787877992264-b67284 COMPLETED_WITH_WARNINGS — 0 pass / 0 fail / 0 skip; restoration=PARTIAL\n  ✓ runApcSweep — failed setpoint write marks step fail without samples\n[compliance][T5] run_id=t5-1787877992264-d59c1d starting 4-step ramp [100→75→50→25]% on 1 target(s) — hold=30s settle=30s tol=±5%\n[compliance][T5] step 1/4 → 100%\n[compliance][T5] step 1 FAIL — observed 0.00% (dev 100.00%, 0 post-settle samples)\n[compliance][T5] step 2/4 → 75%\n[compliance][T5] step 2 FAIL — observed 0.00% (dev 75.00%, 0 post-settle samples)\n[compliance][T5] run_id=t5-1787877992264-d59c1d ABORTED — 0 pass / 2 fail / 0 skip; restoration=ok\n  ✓ runApcSweep — abort flag stops mid-sequence + final status='aborted'\n  ✓ runApcSweep — empty target list → finalize failed without I/O\n[compliance][T5] run_id=t5-1787877992265-3e98a2 starting 3-step ramp [100→50→100]% on 1 target(s) — hold=30s settle=5s tol=±5%\n[compliance][T5] step 1/3 → 100%\n[compliance][T5] step 1 PASS — observed 100.00% (dev 0.00%, 25 post-settle samples)\n[compliance][T5] step 2/3 → 50%\n[compliance][T5] step 2 PASS — observed 50.00% (dev 0.00%, 25 post-settle samples)\n[compliance][T5] step 3/3 → 100%\n[compliance][T5] step 3 PASS — observed 100.00% (dev 0.00%, 25 post-settle samples)\n[compliance][T5] run_id=t5-1787877992265-3e98a2 COMPLETED_WITH_WARNINGS — 3 pass / 0 fail / 0 skip; restoration=PARTIAL\n  ✓ runApcSweep — restoration failure flips status to completed_with_warnings\n",
+      "stderrTail": "[compliance][T5] step 1 setpoint write failed (target 50%); marking FAIL and continuing\n[compliance][T5] restoration to 100% partially failed — operator must verify holding 41006 reads 32767 on all 1 target(s)\n[compliance][T5] run_id=t5-1787877992264-d59c1d abort requested at step 2/4\n[compliance][T5] run_id=t5-1787877992264-65762b aborted: no target inverters\n[compliance][T5] restoration to 100% partially failed — operator must verify holding 41006 reads 32767 on all 1 target(s)\n"
     },
     {
       "file": "counterHealth.test.js",
       "status": 0,
-      "durationMs": 92,
+      "durationMs": 90,
       "ok": true,
       "error": null,
       "stdoutTail": "counterHealth.test: OK\n",
@@ -351,25 +351,25 @@
     {
       "file": "counterHealthAuditCore.test.js",
       "status": 0,
-      "durationMs": 108,
+      "durationMs": 111,
       "ok": true,
       "error": null,
-      "stdoutTail": "# Subtest: emits BOTH audits when Etotal regresses AND counter goes stuck same frame\nok 8 - emits BOTH audits when Etotal regresses AND counter goes stuck same frame\n  ---\n  duration_ms: 0.7846\n  ...\n# Subtest: DEFAULT_DEDUP_MS exposed at 1 hour\nok 9 - DEFAULT_DEDUP_MS exposed at 1 hour\n  ---\n  duration_ms: 0.0956\n  ...\n1..9\n# tests 9\n# suites 0\n# pass 9\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 11.1925\n",
+      "stdoutTail": "# Subtest: emits BOTH audits when Etotal regresses AND counter goes stuck same frame\nok 8 - emits BOTH audits when Etotal regresses AND counter goes stuck same frame\n  ---\n  duration_ms: 0.6271\n  ...\n# Subtest: DEFAULT_DEDUP_MS exposed at 1 hour\nok 9 - DEFAULT_DEDUP_MS exposed at 1 hour\n  ---\n  duration_ms: 0.0975\n  ...\n1..9\n# tests 9\n# suites 0\n# pass 9\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 11.5479\n",
       "stderrTail": ""
     },
     {
       "file": "crashRecovery.test.js",
       "status": 0,
-      "durationMs": 591,
+      "durationMs": 556,
       "ok": true,
       "error": null,
-      "stdoutTail": "[crashRecovery] start\n  ✓ integrityGate: 5 cases (missing, valid, corrupt, bad-header, no-manifest)\n  ✓ integrityGate: Electron asar shim simulation → skipped (reason=\"fs layer reports asar as directory — skipping (original-fs unavailable?)\")\n[DB] Auto-restored adsi.db from backup slot 0 (8192 bytes, mtime=2026-08-28T00:23:18.016Z). Previous corrupt DB quarantined at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-db-restore-UTPODG\\adsi.db.corrupt-2026-08-28T00-23-18-100Z.\n[DB] Post-open quick_check: ok\n[pac_w_repair] repaired 0 rows in inverter_5min_param (one-shot)\n  ✓ db auto-restore: restoredFromSlot=0, quarantined=adsi.db.corrupt-2026-08-28T00-23-18-100Z\n[crashRecovery] all assertions passed\n",
+      "stdoutTail": "[crashRecovery] start\n  ✓ integrityGate: 5 cases (missing, valid, corrupt, bad-header, no-manifest)\n  ✓ integrityGate: Electron asar shim simulation → skipped (reason=\"fs layer reports asar as directory — skipping (original-fs unavailable?)\")\n[DB] Auto-restored adsi.db from backup slot 0 (8192 bytes, mtime=2026-08-28T00:46:32.752Z). Previous corrupt DB quarantined at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-db-restore-Yrn9em\\adsi.db.corrupt-2026-08-28T00-46-32-779Z.\n[DB] Post-open quick_check: ok\n[pac_w_repair] repaired 0 rows in inverter_5min_param (one-shot)\n  ✓ db auto-restore: restoredFromSlot=0, quarantined=adsi.db.corrupt-2026-08-28T00-46-32-779Z\n[crashRecovery] all assertions passed\n",
       "stderrTail": "[DB] Main DB corrupt at startup (header invalid). Attempting auto-restore from rotating backup slots.\n"
     },
     {
       "file": "criticalAlarmPatternsCore.test.js",
       "status": 0,
-      "durationMs": 99,
+      "durationMs": 96,
       "ok": true,
       "error": null,
       "stdoutTail": "  âœ“ Slice Îº.7: bit 6 alone (0x0040) no longer triggers any auto-block pattern\n  âœ“ evaluateCriticalPatterns: 0x0240 (bits 6+9) fires only on its own pattern\n  âœ“ evaluateCriticalPatterns: explicit minSpacingMs=0 restores legacy raw count\n  âœ“ countPatternEpisodesInWindow: counts all matching rows (no cap on raw count)\n  âœ“ evaluateCriticalPatterns: caps episodes list at 20 for UI sanity\n  âœ“ evaluateCriticalPatterns: no rows â†’ every catalogue entry 'ok', not recurring\n  âœ“ evaluateCriticalPatterns: 1 episode â†’ 'watch', not yet critical\n  âœ“ evaluateCriticalPatterns: 2 episodes within 48h â†’ 'watch' (below new MIN_COUNT=3)\n  âœ“ evaluateCriticalPatterns: 3 episodes within 48h â†’ CRITICAL, recurring (Slice Îº.7)\n  âœ“ evaluateCriticalPatterns: 0x0210 path independent of 0x0240\n  âœ“ evaluateCriticalPatterns: 2 episodes spanning > 48h â†’ only counts in-window\n  âœ“ evaluateCriticalPatterns: custom minCount=5 raises threshold above default\n  âœ“ hasAnyCriticalPattern: detects critical entry\n  âœ“ hasAnyCriticalPattern: no critical â†’ false\n  âœ“ worstSeverity ranks critical > watch > ok\n\nâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€\n  criticalAlarmPatternsCore.test.js complete\n\n",
@@ -378,7 +378,7 @@
     {
       "file": "criticalPatternEnforcerCore.test.js",
       "status": 0,
-      "durationMs": 189,
+      "durationMs": 221,
       "ok": true,
       "error": null,
       "stdoutTail": "  ✓ decide: gate is per-slave — pattern on slave 1 with unbalance on slave 2 does NOT open\n  ✓ decide: no unbalance field on any slave → gated (mandatory gate, NO legacy fallback)\n  ✓ decide: critical + sustained unbalance + IN solar window → arm_pending (defer STOP)\n  ✓ decide: armed pending + solar window CLOSED + still critical → open_block (deferred)\n  ✓ decide: armed pending + pattern resolved before solar close → disarm_pending\n  ✓ enforceOne: no critical, no active block → noop, no STOP issued\n  ✓ enforceOne: promote_block updates pattern in place, no new STOP\n  ✓ enforceOne: arm_pending arms a deferred row — NO STOP, NO openBlock\n  ✓ enforceOne: disarm_pending drops the armed row, NO STOP\n  ✓ enforceOne: gated_pending_unbalance emits audit log but no STOP\n  ✓ enforceOne: STOP failure doesn't suppress the block row\n\n──────────────────────────────────────────────────────────\n  criticalPatternEnforcerCore.test.js complete\n\n  ✓ enforceOne: deferred conversion after solar — activates pending + issues STOP\n  ✓ enforceOne: critical → opens block, issues STOP to all configured slaves\n  ✓ enforceOne: stopPerSlaveDelayMs=0 disables graceful spacing (legacy / test mode)\n  ✓ enforceOne: graceful STOP — delay between slaves, NOT before the first\n",
@@ -387,7 +387,7 @@
     {
       "file": "currentDayEnergyCore.test.js",
       "status": 0,
-      "durationMs": 101,
+      "durationMs": 144,
       "ok": true,
       "error": null,
       "stdoutTail": "currentDayEnergyCore.test.js: PASS\n",
@@ -396,7 +396,7 @@
     {
       "file": "dailyAggregatorCore.test.js",
       "status": 0,
-      "durationMs": 92,
+      "durationMs": 121,
       "ok": true,
       "error": null,
       "stdoutTail": "dailyAggregatorCore.test.js — all 26 scenarios passed.\n",
@@ -405,7 +405,7 @@
     {
       "file": "dailyAggregatorCoverage.test.js",
       "status": 0,
-      "durationMs": 86,
+      "durationMs": 98,
       "ok": true,
       "error": null,
       "stdoutTail": "dailyAggregatorCoverage.test.js — all 15 scenarios passed.\n",
@@ -414,7 +414,7 @@
     {
       "file": "dailyRunningSummary.test.js",
       "status": 0,
-      "durationMs": 105,
+      "durationMs": 107,
       "ok": true,
       "error": null,
       "stdoutTail": "dailyRunningSummary.test.js: PASS (4 cases)\n",
@@ -423,7 +423,7 @@
     {
       "file": "dayAheadPlanImplementation.test.js",
       "status": 0,
-      "durationMs": 100,
+      "durationMs": 116,
       "ok": true,
       "error": null,
       "stdoutTail": "dayAheadPlanImplementation.test.js: PASS\n",
@@ -432,7 +432,7 @@
     {
       "file": "dayAheadSpreadCap.test.js",
       "status": 0,
-      "durationMs": 339,
+      "durationMs": 1479,
       "ok": true,
       "error": null,
       "stdoutTail": "[DB] Startup quick_check: ok\n[DB] Post-open quick_check: ok\ndayAheadSpreadCap.test.js: PASS\n",
@@ -441,7 +441,7 @@
     {
       "file": "dbPathEnvCompat.test.js",
       "status": 0,
-      "durationMs": 353,
+      "durationMs": 337,
       "ok": true,
       "error": null,
       "stdoutTail": "[PASS] ADSI_DATA_DIR fallback\n[PASS] ADSI_PORTABLE_DATA_DIR fallback\n[PASS] IM_DATA_DIR precedence\ndbPathEnvCompat: all checks passed\n",
@@ -450,7 +450,7 @@
     {
       "file": "dbSlowFieldsMigration.test.js",
       "status": 0,
-      "durationMs": 111,
+      "durationMs": 101,
       "ok": true,
       "error": null,
       "stdoutTail": "\n──────────────────────────────────────────────────────────\n  dbSlowFieldsMigration.test.js — Slice β schema\n──────────────────────────────────────────────────────────\n\n  ✓ DB migration: new columns can be added to inverter_5min_param\n  ✓ DB migration: idempotent (safe to re-run)\n  ✓ DB migration: old rows have NULL for slow columns\n  ✓ DB migration: new rows can store slow-field values\n  ✓ DB migration: all 26 slow-field columns added without error\n\n──────────────────────────────────────────────────────────\n  All tests completed\n──────────────────────────────────────────────────────────\n\n",
@@ -468,25 +468,25 @@
     {
       "file": "energyRestartRecovery.test.js",
       "status": 0,
-      "durationMs": 383,
+      "durationMs": 391,
       "ok": true,
       "error": null,
       "stdoutTail": "[energyRestartRecovery] start\n[DB] Post-open quick_check: ok\n[pac_w_repair] repaired 0 rows in inverter_5min_param (one-shot)\n[energy-recovery] backfilled 1 energy_5min slot(s), 30.000 kWh across 1 inverter(s) from persisted readings.\n  ✓ T1 gap-fill: slot B backfilled with 30 kWh\n  ✓ T2 no-overwrite: pre-existing slot A left at 99.0\n  ✓ T3 in-progress slot excluded; recovered=1\n  ✓ T4 idempotent: re-run recovered 0, no duplicate rows\n[energyRestartRecovery] all assertions passed\n",
-      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-energy-recovery-xYKCT6\\adsi.db — fresh DB will be created on open\n"
+      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-energy-recovery-aDrQf1\\adsi.db — fresh DB will be created on open\n"
     },
     {
       "file": "energySummaryNodeStatusCore.test.js",
       "status": 0,
-      "durationMs": 114,
+      "durationMs": 115,
       "ok": true,
       "error": null,
-      "stdoutTail": "# Subtest: hwProvenance='hw_counter' uses the normal discrepancy classifier\nok 16 - hwProvenance='hw_counter' uses the normal discrepancy classifier\n  ---\n  duration_ms: 0.0495\n  ...\n# Subtest: every reason string is plain ASCII words (no Δ/≤/—/? glyphs)\nok 17 - every reason string is plain ASCII words (no Δ/≤/—/? glyphs)\n  ---\n  duration_ms: 1.2976\n  ...\n1..17\n# tests 17\n# suites 0\n# pass 17\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 11.9941\n",
+      "stdoutTail": "# Subtest: hwProvenance='hw_counter' uses the normal discrepancy classifier\nok 16 - hwProvenance='hw_counter' uses the normal discrepancy classifier\n  ---\n  duration_ms: 0.0385\n  ...\n# Subtest: every reason string is plain ASCII words (no Δ/≤/—/? glyphs)\nok 17 - every reason string is plain ASCII words (no Δ/≤/—/? glyphs)\n  ---\n  duration_ms: 1.44\n  ...\n1..17\n# tests 17\n# suites 0\n# pass 17\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 14.1248\n",
       "stderrTail": ""
     },
     {
       "file": "energySummaryScaleCore.test.js",
       "status": 0,
-      "durationMs": 91,
+      "durationMs": 96,
       "ok": true,
       "error": null,
       "stdoutTail": "energySummaryScaleCore.test.js: PASS\n",
@@ -495,7 +495,7 @@
     {
       "file": "firmwareBusLock.test.js",
       "status": 0,
-      "durationMs": 94,
+      "durationMs": 98,
       "ok": true,
       "error": null,
       "stdoutTail": "  ok  active vs expired claims are filtered by expires_ms\n  ok  expires_ms exactly == now is NOT active (strictly greater)\n  ok  multiple live claims all returned\n  ok  fail-open: missing ip / blank ip / no expiry are dropped\n  ok  fail-open: non-object / wrong-shape inputs yield [] (never throws)\n  ok  ip is trimmed; numeric fields coerced safely\n  ok  activeInverterIps never throws and returns a Set (fail-open)\n\nfirmwareBusLock: all 7 checks passed\n",
@@ -504,7 +504,7 @@
     {
       "file": "firmwareMap.test.js",
       "status": 0,
-      "durationMs": 97,
+      "durationMs": 106,
       "ok": true,
       "error": null,
       "stdoutTail": "  ok  fwTuple = model_code only (normalised); aux strings ignored\n  ok  parseExpectedTuple accepts plain code, JSON object, rejects garbage\n  ok  computeCanonical = modal model_code, ignores failed/empty-model rows\n  ok  computeCanonical tie-break is deterministic (lexical lowest)\n  ok  pinned-expected (string code) overrides modal even if fleet uniformly old\n  ok  classifyFleet: same model + differing aux is STILL all ok\n  ok  classifyFleet: intra-inverter split is driven by model_code only\n  ok  classifyFleet: unknown node -> partial, snapshot not clobbered\n  ok  classifyFleet: IP-octet sort orders inverters numerically\n  ok  diffForPersist: first sighting upserts but logs NO drift\n  ok  diffForPersist: real model_code change logs exactly one drift event\n  ok  diffForPersist: aux-only change is NOT drift (the verified correction)\n  ok  diffForPersist: unknown read never clobbers and never logs drift\n  ok  persistence: upsert preserves first_seen, drift log + prune + filters\n  ok  empty / all-unknown scan is safe (no canonical, not homogeneous)\n\nfirmwareMap: all 15 checks passed\n",
@@ -513,7 +513,7 @@
     {
       "file": "forecastActualAverageTable.test.js",
       "status": 0,
-      "durationMs": 15392,
+      "durationMs": 516,
       "ok": true,
       "error": null,
       "stdoutTail": "[DB] Post-open quick_check: ok\n[pac_w_repair] repaired 0 rows in inverter_5min_param (one-shot)\nforecastActualAverageTable.test.js: PASS\n",
@@ -522,7 +522,7 @@
     {
       "file": "forecastCompletenessSource.test.js",
       "status": 0,
-      "durationMs": 100,
+      "durationMs": 95,
       "ok": true,
       "error": null,
       "stdoutTail": "forecastCompletenessSource.test.js: PASS\n",
@@ -531,20 +531,20 @@
     {
       "file": "forecastIntradayAudit.test.js",
       "status": 0,
-      "durationMs": 488,
+      "durationMs": 492,
       "ok": true,
       "error": null,
       "stdoutTail": "[DB] Post-open quick_check: ok\n[pac_w_repair] repaired 0 rows in inverter_5min_param (one-shot)\n[DB] Startup quick_check: ok\n[DB] Post-open quick_check: ok\nforecastIntradayAudit.test.js: PASS\n",
-      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-nowcast-audit-fbWv4i\\adsi.db — fresh DB will be created on open\n"
+      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-nowcast-audit-XNqrHp\\adsi.db — fresh DB will be created on open\n"
     },
     {
       "file": "forecastIntradayProvenance.test.js",
       "status": 0,
-      "durationMs": 3718,
+      "durationMs": 1640,
       "ok": true,
       "error": null,
       "stdoutTail": "[DB] Post-open quick_check: ok\n[pac_w_repair] repaired 0 rows in inverter_5min_param (one-shot)\n[stop-reason-capture] auto-capture hook registered\n[clock-sync] next auto-sync at 2026-08-28T20:25:00.000Z\n[Inverter] Server on http://localhost:3547\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n[today-energy] state=idle reason=inactive fallback=0 stale=0 mismatch=0\nforecastIntradayProvenance.test.js: PASS\n[Server] Embedded shutdown: flushing DB...\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n",
-      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-nowcast-provenance-ksjLdd\\db\\adsi.db — fresh DB will be created on open\n"
+      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-nowcast-provenance-hwUPsT\\db\\adsi.db — fresh DB will be created on open\n"
     },
     {
       "file": "forecastLoadDataPipeline.test.js",
@@ -553,12 +553,12 @@
       "ok": true,
       "error": null,
       "stdoutTail": "[Test] Starting forecastLoadDataPipeline tests...\n[DB] Post-open quick_check: ok\n[pac_w_repair] repaired 0 rows in inverter_5min_param (one-shot)\n[stop-reason-capture] auto-capture hook registered\n[clock-sync] next auto-sync at 2026-08-28T20:25:00.000Z\n[Inverter] Server on http://localhost:3539\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n[today-energy] state=idle reason=inactive fallback=0 stale=0 mismatch=0\n[Test 1] shouldProxyApiPath keeps Solcast data local...\n  ✓ Solcast snapshot endpoints excluded from gateway proxy\n[Test 2] Freshest-N window math, clamp, minDays guarantee...\n  ✓ Window contiguous, clamped, minDays honored\n[Test 3] Load Data endpoint shape (not-configured)...\n  ✓ Endpoint returns consistent fallback shape\n[Test 4] snapshot-dates endpoint serves locally...\n  ✓ Export date list available without a gateway\n[Test] All tests passed!\n[Server] Embedded shutdown: flushing DB...\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n",
-      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-forecast-loaddata-mj5j1j\\db\\adsi.db — fresh DB will be created on open\n"
+      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-forecast-loaddata-HgMwl3\\db\\adsi.db — fresh DB will be created on open\n"
     },
     {
       "file": "forecastProviderParity.test.js",
       "status": 0,
-      "durationMs": 106,
+      "durationMs": 98,
       "ok": true,
       "error": null,
       "stdoutTail": "forecastProviderParity.test.js: PASS\n",
@@ -567,7 +567,7 @@
     {
       "file": "forecastWatchdogSource.test.js",
       "status": 0,
-      "durationMs": 92,
+      "durationMs": 93,
       "ok": true,
       "error": null,
       "stdoutTail": "forecastWatchdogSource.test.js: PASS\n",
@@ -576,7 +576,7 @@
     {
       "file": "go2rtcExternalLifecycle.test.js",
       "status": 0,
-      "durationMs": 1917,
+      "durationMs": 1933,
       "ok": true,
       "error": null,
       "stdoutTail": "go2rtcExternalLifecycle.test.js: PASS\n",
@@ -585,7 +585,7 @@
     {
       "file": "gridCodeMonitorCore.test.js",
       "status": 0,
-      "durationMs": 101,
+      "durationMs": 90,
       "ok": true,
       "error": null,
       "stdoutTail": "  ✓ pfFromPq returns 1.0 for pure active power\n  ✓ pfFromPq returns 0.0 for pure reactive\n  ✓ pfFromPq matches 0.95 lag spec\n  ✓ pfFromPq guards near-zero apparent power\n  ✓ linearRegress refuses < 3 points\n  ✓ linearRegress recovers known slope\n  ✓ linearRegress refuses degenerate x (vertical)\n  ✓ push then snapshotNode returns fresh shape\n  ✓ dP/dt computed across two samples\n  ✓ freshness flips off after FRESH_WINDOW_MS\n  ✓ droop_kw_per_hz null when freq is flat\n  ✓ droop_kw_per_hz computed when freq varies enough\n  ✓ ring capped at ringSize\n  ✓ snapshotPlant counts fresh nodes only\n  ✓ malformed pushes are silently dropped\n  ✓ dP_dt clamped to sanity limits\n\n  ✓ gridCodeMonitorCore tests passed\n\n",
@@ -594,7 +594,7 @@
     {
       "file": "gridControlCore.test.js",
       "status": 0,
-      "durationMs": 96,
+      "durationMs": 88,
       "ok": true,
       "error": null,
       "stdoutTail": "  ✓ target: valid input normalizes\n  ✓ target: ip with whitespace trimmed\n  ✓ toSignedInt16: 0 → 0\n  ✓ toSignedInt16: 0x7FFF (positive max) → 32767\n  ✓ toSignedInt16: 0x8000 → -32768\n  ✓ toSignedInt16: 0xFFFF → -1\n  ✓ toSignedInt16: NGCP PF 0.95 raw +10780 round-trips\n  ✓ phiRawToPF: raw=0 → PF=1.0 (unity)\n  ✓ phiRawToPF: raw=10780 → PF≈0.95 (NGCP boundary)\n  ✓ phiRawToPF: raw=-10780 → PF≈0.95 (sign-symmetric)\n  ✓ phiRawToPF: raw=15870 → PF≈0.90 (PDF cmd 1 absolute limit)\n  ✓ flag: undefined → false (default off)\n  ✓ flag: \"0\" → false\n  ✓ flag: \"1\" → true\n  ✓ flag: \"true\" → false (only literal \"1\" enables)\n  ✓ flag: whitespace tolerated around \"1\"\n  ✓ phi_raw bound: ±15870 is valid\n  ✓ phi_raw bound: ±15871 is rejected\n  ✓ kvar_div10 bound: full Int16 range allowed (caller validates per device)\n",
@@ -603,7 +603,7 @@
     {
       "file": "gridControlVerifierCore.test.js",
       "status": 0,
-      "durationMs": 88,
+      "durationMs": 89,
       "ok": true,
       "error": null,
       "stdoutTail": "\n──────────────────────────────────────────────────────────\n  gridControlVerifierCore.test.js\n──────────────────────────────────────────────────────────\n\n  ✓ _classify ok when phi raw within tolerance\n  ✓ _classify mismatch when phi raw beyond tolerance\n  ✓ _classify sign-casts UInt16 read-back to Int16\n  ✓ _classify ok on disable when both regs ≈ 0\n  ✓ _classify mismatch on disable when phi still set\n  ✓ _classify no_response when read failed\n  ✓ scheduleVerify rejects bad args\n  ✓ scheduleVerify inserts pending row + queues timer\n  ✓ newest write cancels prior pending verify (no double-fire)\n\n  ✓ gridControlVerifierCore tests passed\n\n  ✓ end-to-end verify: ok result logged + broadcast\n  ✓ end-to-end verify: timeout when elapsed > timeoutMs\n",
@@ -612,7 +612,7 @@
     {
       "file": "hikvisionHybridMode.test.js",
       "status": 0,
-      "durationMs": 135,
+      "durationMs": 141,
       "ok": true,
       "error": null,
       "stdoutTail": "hikvisionHybridMode.test.js: PASS\n",
@@ -621,7 +621,7 @@
     {
       "file": "hikvisionManager.test.js",
       "status": 0,
-      "durationMs": 99,
+      "durationMs": 100,
       "ok": true,
       "error": null,
       "stdoutTail": "hikvisionManager.test.js: ok\n",
@@ -630,7 +630,7 @@
     {
       "file": "hwCounterDeltaCore.test.js",
       "status": 0,
-      "durationMs": 98,
+      "durationMs": 88,
       "ok": true,
       "error": null,
       "stdoutTail": "hwCounterDeltaCore.test.js — all 17 scenarios passed.\n",
@@ -639,7 +639,7 @@
     {
       "file": "igbtFleetEndpoint.test.js",
       "status": 0,
-      "durationMs": 247,
+      "durationMs": 221,
       "ok": true,
       "error": null,
       "stdoutTail": "\n──────────────────────────────────────────────────────────\n  igbtFleetEndpoint.test.js — API Endpoints\n──────────────────────────────────────────────────────────\n\n  ✓ createTestDb: creates valid database with schema\n  ✓ createTestDb: seeded data is queryable\n",
@@ -648,7 +648,7 @@
     {
       "file": "igbtHealthCore.test.js",
       "status": 0,
-      "durationMs": 99,
+      "durationMs": 95,
       "ok": true,
       "error": null,
       "stdoutTail": "  ✓ medianImbalance(empty array) → null\n  ✓ medianImbalance(null) → null\n  ✓ medianImbalance(single balanced row) → ~0%\n  ✓ medianImbalance(single ~0.66% imbalance row)\n  ✓ medianImbalance(median of 3 samples)\n  ✓ medianImbalance(ignores NaN currents)\n  ✓ medianImbalance(ignores zero-power rows)\n  ✓ medianImbalance(partial current data skipped)\n  ✓ medianImbalance(all invalid rows) → null\n  ✓ computeHealthScore(yoy_drift_c=null) → uses Phase 1 weights\n  ✓ computeHealthScore(yoy_drift_c=undefined) → falls back to phase1\n  ✓ computeHealthScore(yoy_drift_c=0) → Phase 2 weights, yoy_score=0\n  ✓ computeHealthScore(yoy_drift_c=-2) → negative drift contributes 0\n  ✓ computeHealthScore(yoy_drift_c=3) → yoy_score=36, contributes 0.30×36=10.8\n  ✓ computeHealthScore(yoy_drift_c=10) → yoy_score clamps at 100\n  ✓ computeHealthScore(yoy_drift_c=NaN) → treated as null, falls back to phase1\n  ✓ computeHealthScore(phase2 max all components) → score = 100, tier='eol'\n  ✓ computeHealthScore(phase2 weights sum to 1.0)\n  ✓ computeHealthScore(phase1 weights sum to 1.0)\n",
@@ -657,7 +657,7 @@
     {
       "file": "igbtThermalCore.test.js",
       "status": 0,
-      "durationMs": 107,
+      "durationMs": 88,
       "ok": true,
       "error": null,
       "stdoutTail": "  ✓ computeYoYDrift: negative drift (improved/cooler)\n  ✓ computeYoYDrift: rounded to 2 decimals\n  ✓ thermalDriftScore: null/undefined -> null\n  ✓ thermalDriftScore: 0 drift -> 0\n  ✓ thermalDriftScore: negative drift (cooler) -> 0 (no penalty)\n  ✓ thermalDriftScore: 3 °C drift -> 36 (warning per manual §4.1.1)\n  ✓ thermalDriftScore: 8 °C drift -> 96 (Critical per manual §6.5)\n  ✓ thermalDriftScore: 10 °C drift -> 100 (clamped)\n  ✓ baselineProgress: 0 days -> { ready:false, ratio:0 }\n  ✓ baselineProgress: 180 days @ 365 target -> ratio ~0.493, not ready\n  ✓ baselineProgress: 365 days -> { ready:true, ratio:1.0 }\n  ✓ baselineProgress: 1000 days -> { ready:true, ratio:1.0 (clamped) }\n  ✓ baselineProgress: invalid input -> { ready:false, ratio:0 }\n  ✓ baselineProgress: respects custom targetDays\n\n────────────────────────────────────────────────────────────\n  All tests completed\n────────────────────────────────────────────────────────────\n\n",
@@ -666,7 +666,7 @@
     {
       "file": "inverterStateDecode.test.js",
       "status": 0,
-      "durationMs": 365,
+      "durationMs": 384,
       "ok": true,
       "error": null,
       "stdoutTail": "  ✓ decodeInverterState(0x0202): blocked=true, phase='connected'\n  ✓ decodeInverterState(0x0402): gridFault=true, phase='connected'\n  ✓ decodeInverterState(0x0702): all three flags=true, phase='connected'\n  ✓ decodeInverterState(0x0103): stop=true, phase='error'\n  ✓ decodeInverterState(0x0700): all flags=true, phase='initial'\n  ✓ decodeInverterState(null): phase='unknown', raw=null\n  ✓ decodeInverterState(undefined): phase='unknown'\n  ✓ decodeInverterState(NaN): phase='unknown'\n  ✓ decodeInverterState('0x0202' as string): phase='unknown' (strict numeric only)\n  ✓ decodeInverterState(0x10000 overflow): masks to 0x0000 → phase='initial'\n  ✓ decodeInverterState(-1): masks to 0xFFFF → phase='unknown', phaseCode=-1\n  ✓ parseRow with inverter_state_raw=0x0202: result.inverter_state.blocked===true\n  ✓ parseRow without inverter_state_raw: result.inverter_state===null\n  ✓ parseRow with inverter_state_raw=0: result.inverter_state===null (offline marker)\n\n──────────────────────────────────────────────────────────\n  All tests completed\n──────────────────────────────────────────────────────────\n\n",
@@ -675,7 +675,7 @@
     {
       "file": "ipConfigLossDefaultsSource.test.js",
       "status": 0,
-      "durationMs": 94,
+      "durationMs": 92,
       "ok": true,
       "error": null,
       "stdoutTail": "ipConfigLossDefaultsSource.test.js: PASS\n",
@@ -684,11 +684,11 @@
     {
       "file": "ipConfigRemoteSave.test.js",
       "status": 0,
-      "durationMs": 877,
+      "durationMs": 859,
       "ok": true,
       "error": null,
       "stdoutTail": "[DB] Post-open quick_check: ok\n[pac_w_repair] repaired 0 rows in inverter_5min_param (one-shot)\n[stop-reason-capture] auto-capture hook registered\n[clock-sync] next auto-sync at 2026-08-28T20:25:00.000Z\n[Inverter] Server on http://localhost:3516\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n[today-energy] state=idle reason=inactive fallback=0 stale=0 mismatch=0\n[energy] remote carry state cleared on bridge start — fresh session\n[handoff] Remoteâ†'Gateway started day=2026-08-28 inverters=0 baselines=[]\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n[clock-sync] next auto-sync at 2026-08-28T20:25:00.000Z\n[energy] remote carry state cleared on bridge start — fresh session\n[handoff] Remoteâ†'Gateway started day=2026-08-28 inverters=0 baselines=[]\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n[clock-sync] next auto-sync at 2026-08-28T20:25:00.000Z\n[energy] remote carry state cleared on bridge start — fresh session\nipConfigRemoteSave.test.js: PASS\n[Server] Embedded shutdown: flushing DB...\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n",
-      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-ipcfg-remote-g1L0y9\\db\\adsi.db — fresh DB will be created on open\n"
+      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-ipcfg-remote-tkwIID\\db\\adsi.db — fresh DB will be created on open\n"
     },
     {
       "file": "ipconfigEnumerate.test.js",
@@ -702,7 +702,7 @@
     {
       "file": "linuxDeploymentContract.test.js",
       "status": 0,
-      "durationMs": 405,
+      "durationMs": 736,
       "ok": true,
       "error": null,
       "stdoutTail": "linuxDeploymentContract.test.js: PASS\n",
@@ -711,43 +711,43 @@
     {
       "file": "manualPullFailureCleanup.test.js",
       "status": 0,
-      "durationMs": 1653,
+      "durationMs": 1505,
       "ok": true,
       "error": null,
       "stdoutTail": "[DB] Post-open quick_check: ok\n[pac_w_repair] repaired 0 rows in inverter_5min_param (one-shot)\n[stop-reason-capture] auto-capture hook registered\n[clock-sync] next auto-sync at 2026-08-28T20:25:00.000Z\n[Inverter] Server on http://localhost:3518\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n[today-energy] state=idle reason=inactive fallback=0 stale=0 mismatch=0\n[energy] remote carry state cleared on bridge start — fresh session\n[energy] remote carry state cleared on bridge start — fresh session\nmanualPullFailureCleanup.test.js: PASS\n[Server] Embedded shutdown: flushing DB...\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n",
-      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-manual-pull-fail-cleanup-JTBNq3\\db\\adsi.db — fresh DB will be created on open\n"
+      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-manual-pull-fail-cleanup-b3rCi5\\db\\adsi.db — fresh DB will be created on open\n"
     },
     {
       "file": "manualPullGuard.test.js",
       "status": 0,
-      "durationMs": 969,
+      "durationMs": 935,
       "ok": true,
       "error": null,
       "stdoutTail": "[DB] Post-open quick_check: ok\n[pac_w_repair] repaired 0 rows in inverter_5min_param (one-shot)\n[stop-reason-capture] auto-capture hook registered\n[clock-sync] next auto-sync at 2026-08-28T20:25:00.000Z\n[Inverter] Server on http://localhost:3516\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n[today-energy] state=idle reason=inactive fallback=0 stale=0 mismatch=0\n[energy] remote carry state cleared on bridge start — fresh session\n[energy] remote carry state cleared on bridge start — fresh session\n[energy] remote carry state cleared on bridge start — fresh session\nmanualPullGuard.test.js: PASS\n[Server] Embedded shutdown: flushing DB...\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n",
-      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-manual-pull-guard-DPeowL\\db\\adsi.db — fresh DB will be created on open\n[replication] standby today-energy baseline refresh failed: Gateway returned no today-energy rows.\n[replication] standby today-energy baseline refresh failed: Gateway returned no today-energy rows.\n"
+      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-manual-pull-guard-vKnKG3\\db\\adsi.db — fresh DB will be created on open\n[replication] standby today-energy baseline refresh failed: Gateway returned no today-energy rows.\n[replication] standby today-energy baseline refresh failed: Gateway returned no today-energy rows.\n"
     },
     {
       "file": "manualReplicationCancel.test.js",
       "status": 0,
-      "durationMs": 1002,
+      "durationMs": 968,
       "ok": true,
       "error": null,
       "stdoutTail": "[DB] Post-open quick_check: ok\n[pac_w_repair] repaired 0 rows in inverter_5min_param (one-shot)\n[stop-reason-capture] auto-capture hook registered\n[clock-sync] next auto-sync at 2026-08-28T20:25:00.000Z\n[Inverter] Server on http://localhost:3514\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n[today-energy] state=idle reason=inactive fallback=0 stale=0 mismatch=0\n[energy] remote carry state cleared on bridge start — fresh session\n[energy] remote carry state cleared on bridge start — fresh session\nmanualReplicationCancel.test.js: PASS\n[Server] Embedded shutdown: flushing DB...\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n",
-      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-manual-repl-cancel-xynSPx\\db\\adsi.db — fresh DB will be created on open\n"
+      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-manual-repl-cancel-qPxITJ\\db\\adsi.db — fresh DB will be created on open\n"
     },
     {
       "file": "modeIsolation.test.js",
       "status": 0,
-      "durationMs": 7317,
+      "durationMs": 7280,
       "ok": true,
       "error": null,
       "stdoutTail": "[DB] Post-open quick_check: ok\n[pac_w_repair] repaired 0 rows in inverter_5min_param (one-shot)\n[stop-reason-capture] auto-capture hook registered\n[clock-sync] next auto-sync at 2026-08-28T20:25:00.000Z\n[Inverter] Server on http://localhost:3512\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n[today-energy] state=idle reason=inactive fallback=0 stale=0 mismatch=0\n[energy] remote carry state cleared on bridge start — fresh session\n[handoff] Remoteâ†'Gateway started day=2026-08-28 inverters=0 baselines=[]\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n[clock-sync] next auto-sync at 2026-08-28T20:25:00.000Z\n[CloudBackup] Local schedule: off\nmodeIsolation.test.js: PASS\n[Server] Embedded shutdown: flushing DB...\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n",
-      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-mode-isolation-U8aYbZ\\db\\adsi.db — fresh DB will be created on open\n"
+      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-mode-isolation-7IB6aK\\db\\adsi.db — fresh DB will be created on open\n"
     },
     {
       "file": "mwhHandoff.test.js",
       "status": 0,
-      "durationMs": 107,
+      "durationMs": 101,
       "ok": true,
       "error": null,
       "stdoutTail": "  [PASS] stale shadow discard log emitted\n  [PASS] stale high shadow is not applied\n\n-- Scenario D: Midnight rollover clears shadow and carry --\n  [PASS] yesterday shadow cleared on new day\n  [PASS] yesterday carry cleared on new day\n  [PASS] new day uses poller only\n\n-- Scenario E: Handoff timeout prevents indefinite active state --\n  [PASS] carry still protects value before timeout\n  [PASS] handoff active before timeout\n  [PASS] timeout tick still returns protected row\n  [PASS] handoff force-completed after timeout\n  [PASS] stale shadow dropped after timeout on next tick\n  [PASS] shadow cleared once handoff no longer active\n  [PASS] timeout log emitted\n\nResults: 24 passed, 0 failed\n\n",
@@ -756,7 +756,7 @@
     {
       "file": "parseRowSlowFields.test.js",
       "status": 0,
-      "durationMs": 369,
+      "durationMs": 356,
       "ok": true,
       "error": null,
       "stdoutTail": "\n──────────────────────────────────────────────────────────\n  parseRowSlowFields.test.js — Slice β slow-poll fields\n──────────────────────────────────────────────────────────\n\n  ✓ parseRow: passes through all slow-poll fields when present\n  ✓ parseRow: slow fields absent → defaults to null or 0\n  ✓ parseRow: partial slow fields → only provided override\n  ✓ parseRow: AAP0016 analog fields pass through\n  ✓ parseRow: out-of-range values pass through unclamped\n  ✓ parseRow: signed slow fields preserve negative values\n  ✓ parseRow: zero values from explicit slow-poll → preserved as 0\n  ✓ parseRow: backward-compat with pre-Slice β frames\n  ✓ parseRow: full realistic frame (fast + slow fields)\n\n──────────────────────────────────────────────────────────\n  All tests completed\n──────────────────────────────────────────────────────────\n\n",
@@ -765,7 +765,7 @@
     {
       "file": "phaseUnbalanceCore.test.js",
       "status": 0,
-      "durationMs": 104,
+      "durationMs": 87,
       "ok": true,
       "error": null,
       "stdoutTail": "\n──────────────────────────────────────────────────────────\n  phaseUnbalanceCore.test.js\n──────────────────────────────────────────────────────────\n\n  ✓ T1 balanced: unbalance=0.000%\n  ✓ T2 unbalanced 30%: unbalance=33.33%\n  ✓ T3 low pac: rejected with why=pac_below_floor\n  ✓ T4 noise floor: rejected with why=phase_below_noise\n  ✓ T5 outside solar window: rejected with why=outside_solar_window\n  ✓ T6 streak<min: sustained=false (1 over, min=2)\n  ✓ T7 sustained: 3 slots, max=46.15%\n  ✓ T8 broken streak: sustained=false\n  ✓ T9 empty: sustained=false\n  ✓ T10 defaults: thr=20% slots=2 iavg=5A pac=10000W\n\n──────────────────────────────────────────────────────────\n  phaseUnbalanceCore.test.js complete\n\n",
@@ -774,7 +774,7 @@
     {
       "file": "plantCapController.test.js",
       "status": 0,
-      "durationMs": 91,
+      "durationMs": 87,
       "ok": true,
       "error": null,
       "stdoutTail": "plantCapController.test.js: PASS\n",
@@ -783,7 +783,7 @@
     {
       "file": "plantCapManualAuthoritySource.test.js",
       "status": 0,
-      "durationMs": 96,
+      "durationMs": 94,
       "ok": true,
       "error": null,
       "stdoutTail": "plantCapManualAuthoritySource.test.js: PASS\n",
@@ -792,7 +792,7 @@
     {
       "file": "pollerIpConfigMapping.test.js",
       "status": 0,
-      "durationMs": 373,
+      "durationMs": 352,
       "ok": true,
       "error": null,
       "stdoutTail": "[DB] Startup quick_check: ok\n[DB] Post-open quick_check: ok\npollerIpConfigMapping.test.js: PASS\n",
@@ -801,7 +801,7 @@
     {
       "file": "pollerIpConfigPrune.test.js",
       "status": 0,
-      "durationMs": 360,
+      "durationMs": 346,
       "ok": true,
       "error": null,
       "stdoutTail": "[DB] Startup quick_check: ok\n[DB] Post-open quick_check: ok\npollerIpConfigPrune.test.js: PASS (6 cases)\n",
@@ -810,7 +810,7 @@
     {
       "file": "pollerSignedDecode.test.js",
       "status": 0,
-      "durationMs": 351,
+      "durationMs": 349,
       "ok": true,
       "error": null,
       "stdoutTail": "  pollerSignedDecode.test.js — Slice α Int16 sign extension\n──────────────────────────────────────────────────────────\n\n  ✓ _signedInt16: 0xFFF0 → -16 (Idc negative)\n  ✓ _signedInt16: 0x8000 → -32768 (min Int16)\n  ✓ _signedInt16: 0x7FFF → 32767 (max Int16)\n  ✓ _signedInt16: 0 → 0\n  ✓ _signedInt16: 1 → 1 (no sign extension)\n  ✓ _signedInt16: 0xFFFF → -1\n  ✓ parseRow: idc = 0xFFF0 → result.idc === -16\n  ✓ parseRow: pac = 0x8000 (signed -32768) → safePac = -327680 (scaled)\n  ✓ parseRow: pac = positive max 0x7FFF → safePac = 327670 (scaled)\n  ✓ parseRow: pac = 0 → safePac = 0\n  ✓ parseRow: idc and pac both signed → both decoded correctly\n\n──────────────────────────────────────────────────────────\n  All tests completed\n──────────────────────────────────────────────────────────\n\n",
@@ -819,7 +819,7 @@
     {
       "file": "pollerTodayEnergyTotal.test.js",
       "status": 0,
-      "durationMs": 383,
+      "durationMs": 342,
       "ok": true,
       "error": null,
       "stdoutTail": "[DB] Startup quick_check: ok\n[DB] Post-open quick_check: ok\npollerTodayEnergyTotal.test.js: PASS\n",
@@ -828,16 +828,16 @@
     {
       "file": "portableBackupRoundTrip.test.js",
       "status": 0,
-      "durationMs": 2536,
+      "durationMs": 2350,
       "ok": true,
       "error": null,
-      "stdoutTail": "portableBackupRoundTrip.test.js:\n  • _zipDirectory + _extractZip handle deep trees (real zip header + round-trip): PASS\n  • _zipDirectory onProgress fired 8 times monotonically: PASS\n  • Streaming sha256 handles >2 GiB files without ERR_FS_FILE_TOO_LARGE: PASS\n[CloudBackup] Created local package: inverter-backup-2026-08-28T00-24-02-895Z\n[CloudBackup] Database restored from: C:\\Users\\User\\AppData\\Local\\Temp\\adsi-local-rt-Hsk5RA\\cloud_backups\\inverter-backup-2026-08-28T00-24-02-895Z\\adsi.db\n[CloudBackup] IP config restored.\n[CloudBackup] Settings restored.\n[CloudBackup] Restore complete from: inverter-backup-2026-08-28T00-24-02-895Z\n  • createLocalBackup + restoreBackup round-trip (via new helpers): PASS\nportableBackupRoundTrip.test.js: PASS\n",
+      "stdoutTail": "portableBackupRoundTrip.test.js:\n  • _zipDirectory + _extractZip handle deep trees (real zip header + round-trip): PASS\n  • _zipDirectory onProgress fired 8 times monotonically: PASS\n  • Streaming sha256 handles >2 GiB files without ERR_FS_FILE_TOO_LARGE: PASS\n[CloudBackup] Created local package: inverter-backup-2026-08-28T00-47-01-561Z\n[CloudBackup] Database restored from: C:\\Users\\User\\AppData\\Local\\Temp\\adsi-local-rt-77F8sn\\cloud_backups\\inverter-backup-2026-08-28T00-47-01-561Z\\adsi.db\n[CloudBackup] IP config restored.\n[CloudBackup] Settings restored.\n[CloudBackup] Restore complete from: inverter-backup-2026-08-28T00-47-01-561Z\n  • createLocalBackup + restoreBackup round-trip (via new helpers): PASS\nportableBackupRoundTrip.test.js: PASS\n",
       "stderrTail": ""
     },
     {
       "file": "pymodbus3Compatibility.test.js",
       "status": 0,
-      "durationMs": 127,
+      "durationMs": 138,
       "ok": true,
       "error": null,
       "stdoutTail": "pymodbus3Compatibility.test.js: PASS\n",
@@ -846,16 +846,16 @@
     {
       "file": "reactivePowerScalingCore.test.js",
       "status": 0,
-      "durationMs": 133,
+      "durationMs": 124,
       "ok": true,
       "error": null,
-      "stdoutTail": "# Subtest: CONVENTION GUARD: rawToKVar(100) === 1.0 (not 10.0 — that was the bug)\nok 16 - CONVENTION GUARD: rawToKVar(100) === 1.0 (not 10.0 — that was the bug)\n  ---\n  duration_ms: 0.0526\n  ...\n# Subtest: CONVENTION GUARD: kvarToRaw(50) === 5000 (not 500 — that was the bug)\nok 17 - CONVENTION GUARD: kvarToRaw(50) === 5000 (not 500 — that was the bug)\n  ---\n  duration_ms: 0.0647\n  ...\n1..17\n# tests 17\n# suites 0\n# pass 17\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 12.269\n",
+      "stdoutTail": "# Subtest: CONVENTION GUARD: rawToKVar(100) === 1.0 (not 10.0 — that was the bug)\nok 16 - CONVENTION GUARD: rawToKVar(100) === 1.0 (not 10.0 — that was the bug)\n  ---\n  duration_ms: 0.063\n  ...\n# Subtest: CONVENTION GUARD: kvarToRaw(50) === 5000 (not 500 — that was the bug)\nok 17 - CONVENTION GUARD: kvarToRaw(50) === 5000 (not 500 — that was the bug)\n  ---\n  duration_ms: 0.0733\n  ...\n1..17\n# tests 17\n# suites 0\n# pass 17\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 15.3437\n",
       "stderrTail": ""
     },
     {
       "file": "recoverySeedClamp.test.js",
       "status": 0,
-      "durationMs": 117,
+      "durationMs": 96,
       "ok": true,
       "error": null,
       "stdoutTail": "recoverySeedClamp.test.js: PASS\n",
@@ -864,7 +864,7 @@
     {
       "file": "remoteTodayShadow.test.js",
       "status": 0,
-      "durationMs": 95,
+      "durationMs": 101,
       "ok": true,
       "error": null,
       "stdoutTail": "\n-- Scenario A: Fresh gateway totals beat stale local shadow --\n  [PASS] remote display uses the fresh gateway row, not the inflated shadow\n\n-- Scenario B: Same-source shadow is only a fallback until gateway rows arrive --\n  [PASS] shadow fallback carries forward live increments while the gateway snapshot is missing\n\n-- Scenario C: Cross-gateway shadow is ignored --\n  [PASS] remote display does not reuse a shadow captured from another gateway\n\n-- Scenario D: Gateway handoff captures the current remote display total --\n  [PASS] handoff baseline uses the current remote display state, not the older gateway snapshot\n\n-- Scenario E: Preserved shadow bridges Gateway mode after standby restart --\n  [PASS] gateway restart still serves the preserved gateway total before the local poller catches up\n\nResults: 5 passed, 0 failed\n\n",
@@ -873,7 +873,7 @@
     {
       "file": "s3Provider.test.js",
       "status": 0,
-      "durationMs": 198,
+      "durationMs": 200,
       "ok": true,
       "error": null,
       "stdoutTail": "s3Provider.test.js: PASS\n",
@@ -882,7 +882,7 @@
     {
       "file": "safeZipExtract.test.js",
       "status": 0,
-      "durationMs": 102,
+      "durationMs": 339,
       "ok": true,
       "error": null,
       "stdoutTail": "safeZipExtract.test.js: PASS\n",
@@ -891,7 +891,7 @@
     {
       "file": "scriptsSourceSanity.test.js",
       "status": 0,
-      "durationMs": 94,
+      "durationMs": 244,
       "ok": true,
       "error": null,
       "stdoutTail": "scriptsSourceSanity.test.js: PASS\n",
@@ -900,7 +900,7 @@
     {
       "file": "serialBulkMap.test.js",
       "status": 0,
-      "durationMs": 108,
+      "durationMs": 117,
       "ok": true,
       "error": null,
       "stdoutTail": "  ok  format is motorola and writable nodes are 1..4\n  ok  27 inverters, each with T + nodes 1..4 as serial strings\n  ok  every serial is 12 ASCII printable chars\n  ok  all 135 serials are globally unique\n  ok  Inverter 2 / Inverter 14 are the corrected 12-char serials\n  ok  getTargetSerial resolves nodes and rejects unknowns\n  ok  lookupSerialOrigin resolves slot, kind, and misses\n  ok  buildBulkPlan classifies match / mismatch / unreachable / missing\n  ok  buildBulkPlan flags a physically relocated module\n  ok  buildBulkPlan treats a nameplate serial on a node as needs_ack\n  ok  buildBulkPlan honours topology filter\n  ok  logSerialChange persists structured origin + migration history filters it\n  ok  logSerialChange coerces origin types and tolerates nulls\n\nserialBulkMap: all 13 checks passed\n",
@@ -909,7 +909,7 @@
     {
       "file": "serverLifecycleWiring.test.js",
       "status": 0,
-      "durationMs": 127,
+      "durationMs": 167,
       "ok": true,
       "error": null,
       "stdoutTail": "serverLifecycleWiring.test.js: passed\n",
@@ -918,7 +918,7 @@
     {
       "file": "serviceSoftStopSource.test.js",
       "status": 0,
-      "durationMs": 110,
+      "durationMs": 128,
       "ok": true,
       "error": null,
       "stdoutTail": "serviceSoftStopSource.test.js: PASS\n",
@@ -927,7 +927,7 @@
     {
       "file": "settingsSectionRegistry.test.js",
       "status": 0,
-      "durationMs": 128,
+      "durationMs": 116,
       "ok": true,
       "error": null,
       "stdoutTail": "settingsSectionRegistry.test.js: PASS (14 menu, 14 ids, 14 meta — all consistent)\n",
@@ -936,7 +936,7 @@
     {
       "file": "shutdownReason.test.js",
       "status": 0,
-      "durationMs": 489,
+      "durationMs": 425,
       "ok": true,
       "error": null,
       "stdoutTail": "shutdownReason.test.js — v2.8.14 diagnostics module\n  ✓ first-boot-no-sentinel\n  ✓ graceful-shutdown-recorded-and-archived\n  ✓ unexpected-shutdown-writes-synthetic-prev\n  ✓ sentinel-rotates-on-every-read\n  ✓ record-multiple-times-last-write-wins-at-writer-level\n  ✓ record-returns-null-when-writer-fails\n  ✓ concurrent-instance-suppresses-unexpected-classification\n  ✓ dead-pid-sentinel-still-classifies-unexpected\n  ✓ process-exit-fallback-classifies-graceful\n✓ shutdownReason.test.js — all scenarios passed\n",
@@ -945,34 +945,34 @@
     {
       "file": "shutdownSerialization.test.js",
       "status": 0,
-      "durationMs": 6563,
+      "durationMs": 7669,
       "ok": true,
       "error": null,
-      "stdoutTail": "[Inverter] Server on http://localhost:3867\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n[today-energy] state=idle reason=inactive fallback=0 stale=0 mismatch=0\n[Server] Embedded shutdown: flushing DB...\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n  ✓ Iteration 2/3 clean (shutdown=24ms)\n[DB] Post-open quick_check: ok\n[pac_w_repair] repaired 0 rows in inverter_5min_param (one-shot)\n[stop-reason-capture] auto-capture hook registered\n[clock-sync] next auto-sync at 2026-08-28T20:25:00.000Z\n[Inverter] Server on http://localhost:3897\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n[today-energy] state=idle reason=inactive fallback=0 stale=0 mismatch=0\n[Server] Embedded shutdown: flushing DB...\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n[CloudBackup] Local schedule: off\n[CloudBackup] Local schedule: off\n  ✓ Iteration 3/3 clean (shutdown=2085ms)\n[Test] All shutdown iterations completed cleanly.\n",
-      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-shutdown-serial-QGeDQh\\db\\adsi.db — fresh DB will be created on open\n[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-shutdown-serial-Jamd6x\\db\\adsi.db — fresh DB will be created on open\n[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-shutdown-serial-16SmTi\\db\\adsi.db — fresh DB will be created on open\n"
+      "stdoutTail": "[Inverter] Server on http://localhost:3743\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n[today-energy] state=idle reason=inactive fallback=0 stale=0 mismatch=0\n[Server] Embedded shutdown: flushing DB...\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n[CloudBackup] Local schedule: off\n  ✓ Iteration 2/3 clean (shutdown=2012ms)\n[DB] Post-open quick_check: ok\n[pac_w_repair] repaired 0 rows in inverter_5min_param (one-shot)\n[stop-reason-capture] auto-capture hook registered\n[clock-sync] next auto-sync at 2026-08-28T20:25:00.000Z\n[Inverter] Server on http://localhost:3813\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n[today-energy] state=idle reason=inactive fallback=0 stale=0 mismatch=0\n[Server] Embedded shutdown: flushing DB...\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n[CloudBackup] Local schedule: off\n  ✓ Iteration 3/3 clean (shutdown=2019ms)\n[Test] All shutdown iterations completed cleanly.\n",
+      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-shutdown-serial-kjFEk7\\db\\adsi.db — fresh DB will be created on open\n[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-shutdown-serial-hIVpKr\\db\\adsi.db — fresh DB will be created on open\n[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-shutdown-serial-DBXXVC\\db\\adsi.db — fresh DB will be created on open\n"
     },
     {
       "file": "solcastLazyBackfill.test.js",
       "status": 0,
-      "durationMs": 2080,
+      "durationMs": 2179,
       "ok": true,
       "error": null,
       "stdoutTail": "[Test 4] Cooldown expiry allows next fetch...\n  ✓ Cooldown expiry correctly allows next fetch\n[Test 5] Remote mode guard prevents lazy backfill...\n  ✓ Remote mode correctly prevents lazy backfill\n[Test 6] Endpoint with no rows triggers lazy backfill...\n  ✓ Endpoint correctly triggers lazy backfill when rows missing\n[Test 7] Endpoint with NULL est_actual rows triggers lazy backfill...\n  ✓ Endpoint correctly returns response for sparse/NULL data\n[Test 8] Endpoint with valid est_actual doesn't trigger backfill...\n  ✓ Endpoint returns correct response structure\n[Test 9] Different dates tracked separately for cooldown...\n  ✓ Different dates tracked independently for cooldown\n[Test 10] Edge cases for date validation...\n  ✓ Date validation edge cases handled correctly\n[Test 11] Endpoint returns correctly formatted totalMwh...\n  ✓ Endpoint returns correctly formatted response structure\n[Test] All tests passed!\n[Server] Embedded shutdown: flushing DB...\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n",
-      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-solcast-lazy-backfill-OKdTqZ\\db\\adsi.db — fresh DB will be created on open\n"
+      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-solcast-lazy-backfill-jQjeBM\\db\\adsi.db — fresh DB will be created on open\n"
     },
     {
       "file": "standbySnapshotReadOnly.test.js",
       "status": 0,
-      "durationMs": 928,
+      "durationMs": 1035,
       "ok": true,
       "error": null,
-      "stdoutTail": "[DB] Post-open quick_check: ok\n[pac_w_repair] repaired 0 rows in inverter_5min_param (one-shot)\n[stop-reason-capture] auto-capture hook registered\n[clock-sync] next auto-sync at 2026-08-28T20:25:00.000Z\n[Inverter] Server on http://localhost:3728\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n[today-energy] state=idle reason=inactive fallback=0 stale=0 mismatch=0\nstandbySnapshotReadOnly.test.js: PASS\n[Server] Embedded shutdown: flushing DB...\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n",
-      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-standby-snapshot-XszpJg\\db\\adsi.db — fresh DB will be created on open\n"
+      "stdoutTail": "[DB] Post-open quick_check: ok\n[pac_w_repair] repaired 0 rows in inverter_5min_param (one-shot)\n[stop-reason-capture] auto-capture hook registered\n[clock-sync] next auto-sync at 2026-08-28T20:25:00.000Z\n[Inverter] Server on http://localhost:3866\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n[today-energy] state=idle reason=inactive fallback=0 stale=0 mismatch=0\nstandbySnapshotReadOnly.test.js: PASS\n[Server] Embedded shutdown: flushing DB...\n[energy] remote carry state cleared on bridge stop — energy hand-off reset\n",
+      "stderrTail": "[DB] adsi.db missing at C:\\Users\\User\\AppData\\Local\\Temp\\adsi-standby-snapshot-9pzeXd\\db\\adsi.db — fresh DB will be created on open\n"
     },
     {
       "file": "stopReasonAggregator.test.js",
       "status": 0,
-      "durationMs": 233,
+      "durationMs": 313,
       "ok": true,
       "error": null,
       "stdoutTail": "  PASS count: std-only matches single-table baseline\n  PASS count: vendor-only is no longer invisible\n  PASS count: distinct events across tables sum\n  PASS count: 5-min-bucket dedup collapses cross-table duplicates\n  PASS count: motive filter excludes other codes\n  PASS count: cutoff filter drops events older than window\n  PASS findLastStopEvent: most-recent across tables wins\n  PASS findLastStopEvent: motive filter selects matching last\n  PASS listRecentStopEvents: cross-table merge, newest first\n  PASS graceful degradation when one table is missing\n  PASS input guards: empty motive list / missing ip → 0 / null\n  PASS constant: dedup bucket is 5 min\nstopReasonAggregator.test.js: done\n",
@@ -981,7 +981,7 @@
     {
       "file": "stopReasonsArchiveContractShape.test.js",
       "status": 0,
-      "durationMs": 122,
+      "durationMs": 140,
       "ok": true,
       "error": null,
       "stdoutTail": "  ✓ archive schema declares an inverter_stop_reasons DDL\n  ✓ ensureArchiveSchema creates inverter_stop_reasons table on every shard\n  ✓ archive entry exposes insertStopReason + per-id + per-alarm-id stmts\n  ✓ retention worker now ARCHIVES stop_reasons (not DELETE'd)\n  ✓ archiveRowsByMonth dispatches the stop_reasons type with read_at_ms month key\n  ✓ selectOldStopReasonsBatch filters on read_at_ms (not ts)\n  ✓ findStopReasonByIdArchiveAware checks hot then iterates archives\n  ✓ findStopReasonByAlarmIdArchiveAware checks hot then iterates archives\n  ✓ stopReasons.getEventById accepts archiveLookup fallback\n  ✓ stopReasons.getEventByAlarmId accepts archiveLookup fallback\n  ✓ alarm drilldown wires both archive-aware stop_reason finders\n  ✓ stop_reasons cron caller injects archive worker\n  ✓ module.exports surfaces the new archive helpers\nstopReasonsArchiveContractShape.test.js: PASS (schema + write-path + read-path + drilldown wire-up locked)\n",
@@ -990,7 +990,7 @@
     {
       "file": "stopReasonsCrossCheck.test.js",
       "status": 0,
-      "durationMs": 111,
+      "durationMs": 122,
       "ok": true,
       "error": null,
       "stdoutTail": "\n──────────────────────────────────────────────────────────\n  stopReasonsCrossCheck.test.js — Slice ε cross-check\n──────────────────────────────────────────────────────────\n\n  ✓ match=true: vendor and std within 60s, same motive code\n  ✓ match=true: vendor and std at exact same time\n  ✓ match=true: vendor and std at -60s boundary (acceptable)\n  ✓ match=false: different motive codes\n  ✓ match=false: timestamps > 60s apart\n  ✓ match=false: std is offline (captured_at_ms=null or -1)\n  ✓ match=false: vendor event_at_ms is missing/null\n  ✓ match=false: vendor motparo code is missing/null\n  ✓ match=false: invalid std timestamp_iso string\n  ✓ delta contains timeDeltaMs and boolean flags on match\n  ✓ delta on mismatch contains detailed breakdown\n",
@@ -999,7 +999,7 @@
     {
       "file": "todayEnergyHealth.test.js",
       "status": 0,
-      "durationMs": 117,
+      "durationMs": 139,
       "ok": true,
       "error": null,
       "stdoutTail": "todayEnergyHealth.test.js: PASS\n",
@@ -1008,7 +1008,7 @@
     {
       "file": "topologyAuthLease.test.js",
       "status": 0,
-      "durationMs": 104,
+      "durationMs": 135,
       "ok": true,
       "error": null,
       "stdoutTail": "  PASS rejects empty key with 401\n  PASS accepts current-minute key (padded)\n  PASS accepts current-minute key (unpadded variant)\n  PASS accepts previous minute (current ±1 window)\n  PASS accepts next minute (current ±1 window — gateway-clock-lag tolerance)\n  PASS rejects two-minute-stale key WITHOUT lease (the original bug)\n  PASS LEASE: key validated at t0 still works at t0 + 5 min (the fix)\n  PASS LEASE: still valid at t0 + 59 min (just inside 60-min lease)\n  PASS LEASE: rolling — re-stamped on every successful validation\n  PASS LEASE: expires after 60 min of non-use → key rejected if outside time window\n  PASS LEASE is keyed per key-string (sibling key needs its own validation)\n  PASS rate limit: 5+ failures from same IP in 60s → 429\ntopologyAuthLease.test.js: done\n",
@@ -1017,7 +1017,7 @@
     {
       "file": "webLoginHardening.test.js",
       "status": 0,
-      "durationMs": 314,
+      "durationMs": 390,
       "ok": true,
       "error": null,
       "stdoutTail": "PASS: Web login hardening test passed all 13 assertions successfully.\n",
@@ -1026,7 +1026,7 @@
     {
       "file": "webRoleRestrictionWiring.test.js",
       "status": 0,
-      "durationMs": 126,
+      "durationMs": 226,
       "ok": true,
       "error": null,
       "stdoutTail": "webRoleRestrictionWiring.test.js: passed\n",
@@ -1035,7 +1035,7 @@
     {
       "file": "xlsxExportStyling.test.js",
       "status": 0,
-      "durationMs": 683,
+      "durationMs": 777,
       "ok": true,
       "error": null,
       "stdoutTail": "[DB] Post-open quick_check: ok\n[pac_w_repair] repaired 0 rows in inverter_5min_param (one-shot)\nxlsxExportStyling.test.js: PASS\n",
@@ -1043,7 +1043,7 @@
     }
   ],
   "pythonTests": null,
-  "finishedAt": "2026-08-28T00:24:16.204Z",
-  "durationMs": 88425,
+  "finishedAt": "2026-08-28T00:47:17.025Z",
+  "durationMs": 57068,
   "exitCode": 0
 }

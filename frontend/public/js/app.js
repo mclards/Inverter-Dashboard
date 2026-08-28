@@ -16409,7 +16409,7 @@ function openHikvisionViewer(card = $("hikvisionCard")) {
 
 const CAM_DEFAULTS = {
   mode: "hls",
-  go2rtcIp: "100.81.240.80",
+  go2rtcIp: "",
   go2rtcPort: "1984",
   streamKey: "tapo_cam",
   ip: "192.168.4.211",
@@ -16596,17 +16596,29 @@ class CameraPlayer {
       : s.go2rtcIp;
     const port = s.go2rtcPort || "1984";
     const proto = window.location.protocol === "https:" ? "https:" : "http:";
-    const url = `${proto}//${host}:${port}/api/stream.m3u8?src=${encodeURIComponent(s.streamKey)}`;
+    const url = `${proto}//${host}:${port}/api/stream.m3u8?src=${encodeURIComponent(s.streamKey)}&mp4`;
+
+    if (this.hlsInstance) {
+      try { this.hlsInstance.destroy(); } catch (_) {}
+      this.hlsInstance = null;
+    }
 
     if (typeof Hls !== "undefined" && Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
         lowLatencyMode: true,
-        liveSyncDurationCount: 1,
-        liveMaxLatencyDurationCount: 3,
-        liveDurationInfinity: true,
-        maxBufferLength: 4,
-        maxMaxBufferLength: 8,
+        backBufferLength: 0,
+        liveSyncDurationCount: 2,
+        liveMaxLatencyDurationCount: 5,
+        maxBufferLength: 8,
+        maxMaxBufferLength: 16,
+        maxBufferSize: 20 * 1024 * 1024,
+        manifestLoadingTimeOut: 15000,
+        manifestLoadingMaxRetry: 5,
+        levelLoadingTimeOut: 15000,
+        levelLoadingMaxRetry: 5,
+        fragLoadingTimeOut: 20000,
+        fragLoadingMaxRetry: 6,
       });
       this.hlsInstance = hls;
       hls.loadSource(url);
@@ -16618,8 +16630,20 @@ class CameraPlayer {
       });
       hls.on(Hls.Events.ERROR, (_e, data) => {
         if (data.fatal) {
-          console.warn("[camera] HLS fatal error:", data.type, data.details);
-          this._onStreamError("HLS stream error");
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              console.warn("[camera] HLS network error, recovering...", data.details);
+              hls.startLoad();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              console.warn("[camera] HLS media error, recovering...", data.details);
+              hls.recoverMediaError();
+              break;
+            default:
+              console.warn("[camera] HLS fatal error:", data.type, data.details);
+              this._onStreamError("HLS stream error");
+              break;
+          }
         }
       });
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
@@ -16662,13 +16686,16 @@ class CameraPlayer {
 
     let connected = false;
     pc.ontrack = (ev) => {
+      connected = true;
       if (ev.streams && ev.streams[0]) {
-        connected = true;
         video.srcObject = ev.streams[0];
-        video.play().catch(() => {});
-        this._hideOverlay();
-        this._setLive(true);
+      } else {
+        if (!video.srcObject) video.srcObject = new MediaStream();
+        video.srcObject.addTrack(ev.track);
       }
+      video.play().catch(() => {});
+      this._hideOverlay();
+      this._setLive(true);
     };
 
     pc.oniceconnectionstatechange = () => {
@@ -16689,7 +16716,6 @@ class CameraPlayer {
     const waitIceGathering = (peer) => new Promise((resolve) => {
       if (peer.iceGatheringState === "complete") {
         resolve();
-        return;
       }
       const checkState = () => {
         if (peer.iceGatheringState === "complete") {
@@ -16704,7 +16730,7 @@ class CameraPlayer {
       }, 800);
     });
 
-    pc.createOffer().then((offer) => {
+    pc.createOffer({ offerToReceiveVideo: true, offerToReceiveAudio: true }).then((offer) => {
       return pc.setLocalDescription(offer);
     }).then(() => {
       return waitIceGathering(pc);
@@ -16722,7 +16748,11 @@ class CameraPlayer {
       if (!r.ok) throw new Error("WebRTC offer rejected: " + r.status);
       return r.json();
     }).then((answer) => {
-      pc.setRemoteDescription(new RTCSessionDescription(answer));
+      if (answer && answer.sdp) {
+        return pc.setRemoteDescription(new RTCSessionDescription(answer));
+      } else if (typeof answer === "string" && answer.startsWith("v=0")) {
+        return pc.setRemoteDescription(new RTCSessionDescription({ type: "answer", sdp: answer }));
+      }
     }).catch((err) => {
       console.warn("[camera] WebRTC error:", err.message, "— falling back to HLS");
       if (this.rtcPeer) {

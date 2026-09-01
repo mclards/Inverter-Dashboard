@@ -1,9 +1,9 @@
 # ADSI Solar Inverter Dashboard — Full System Review & Operational Evaluation
 
-**Document Version:** 2.11.2  
-**Evaluation Date:** August 25, 2026  
-**System Target:** ADSI Inverter Dashboard & Plant Management System  
-**Deployment Context:** Industrial Solar PV Power Plant (~27 Ingeteam Inverters / 108 Internal Power Units / ~70+ MW DC Peak)  
+**Document Version:** 2.12.0
+**Evaluation Date:** September 1, 2026
+**System Target:** ADSI Inverter Dashboard & Plant Management System
+**Deployment Context:** Industrial Solar PV Power Plant (27 Ingeteam Inverters / 108 Internal Power Units / 26.94 MW AC Peak / 24.0 MW Export Ceiling)
 **Authors & Contributors:** ADSI Engineering, Systems Architecture & Field Operations Teams
 
 ---
@@ -33,7 +33,7 @@
 
 The **ADSI Inverter Dashboard** is a mission-critical, industrial-grade Supervisory Control and Data Acquisition (SCADA), telemetry processing, analytical forecasting, and plant-control orchestration platform. It is engineered specifically for utility-scale solar photovoltaic (PV) generation facilities equipped with multi-modular central inverters (notably Ingeteam multi-stage central inverter stations).
 
-The system consolidates high-frequency Modbus TCP telemetry acquisition, real-time closed-loop active and reactive power regulation, predictive asset health forensics (IGBT degradation, unbalance tracking, precursor fault protection), automated grid-code compliance certification (T2 Frequency Droop, T3 Q-V Droop, T5 Active Power Sweeps), day-ahead and intraday solar generation forecasting, CCTV surveillance synchronization, and multi-year forensic telemetry archiving into a unified, crash-resilient application.
+The system consolidates high-frequency Modbus TCP telemetry acquisition, real-time closed-loop active and reactive power regulation, predictive asset health forensics (IGBT degradation, unbalance tracking, precursor fault protection), automated grid-code compliance certification (T2 Frequency Droop, T3 Q-V Droop, T5 Active Power Sweeps), day-ahead hybrid ML/physics solar generation forecasting, CCTV surveillance synchronization, and multi-year forensic telemetry archiving into a unified, crash-resilient application.
 
 ### Key Capabilities Matrix
 
@@ -43,10 +43,10 @@ The system consolidates high-frequency Modbus TCP telemetry acquisition, real-ti
 | **Plant Controller (APC)** | Node.js, Modbus TCP Writes, PID / Band Engine | Closed-loop Active MW Cap regulation, dynamic %P setpoints, ramp-rate limiting, PF ($\cos \varphi$) and kVAr reactive power control. |
 | **Grid Compliance** | Automated Sequencers, Vector SVG/PDF Generators | Automated T2 Frequency Droop, T3 Q-V Voltage Support, and T5 Active Power Sweep test execution with formal PDF report compilation. |
 | **Asset Health & AI** | Statistical Forensic Models, Rule Enforcers | 90-day IGBT thermal degradation modeling ($R_{th}$, $\Delta T$), 0x0240/0x0210 precursor auto-blocking, 3-phase unbalance monitoring. |
-| **Solar Forecasting** | Python NumPy/SciPy, Solcast API, Clear-Sky Engine | 24-hour day-ahead generation schedules with snapshot locking, 15-minute rolling intraday virtual nowcasts, MAPE/RMSE error calculation. |
+| **Solar Forecasting** | Python LightGBM/GBR, Solcast API, Clear-Sky Engine | 24-hour day-ahead schedules with snapshot locking, 6-regime residual ML modeling, 5-class error prediction, EMOS-B spread calibration. |
 | **Data Persistence** | SQLite3 (WAL Mode), Monthly Sharded Archives | Zero-loss energy logging, crash-recovery slot reconstruction, 90-day hot retention with atomic monthly sharding (`YYYY-MM.db`). |
 | **Video Surveillance** | Embedded `go2rtc`, RTSP, WebRTC, MSE, Hikvision ISAPI | Low-latency live multi-camera streaming, native C++ hardware-accelerated viewer, alarm-triggered forensic video timestamp indexing. |
-| **Security & Auditing** | PBKDF2/SHA-256 HMAC, RBAC, Hardware Locking | Node-locked hardware fingerprint licensing, 3-tier RBAC, 60-min topology auth lease, append-only operational audit trail. |
+| **Security & Auditing** | PBKDF2/SHA-256 HMAC, Dual-Role RBAC, Device Locking | Node-locked hardware licensing, `devClard` minute-rotating TOTP authentication, 60-min topology auth lease, tamper-evident audit trail. |
 | **Client Presentation** | Electron Shell, HTML5, CSS3, Vanilla ES6 | High-density SCADA HUD, responsive mobile technician layout, zero horizontal scrolling sub-navigation, intermediate tablet flex layouts. |
 
 ---
@@ -67,9 +67,9 @@ The platform employs a modular, fault-isolated multi-tier architecture that deco
 |                                HARDWARE SERVICE ENGINES                               |
 |  +--------------------------------------------+  +---------------------------------+  |
 |  |       Inverter Poller Engine (Py/Exe)      |  |   Forecast Engine (Py/Exe)      |  |
-|  | - Asyncio Modbus TCP Client Pool           |  | - 24h Day-Ahead Model           |  |
+|  | - Asyncio Modbus TCP Client Pool           |  | - 24h Day-Ahead Hybrid Model    |  |
 |  | - Fast Poll (1s) & Slow Poll (30s)         |  | - 15-min Intraday Nowcast       |  |
-|  | - REST Endpoint: 127.0.0.1:9100            |  | - REST Endpoint: 127.0.0.1:8001 |  |
+|  | - REST Endpoint: 127.0.0.1:9100            |  | - Worker Port: 127.0.0.1:9200   |  |
 |  +--------------------------------------------+  +---------------------------------+  |
 +-------------------------------------------+-------------------------------------------+
                                             | Local HTTP / REST
@@ -111,10 +111,10 @@ The platform employs a modular, fault-isolated multi-tier architecture that deco
 
 | Port Number | Protocol / Transport | Component / Role | Binding Scope |
 | :--- | :--- | :--- | :--- |
-| **502** | Modbus TCP | Physical Inverter Communication (Slaves 1–4) | Inverter Subnet (`192.168.1.0/24`) |
+| **502** | Modbus TCP | Physical Inverter Communication (Slaves 1–4 / Nodes N1–N4) | Inverter Subnet (`192.168.1.0/24`) |
 | **3500** | HTTP / WebSocket | Main Express API & Real-Time Telemetry Broadcast | Localhost / LAN (`0.0.0.0`) |
 | **9100** | HTTP / REST | Python Inverter Telemetry & Command Engine | Loopback Only (`127.0.0.1`) |
-| **8001 / 8002** | HTTP / REST | Python Solar Generation Forecasting Engine | Loopback Only (`127.0.0.1`) |
+| **9200** | HTTP / REST | Python AI Solar Forecast Worker & Telemetry Bridge | Loopback Only (`127.0.0.1`) |
 | **1984** | HTTP / WebRTC / API | `go2rtc` Streaming Core & WebRTC Gateway | Loopback / LAN |
 | **8554** | RTSP | `go2rtc` Low-Latency Video Pipeline | Loopback Only (`127.0.0.1`) |
 | **8000** | HTTP / ISAPI | On-Site Hikvision NVR / IP Cameras | Camera Subnet (`192.168.1.200+`) |
@@ -248,33 +248,67 @@ const _RANGES = {
 
 ## 5. Solar Generation Forecasting Subsystem
 
-The forecasting engine provides high-precision generation projections required for wholesale electricity market compliance, day-ahead dispatch scheduling, and plant control optimization.
+The forecasting engine (`services/forecast_engine.py`) provides high-precision generation projections required for wholesale electricity market compliance, day-ahead dispatch scheduling, and plant control optimization. It implements a dual-layer hybrid architecture combining deterministic clear-sky physics with LightGBM/GBR gradient-boosted residual regression.
 
-### 1. Mathematical & Physical Forecast Model
+### 1. Dual-Layer Hybrid Forecasting Architecture
 
-$$\text{Forecast}(t) = \text{GHI}_{clear}(t) \times (1 - \text{CloudFactor}(t)) \times \text{DC\_Capacity} \times \eta_{inverter} \times \left[1 - \gamma_{temp} (T_{cell}(t) - 25^\circ\text{C})\right]$$
+```
+[Satellite Irradiance & Solcast P50] ──+
+                                       ├──> [Clear-Sky Physics Baseline (P_phys)] ──+
+[Ambient Temp & Cell Heating Model]  ──+                                             │
+                                                                                     ├──> [Dynamic Blending] ──> [EMOS-B Spread Calibration] ──> [Published P50 / P10 / P90]
+[Historical 45-Day Actuals & GHI]    ──+                                             │    (35% - 100% ML)       (Scale: [0.70, 1.30])
+                                       ├──> [6-Regime Residual Model (LightGBM)] ───+
+[5-Class Error Classifier Bias Map]  ──+
+```
+
+#### Layer 1: Mathematical & Physical Baseline Model
+
+$$P_{\text{phys}}(t) = \text{GHI}(t) \times C_{\text{cloud}}(t) \times DC_{\text{cap}} \times \eta_{\text{inv}} \times \left[1 + \gamma_{\text{TC}} \times (T_{\text{cell}}(t) - 25^\circ\text{C})\right]$$
 
 Where:
-- $\text{GHI}_{clear}(t)$: Global Horizontal Irradiance under clear-sky conditions calculated from solar zenith angle equations.
-- $\text{CloudFactor}(t)$: Satellite-derived cloud attenuation factor obtained from Solcast API integrations.
-- $\text{DC\_Capacity}$: Total installed solar PV peak capacity (MWp).
-- $\eta_{inverter}$: Nominal conversion efficiency of the inverter fleet ($\approx 98.6\%$).
-- $\gamma_{temp}$: PV module temperature power loss coefficient ($\approx -0.38\% / ^\circ\text{C}$).
-- $T_{cell}(t)$: Estimated solar cell temperature derived from ambient temperature and irradiance.
+- $\text{GHI}(t)$: Global Horizontal Irradiance under clear-sky conditions (W/m²).
+- $C_{\text{cloud}}(t)$: Satellite-derived cloud attenuation factor obtained from Solcast API integrations.
+- $DC_{\text{cap}}$: Total installed DC capacity ($26.94\text{ MW AC}$ plant baseline).
+- $\eta_{\text{inv}}$: Nominal conversion efficiency of the inverter fleet ($\approx 98.6\%$).
+- $\gamma_{\text{TC}}$: PV module temperature power loss coefficient ($-0.004 / ^\circ\text{C}$).
+- $T_{\text{cell}}(t)$: Estimated solar cell temperature derived from ambient temperature and irradiance.
 
-### 2. Day-Ahead Locked Schedule & Rolling Intraday Nowcast
-1. **24-Hour Day-Ahead Schedule:** Generated daily at 06:00 and 16:00 for the subsequent 24-hour cycle. The finalized day-ahead forecast is permanently snapshotted in SQLite (`forecast_day_ahead_locked`) for regulatory compliance auditing.
-2. **15-Minute Rolling Intraday Nowcast:** Continuously evaluates live on-site pyranometer irradiance and real-time generation against baseline models, projecting generation adjustments across a rolling 4-hour forward horizon.
+#### Layer 2: Machine Learning Residual Pipeline (`LightGBM` / `sklearn_gbr`)
 
-### 3. Forecasting Provenance & Accuracy Metrics
+- **45-Day Rolling Lookback:** Analyzes trailing 45 days (`N_TRAIN_DAYS = 45`) with recency exponential decay weighting ($w(d) = \max(0.5^{d / 14.0}, 0.18)$).
+- **Anomaly Rejection Gates:** Discards anomalous days violating Capacity Factor bounds ($0.02 \le \text{CF} \le 1.05$) or Pearson radiation correlation ($r(\text{GHI}, P_{\text{gen}}) \ge 0.55$).
+- **6 Weather Regime Buckets:** Trains partitioned sub-models for `clear_stable`, `clear_edge`, `mixed_stable`, `mixed_volatile`, `overcast`, and `rainy` weather conditions.
+- **5-Class Error Classifier:** Predicts bias directions (`strong_over`, `mild_over`, `neutral`, `mild_under`, `strong_under`) for proactive bias correction.
+- **Dynamic Blending:** Constrains ML residual contribution to $[\text{ML\_BLEND\_MIN}=0.35, \text{ML\_BLEND\_MAX}=1.00]$, with ramp-slot damping ($0.62\times$) during sunrise/sunset transitions.
+- **EMOS-B Spread Calibration:** Calibrates confidence bounds (P10/P90) using a 30-day lookback, constrained within $[0.70, 1.30]$ scaling bounds.
 
-The system continuously tracks generation forecast accuracy, computing three standard statistical metrics upon completion of each generation day:
+### 2. Day-Ahead Locked Schedule & Solcast Freshness Gates
 
-$$\text{MAPE} = \frac{1}{N} \sum_{t=1}^N \left| \frac{\text{Actual}_t - \text{Forecast}_t}{\text{Actual}_t} \right| \times 100\%$$
+1. **24-Hour Day-Ahead Schedule:** Generated daily at 06:00 and 18:00 PHT (`DA_RUN_HOURS_PRIMARY = {6, 18}`). The finalized day-ahead forecast is permanently snapshotted in SQLite (`forecast_run_audit` and `forecast_error_compare_daily`) for market dispatch and regulatory auditing.
+2. **Solcast Freshness Pipeline:**
+   - `fresh` ($\ge 95\%$ slot coverage): Full `ml_solcast_hybrid` variant enabled.
+   - `stale_usable` ($80\%–94\%$ coverage): Degraded `ml_solcast_hybrid_stale` mode.
+   - `stale_reject` / `missing` ($< 80\%$ coverage): Falls back to `ml_without_solcast` or `physics_only`.
 
-$$\text{RMSE} = \sqrt{\frac{1}{N} \sum_{t=1}^N (\text{Actual}_t - \text{Forecast}_t)^2}$$
+### 3. Forecasting Provenance & 7-Step QA Eligibility Gate
 
-$$\text{NMBE} = \frac{\sum_{t=1}^N (\text{Actual}_t - \text{Forecast}_t)}{\sum_{t=1}^N \text{Actual}_t} \times 100\%$$
+Upon completion of each solar day (156 slots between 05:00 and 17:55 PHT), `_persist_qa_comparison` evaluates error metrics:
+
+$$\text{WAPE} = \frac{\sum_{t=1}^N |\text{Actual}_t - \text{Forecast}_t|}{\sum_{t=1}^N \text{Actual}_t} \times 100\% \quad (\text{Target: } \le 15\%)$$
+
+$$\text{MAPE} = \frac{1}{N} \sum_{t=1}^N \left| \frac{\text{Actual}_t - \text{Forecast}_t}{\text{Actual}_t} \right| \times 100\% \quad (\text{Target: } \le 20\%)$$
+
+A day is assigned `comparison_quality = 'eligible'` for error memory bias correction only if:
+1. Usable actual slots $\ge 132$ ($85\%$ of solar window).
+2. Usable forecast slots $\ge 132$.
+3. Total usable slots $\ge 132$.
+4. Constrained/curtailed slot ratio $\le 0.30$.
+5. No provider mismatch.
+6. Solcast freshness is not `missing` or `stale_reject`.
+7. Forecast variant is not degraded.
+
+> **Detailed Specification:** For the complete mathematical formulation, error memory matrix, health state contracts (`ml_train_state.json`), and executable test scripts, refer to [`evals/forecast-ml-dayahead-integrity.md`](file:///d:/Inverter-Dashboard/evals/forecast-ml-dayahead-integrity.md).
 
 ---
 
@@ -521,22 +555,29 @@ The dashboard bridges SCADA telemetry with live site physical security:
 
 ## 11. Enterprise Security, Licensing & Tamper-Evident Audit
 
-### 1. Role-Based Access Control (RBAC)
+### 1. Dual-Role Access Control & Developer Authentication
 
-| User Role | Telemetry & Analytics | Plant Control & Setpoints | Compliance Testing | User & Security Settings |
+The platform enforces a cryptographic per-role authorization model verified via `/api/auth/session`:
+
+| Role Claim | Telemetry & Analytics | Plant Control & Setpoints | Grid Compliance Tests | Protected Admin & Topology |
 | :--- | :---: | :---: | :---: | :---: |
-| **Viewer** | Full Read-Only | Denied | Denied | Denied |
-| **Operator** | Full Read-Only | Authorized (MW Cap / %P / PF) | Authorized (T2/T3/T5) | Denied |
-| **Administrator** | Full Read-Only | Full Access | Full Access | Full Access (Users, IP Config, Cloud) |
+| **Operator** | Full Read-Only | Authorized (MW Cap / %P / PF) | Authorized (T2/T3/T5) | Denied (Shared Display Only) |
+| **Developer** | Full Read-Only | Full Access | Full Access | Full Access (Topology, Ports, Lifecycle) |
+
+#### Developer Authentication Contract
+- **Fixed Username:** `devClard` (accepted case-insensitively).
+- **Rotating TOTP Password:** Uses dynamic `devMM` minute-based secret computed from the server's current minute with a $\pm 1$-minute clock-lag tolerance window.
+- **Session Hardening:** Signed JWT/HMAC token stored in an `HttpOnly`, `SameSite=Strict` cookie.
+- **Device Attribution:** Operational actions forward the hardware-bound `inverter_2_device_id` to maintain audit provenance regardless of login usernames.
 
 ### 2. Tamper-Evident Operational Audit Trail (`audit_log`)
 Every operator interaction is recorded in an append-only audit ledger:
-- **Captured Metadata:** Operator Username, Client IP Address, Timestamp, Target Inverter/Unit, Action Taken (e.g. `SET_MW_CAP`, `APC_DISPATCH`, `START_INVERTER`, `STOP_INVERTER`), Previous Setpoint, New Setpoint, and Operator Rationale.
+- **Captured Metadata:** Operator Username, Device ID (`inverter_2_device_id`), Client IP Address, Timestamp, Target Inverter/Node, Action Taken (e.g. `SET_MW_CAP`, `APC_DISPATCH`, `START_INVERTER`, `STOP_INVERTER`), Previous Setpoint, New Setpoint, and Operator Rationale.
 - **Audit Export:** Exportable to signed CSV and PDF audit logs for regulatory inspections.
 
-### 3. Node-Locked Hardware Licensing
-- Software licenses are cryptographically locked to the host machine's hardware profile (CPU ID, Motherboard UUID, and Primary MAC Address).
-- Prevents unauthorized cloning or unauthorized virtualization of plant control software across unverified hardware.
+### 3. Node-Locked Hardware Licensing & Remote Locks
+- Software licenses are cryptographically locked to host machine hardware profiles (CPU ID, Motherboard UUID, Primary MAC).
+- **Remote Client Lock Invariant:** Populating the *Server Host URL* at sign-in locks the instance into Remote Client mode, disables local-server lifecycle handlers, and strictly isolates the Remote API Token from operator credentials.
 
 ---
 
@@ -611,9 +652,9 @@ The ADSI Inverter Dashboard maintains a rigorous 100% automated test suite combi
 ────────────────────────────────────────────────────────────
   Automated Smoke & Integration Test Suite (`scripts/smoke-all.js`)
 ────────────────────────────────────────────────────────────
-  ✓ Node.js Test Suites:   106 / 106 PASS (100%)
+  ✓ Node.js Test Suites:   115 / 115 PASS (100%)
   ✓ Python Pytest Suites:  617 / 617 PASS (2 skipped, 100%)
-  ✓ Total Test Execution:  ~160 seconds wall time
+  ✓ Total Test Execution:  ~55 seconds wall time
   ✓ Status:                ALL SUITES GREEN
 ────────────────────────────────────────────────────────────
 ```
@@ -621,45 +662,49 @@ The ADSI Inverter Dashboard maintains a rigorous 100% automated test suite combi
 ### Critical Test Suites Overview
 
 1. **`dailyAggregatorCore.test.js` (26 Scenarios):** Validates 5-minute bucket aggregation, monotonic counter gates, Asia/Manila solar window boundaries, reaped-slot LRU caches, and bitwise alarm consolidation.
-2. **`forecastWatchdogSource.test.js`:** Verifies forecast supervisor boot sequences and fail-safe operation mode fallbacks.
+2. **`forecastWatchdogSource.test.js` & `dayAheadPlanImplementation.test.js`:** Verifies forecast supervisor boot sequences, fail-safe operation mode fallbacks, and Day-Ahead advisory locking.
 3. **`stopReasonAggregator.test.js` & `stopReasonsCrossCheck.test.js`:** Tests cross-table MotParo and standard error code deduplication across 5-minute temporal windows.
 4. **`shutdownSerialization.test.js`:** Multi-iteration verification of zero database locks or process leaks during abrupt application restarts.
 5. **`topologyAuthLease.test.js`:** Tests 60-minute rolling cryptographic lease issuance, expiration, renewal, and 429 rate-limiting.
 6. **`xlsxExportStyling.test.js`:** Validates multi-year telemetry spreadsheet generation, cell formatting, and mathematical sum formulas.
 7. **`hikvisionHybridMode.test.js` & `s3Provider.test.js`:** Tests camera failover modes and S3 multipart backup upload pipelines.
+8. **`linuxDeploymentContract.test.js`:** Validates Linux systemd unit contracts, environment flags, and path invariants.
 
 ---
 
 ## 15. Linux & Windows Industrial Deployment, Hardening & Maintenance
 
-### 1. Linux 18-Step Automated Deployment (`deploy/linux/setup.sh`)
+### 1. Canonical Linux Appliance Installation (`LINUX-INSTALL-UPDATE-GUIDE.md`)
 
-For industrial edge servers (Ubuntu 22.04/24.04 LTS or Debian 12), `setup.sh` provides complete automated provisioning:
+For industrial edge servers (Ubuntu 22.04/24.04 LTS or Debian 12), the canonical installation is a **single-command curl bootstrap**:
 
-1. **Dependency Installation:** Installs Node.js 20 LTS, Python 3, OpenSSH Server, SQLite3, and required build toolchains.
-2. **System User & Group Provisioning:** Creates dedicated, least-privilege `adsi:adsi` service user.
-3. **Storage Hierarchy Creation:** Initializes `/var/lib/adsi-dashboard/{db,archive,backups,auth}` and `/var/log/adsi-dashboard`.
-4. **Browser Auth Bootstrapping:** Generates `/var/lib/adsi-dashboard/auth/credentials.json` with SHA-256 hashed credentials.
-5. **Systemd Service Hierarchy Installation:**
-   - `adsi.target` (Master Target)
-   - `adsi-server.service` (Node.js API Orchestrator)
-   - `adsi-inverter.service` (Python Inverter Modbus Engine)
-   - `adsi-forecast.service` (Python Solar Forecast Engine)
-   - `adsi-go2rtc.service` (CCTV Video Proxy Engine)
-6. **Database Boot Check Hook:** Installs `/opt/adsi-dashboard/deploy/linux/scripts/adsi-db-check.sh` as an `ExecStartPre=` hook on `adsi-server.service`.
-7. **Industrial Hardware Sleep & Lid-Close Hardening:**
-   - Configures `HandleLidSwitch=ignore` and `HandleLidSwitchExternalPower=ignore` in `/etc/systemd/logind.conf`.
-   - Masks sleep targets: `systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target`.
-8. **SSD Storage Optimization:** Configures write-barrier mount flags and `noatime` on storage partitions to prevent SSD wear while guaranteeing power-loss write safety.
+```bash
+sudo bash -c 'command -v curl >/dev/null || { apt-get update -qq && apt-get install -y -qq ca-certificates curl; }; curl -fsSL https://raw.githubusercontent.com/mclards/Inverter-Dashboard/main/deploy/linux/install.sh | bash'
+```
+
+#### Automated Appliance Provisioning Features
+1. **Repository & Runtime Paths:** Deploys code to `/opt/inverter-dashboard` and persistent runtime root to `/var/lib/inverter-dashboard/{db,archive,backups,auth}`.
+2. **Systemd Service Hierarchy (`inverter.target`):**
+   - `inverter.target` (Master Target)
+   - `inverter-server.service` (Node.js API Orchestrator / Port 3500)
+   - `inverter-engine.service` (Python Inverter Modbus Telemetry / Port 9100)
+   - `inverter-forecast.service` (Python Solar Forecast Worker / Port 9200)
+   - `inverter-go2rtc.service` (CCTV Video Proxy Engine / Port 1984)
+3. **Automated Health Check:**
+   ```bash
+   sudo /opt/inverter-dashboard/deploy/linux/scripts/inverter-health-check.sh
+   ```
+4. **Tailscale & Security Enrollment:** Automatically provisions and enables `tailscaled` with Tailscale SSH while preserving existing tailnet machine identity.
+5. **Database Integrity Hook:** Executes `PRAGMA quick_check;` via `adsi-db-check.sh` on every server boot before socket binding.
 
 ### 2. Linux Zero-Collision Maintenance Rule
 > [!IMPORTANT]
-> **Zero-Collision Maintenance Rule:**  
-> **ALWAYS** explicitly stop all ADSI services (`sudo systemctl stop adsi.target adsi-server adsi-inverter adsi-forecast adsi-go2rtc`) before executing any code updates (`git pull`), script setups (`setup.sh`), database replacements, or large file migrations.  
-> Restart services (`sudo systemctl start adsi.target`) only after all files, directories, and permissions (`chown -R adsi:adsi /var/lib/adsi-dashboard`) are completely finalized.
+> **Zero-Collision Maintenance Rule:**
+> **ALWAYS** explicitly stop all inverter services (`sudo systemctl stop inverter.target inverter-server inverter-engine inverter-forecast inverter-go2rtc`) before executing manual code updates, database replacements, or large file migrations.
+> Restart services (`sudo systemctl start inverter.target`) only after all files and permissions (`chown -R adsi:adsi /var/lib/inverter-dashboard`) are finalized.
 
 ### 3. Windows Deployment & NSIS Packaging (`scripts/installer.nsh`)
-- Builds a standalone, self-contained Windows desktop package with bundled Node runtime, compiled Python binaries (`InverterCoreService.exe`, `ForecastCoreService.exe`), desktop shortcuts, firewall rule automation, and clean uninstaller registry cleanup.
+- Standalone Windows installer packaging with bundled Node runtime, compiled Python binaries (`InverterCoreService.exe`, `ForecastCoreService.exe`), canonical path resolution to `C:\ProgramData\Inverter-Dashboard\db`, firewall automation, and code signature verification (`Sectigo` thumbprint `7A3DE7F937C44A2A7EE1C0B51745EE2189CC0958`).
 
 ---
 

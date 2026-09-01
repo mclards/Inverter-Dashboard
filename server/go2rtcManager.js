@@ -25,7 +25,7 @@ function resolveRuntimeRoot() {
   );
 }
 const PROGRAMDATA_ROOT = resolveRuntimeRoot();
-const API_PORT = 1984;
+const API_PORT = Number(process.env.GO2RTC_API_PORT || 1984);
 const WEBRTC_PORT = 8555;
 const HEALTH_INTERVAL_MS = 5000;
 const HEALTH_TIMEOUT_MS = 2000;

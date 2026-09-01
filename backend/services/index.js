@@ -7245,6 +7245,14 @@ function connectRemoteBridgeSocket() {
       });
       return;
     }
+    if (type === "configchanged" || type === "config_changed") {
+      broadcastUpdate(msg);
+      return;
+    }
+    if (type === "control_lock") {
+      broadcastUpdate(msg);
+      return;
+    }
     if (type !== "init" && type !== "live") return;
     applyRemoteBridgeLiveFrame(msg, {
       bridgeSessionId,

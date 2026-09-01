@@ -963,11 +963,48 @@ body.license-notice-open .side-nav {
   line-height: 1;
 }
 
-#btnAlarmSound {
+#btnChatToggle {
   width: calc(30px * var(--top-scale));
   height: calc(30px * var(--top-scale));
   border-radius: calc(9px * var(--top-scale));
   order: 3;
+  position: relative;
+}
+
+#btnChatToggle .mdi {
+  font-size: calc(15px * var(--top-scale));
+}
+
+#btnChatToggle.active {
+  border-color: var(--accent);
+  background: var(--surface2);
+  color: var(--accent);
+}
+
+.tb-chat-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--red);
+  color: #ffffff;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
+#btnAlarmSound {
+  width: calc(30px * var(--top-scale));
+  height: calc(30px * var(--top-scale));
+  border-radius: calc(9px * var(--top-scale));
+  order: 4;
 }
 
 #btnAlarmSound .mdi {
@@ -997,7 +1034,7 @@ body.license-notice-open .side-nav {
 }
 
 #navToggleBtn {
-  order: 4;
+  order: 5;
 }
 
 @media (max-width: 1360px) {
@@ -10260,11 +10297,31 @@ select.cam-field-input { appearance: auto; }
   backdrop-filter: blur(12px);
 }
 
-.chat-bubble {
+.chat-bubble-wrap {
   position: fixed;
   right: 16px;
   bottom: calc(var(--app-footer-h) + 14px);
   z-index: 8000;
+  width: 46px;
+  height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease,
+    visibility 180ms ease;
+}
+
+.chat-bubble-wrap.chat-bubble-wrap--hidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  transform: scale(0.6) !important;
+}
+
+.chat-bubble {
+  position: relative;
   width: 46px;
   height: 46px;
   border: 1px solid var(--btn-accent-border);
@@ -10298,6 +10355,51 @@ select.cam-field-input { appearance: auto; }
 .chat-bubble > .mdi {
   font-size: 20px;
   line-height: 1;
+}
+
+.chat-bubble-hide-btn {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--surface2, #181c24);
+  border: 1px solid var(--border2, rgba(255, 255, 255, 0.18));
+  color: var(--text2, #8892a4);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.7);
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease,
+    background 160ms ease,
+    color 160ms ease,
+    border-color 160ms ease;
+  z-index: 8002;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+  padding: 0;
+  line-height: 1;
+}
+
+.chat-bubble-wrap:hover .chat-bubble-hide-btn,
+.chat-bubble-wrap:focus-within .chat-bubble-hide-btn {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
+
+.chat-bubble-hide-btn:hover,
+.chat-bubble-hide-btn:focus-visible {
+  background: var(--red, #ef4444);
+  border-color: var(--red, #ef4444);
+  color: #ffffff;
+  transform: scale(1.15);
 }
 
 .chat-badge {
@@ -10420,6 +10522,42 @@ select.cam-field-input { appearance: auto; }
 .chat-clear-btn[disabled] {
   opacity: 0.55;
   cursor: default;
+}
+
+.chat-hide-bubble-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--btn-outline-border);
+  border-radius: 9px;
+  background: linear-gradient(
+    180deg,
+    var(--btn-outline-1) 0%,
+    var(--btn-outline-2) 100%
+  );
+  color: var(--btn-outline-color);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  font-size: 15px;
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition:
+    transform 0.16s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease,
+    filter 0.18s ease;
+}
+
+.chat-hide-bubble-btn:hover,
+.chat-hide-bubble-btn:focus-visible {
+  color: var(--text);
+  border-color: var(--btn-outline-border-hover);
+  box-shadow: var(--btn-base-shadow-hover);
+  filter: brightness(1.03);
 }
 
 .chat-close-btn {
@@ -11172,7 +11310,7 @@ body.mode-transition-active {
 }
 
 @media (max-width: 480px) {
-  .chat-bubble {
+  .chat-bubble-wrap {
     right: 12px;
     bottom: calc(var(--app-footer-h) + 12px);
   }
@@ -23295,7 +23433,9 @@ body.calib-session-active #page-export,
 body.calib-session-active #page-plant-cap,
 body.calib-session-active #page-igbt-health,
 body.calib-session-active #page-settings,
-body.calib-session-active .toast-container {
+body.calib-session-active .toast-container,
+body.calib-session-active .chat-bubble-wrap,
+body.calib-session-active #chatBubbleWrap {
   display: none !important;
 }
 
@@ -25682,13 +25822,24 @@ table.fcal-settings-table .fcal-set-readonly {
   }
 
   /* === 6. FLOATING CHAT FAB ON MOBILE === */
-  .chat-bubble {
+  .chat-bubble-wrap {
     width: 38px !important;
     height: 38px !important;
     right: 12px !important;
     bottom: calc(54px + env(safe-area-inset-bottom, 0px) + 12px) !important;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45) !important;
     z-index: 1050 !important;
+  }
+
+  .chat-bubble {
+    width: 38px !important;
+    height: 38px !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45) !important;
+  }
+
+  .chat-bubble-wrap .chat-bubble-hide-btn {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: scale(0.9) !important;
   }
 
   .chat-bubble > .mdi {
@@ -25869,11 +26020,16 @@ table.fcal-settings-table .fcal-set-readonly {
   }
 
   /* Compact Floating Chat FAB */
-  .chat-bubble {
+  .chat-bubble-wrap {
     width: 32px !important;
     height: 32px !important;
     right: 10px !important;
     bottom: calc(44px + env(safe-area-inset-bottom, 0px) + 8px) !important;
+  }
+
+  .chat-bubble {
+    width: 32px !important;
+    height: 32px !important;
   }
 
   .chat-bubble > .mdi {

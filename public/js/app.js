@@ -7248,6 +7248,7 @@ async function loadSettings() {
     if ($("plantNameDisplay"))
       $("plantNameDisplay").textContent = s.plantName || "ADSI Plant";
     if ($("setPlantName")) $("setPlantName").value = s.plantName || "";
+    if ($("chkShowChatBubble")) $("chkShowChatBubble").checked = isChatBubbleVisible();
     if ($("setOperatorName")) {
       $("setOperatorName").value = isClientModeActive()
         ? getOperatorName()
@@ -13285,16 +13286,79 @@ function mergeChatRows(rows) {
   return State.chatMessages;
 }
 
+const CHAT_BUBBLE_VISIBLE_STORAGE_KEY = "adsi_chat_bubble_visible";
+
+function isChatBubbleVisible() {
+  try {
+    const raw = localStorage.getItem(CHAT_BUBBLE_VISIBLE_STORAGE_KEY);
+    if (raw === null || raw === undefined) return true;
+    return raw !== "0" && raw !== "false";
+  } catch (_) {
+    return true;
+  }
+}
+
+function setChatBubbleVisible(visible, { persist = true, notify = false } = {}) {
+  const isVisible = Boolean(visible);
+  if (persist) {
+    try {
+      localStorage.setItem(CHAT_BUBBLE_VISIBLE_STORAGE_KEY, isVisible ? "1" : "0");
+    } catch (_) {}
+  }
+  const wrap = $("chatBubbleWrap");
+  if (wrap) {
+    wrap.classList.toggle("chat-bubble-wrap--hidden", !isVisible);
+    wrap.setAttribute("aria-hidden", isVisible ? "false" : "true");
+  }
+  const chk = $("chkShowChatBubble");
+  if (chk && chk.checked !== isVisible) {
+    chk.checked = isVisible;
+  }
+  const toggleBtn = $("chatHideBubble");
+  if (toggleBtn) {
+    const icon = toggleBtn.querySelector(".mdi");
+    if (icon) {
+      icon.className = isVisible
+        ? "mdi mdi-eye-off-outline"
+        : "mdi mdi-eye-outline";
+    }
+    const tip = isVisible
+      ? "Hide floating chat button (access messages from top header)"
+      : "Show floating chat button (bottom-right)";
+    toggleBtn.setAttribute("title", tip);
+    toggleBtn.setAttribute("aria-label", tip);
+  }
+  if (notify && !isVisible) {
+    showToast(
+      "Floating chat button hidden. You can open messages from the top header or re-enable in Settings.",
+      "info",
+      3500,
+    );
+  }
+}
+
 function renderChatBadge() {
   const badge = $("chatBadge");
-  if (!badge) return;
+  const headerBadge = $("chatHeaderBadge");
   const count = Math.max(0, Math.trunc(Number(State.chatUnread || 0)));
-  if (count > 0) {
-    badge.hidden = false;
-    badge.textContent = count > 99 ? "99+" : String(count);
-  } else {
-    badge.hidden = true;
-    badge.textContent = "0";
+  const countText = count > 99 ? "99+" : String(count);
+  if (badge) {
+    if (count > 0) {
+      badge.hidden = false;
+      badge.textContent = countText;
+    } else {
+      badge.hidden = true;
+      badge.textContent = "0";
+    }
+  }
+  if (headerBadge) {
+    if (count > 0) {
+      headerBadge.hidden = false;
+      headerBadge.textContent = countText;
+    } else {
+      headerBadge.hidden = true;
+      headerBadge.textContent = "0";
+    }
   }
 }
 
@@ -13374,11 +13438,16 @@ function resetChatDismissTimer() {
 function openChatPanel() {
   const panel = $("chatPanel");
   const bubble = $("chatBubble");
-  if (!panel || !bubble) return;
+  const btnToggle = $("btnChatToggle");
+  if (!panel) return;
   State.chatOpen = true;
   panel.classList.add("chat-panel--open");
   panel.setAttribute("aria-hidden", "false");
-  bubble.setAttribute("aria-expanded", "true");
+  if (bubble) bubble.setAttribute("aria-expanded", "true");
+  if (btnToggle) {
+    btnToggle.classList.add("active");
+    btnToggle.setAttribute("aria-expanded", "true");
+  }
   State.chatUnread = 0;
   renderChatBadge();
   renderChatThread();
@@ -13391,11 +13460,16 @@ function openChatPanel() {
 function closeChatPanel() {
   const panel = $("chatPanel");
   const bubble = $("chatBubble");
-  if (!panel || !bubble) return;
+  const btnToggle = $("btnChatToggle");
+  if (!panel) return;
   State.chatOpen = false;
   panel.classList.remove("chat-panel--open");
   panel.setAttribute("aria-hidden", "true");
-  bubble.setAttribute("aria-expanded", "false");
+  if (bubble) bubble.setAttribute("aria-expanded", "false");
+  if (btnToggle) {
+    btnToggle.classList.remove("active");
+    btnToggle.setAttribute("aria-expanded", "false");
+  }
   clearChatDismissTimer();
 }
 
@@ -18136,6 +18210,11 @@ function handleControlLockUpdate(msg) {
 }
 
 function handleWS(msg) {
+  // 2.0 Topology config changed update
+  if (msg.type === "configChanged" || msg.type === "config_changed" || msg.type === "configchanged") {
+    loadIpConfig();
+    return;
+  }
   // 2.0 Single-Writer Control Lock Update
   if (msg.type === "control_lock") {
     handleControlLockUpdate(msg);
@@ -18220,6 +18299,10 @@ function handleWS(msg) {
     return;
   }
   if (msg.type === "init" || msg.type === "live") {
+    if (!State.ipConfig && !State._loadingIpConfig) {
+      State._loadingIpConfig = true;
+      loadIpConfig().finally(() => { State._loadingIpConfig = false; });
+    }
     noteStartupLiveReady();
     noteTodayMwhWsFrame(Date.now());
     if (
@@ -29519,7 +29602,23 @@ function bindEventHandlers() {
   $("btnCloseNotif")?.addEventListener("click", closeNotif);
 
   // Operator chat
+  $("btnChatToggle")?.addEventListener("click", toggleChatPanel);
   $("chatBubble")?.addEventListener("click", toggleChatPanel);
+  $("chatBubble")?.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    setChatBubbleVisible(false, { persist: true, notify: true });
+  });
+  $("chatBubbleHideBtn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setChatBubbleVisible(false, { persist: true, notify: true });
+  });
+  $("chatHideBubble")?.addEventListener("click", () => {
+    const next = !isChatBubbleVisible();
+    setChatBubbleVisible(next, { persist: true, notify: true });
+  });
+  $("chkShowChatBubble")?.addEventListener("change", (e) => {
+    setChatBubbleVisible(e.target.checked, { persist: true, notify: false });
+  });
   $("chatClose")?.addEventListener("click", closeChatPanel);
   $("chatSend")?.addEventListener("click", sendChatMessage);
   $("chatClear")?.addEventListener("click", () => {
@@ -29746,6 +29845,7 @@ async function init() {
 
   try {
     initThemeToggle();
+    setChatBubbleVisible(isChatBubbleVisible(), { persist: false, notify: false });
     State.plantCapPanelCollapsed = getStoredPlantCapPanelCollapsed();
     await initLicenseBridge();
     initUpdateModal();
@@ -36673,6 +36773,94 @@ function initControllerIdentityAndNetwork() {
   if (btnRefreshUrls && btnRefreshUrls.dataset.bound !== "1") {
     btnRefreshUrls.dataset.bound = "1";
     btnRefreshUrls.addEventListener("click", refreshConnectUrls);
+  }
+
+  const btnToggleRemoteToken = document.getElementById("btnToggleShowRemoteToken");
+  if (btnToggleRemoteToken && btnToggleRemoteToken.dataset.bound !== "1") {
+    btnToggleRemoteToken.dataset.bound = "1";
+    btnToggleRemoteToken.addEventListener("click", () => {
+      const inp = document.getElementById("setRemoteApiToken");
+      const icon = document.getElementById("btnToggleShowRemoteTokenIcon");
+      if (!inp) return;
+      if (inp.type === "password") {
+        inp.type = "text";
+        if (icon) {
+          icon.classList.remove("mdi-eye");
+          icon.classList.add("mdi-eye-off");
+        }
+      } else {
+        inp.type = "password";
+        if (icon) {
+          icon.classList.remove("mdi-eye-off");
+          icon.classList.add("mdi-eye");
+        }
+      }
+    });
+  }
+
+  const btnGenerateToken = document.getElementById("btnGenerateRemoteToken");
+  if (btnGenerateToken && btnGenerateToken.dataset.bound !== "1") {
+    btnGenerateToken.dataset.bound = "1";
+    btnGenerateToken.addEventListener("click", () => {
+      const inp = document.getElementById("setRemoteApiToken");
+      const icon = document.getElementById("btnToggleShowRemoteTokenIcon");
+      if (!inp) return;
+      const array = new Uint8Array(16);
+      (window.crypto || window.msCrypto).getRandomValues(array);
+      const hex = Array.from(array, byte => byte.toString(16).padStart(2, "0")).join("");
+      const generated = `inv_${hex}`;
+      inp.value = generated;
+      inp.type = "text";
+      if (icon) {
+        icon.classList.remove("mdi-eye");
+        icon.classList.add("mdi-eye-off");
+      }
+      showMsg("remoteTokenMsg", "✔ Unique token generated. Click 'Save Token' to persist.", "");
+    });
+  }
+
+  const btnCopyToken = document.getElementById("btnCopyRemoteToken");
+  if (btnCopyToken && btnCopyToken.dataset.bound !== "1") {
+    btnCopyToken.dataset.bound = "1";
+    btnCopyToken.addEventListener("click", async () => {
+      const inp = document.getElementById("setRemoteApiToken");
+      const val = String(inp?.value || "").trim();
+      if (!val) {
+        showMsg("remoteTokenMsg", "No token to copy.", "error");
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(val);
+        showMsg("remoteTokenMsg", "✔ Token copied to clipboard.", "");
+      } catch (_) {
+        inp.select();
+        document.execCommand("copy");
+        showMsg("remoteTokenMsg", "✔ Token copied to clipboard.", "");
+      }
+    });
+  }
+
+  const btnSaveToken = document.getElementById("btnSaveRemoteToken");
+  if (btnSaveToken && btnSaveToken.dataset.bound !== "1") {
+    btnSaveToken.dataset.bound = "1";
+    btnSaveToken.addEventListener("click", async () => {
+      const inp = document.getElementById("setRemoteApiToken");
+      const val = String(inp?.value || "").trim();
+      try {
+        btnSaveToken.disabled = true;
+        const res = await api("/api/settings", "POST", { remoteApiToken: val });
+        if (res?.ok !== false) {
+          State.settings.remoteApiToken = val;
+          showMsg("remoteTokenMsg", "✔ Remote API token saved.", "");
+        } else {
+          showMsg("remoteTokenMsg", `✗ Failed to save token: ${res?.error || "Unknown error"}`, "error");
+        }
+      } catch (err) {
+        showMsg("remoteTokenMsg", `✗ Error saving token: ${err.message}`, "error");
+      } finally {
+        btnSaveToken.disabled = false;
+      }
+    });
   }
 
   const btnRefreshGatewayLink = document.getElementById("btnRefreshGatewayLink");

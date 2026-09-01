@@ -26,7 +26,10 @@ Register Decoding Rules (Modbus standard):
 See services/inverter_engine.py for frame assembly and v2.10.x sign extension.
 """
 
-from pymodbus.client import ModbusTcpClient
+try:
+    from pymodbus.client import ModbusTcpClient
+except ImportError:
+    from pymodbus.client.sync import ModbusTcpClient
 import time
 
 # T3.7 + T3.10 fix (Phase 6, 2026-04-14):

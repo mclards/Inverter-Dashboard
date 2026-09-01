@@ -42,7 +42,7 @@ const verifyScript = path.join(repoRoot, 'scripts', 'verify-signed-installer.ps1
 const releaseDir = path.join(repoRoot, 'release');
 const pythonCommand = process.env.PYTHON || 'python';
 
-const ALLOW_UNSIGNED = process.env.ADSI_ALLOW_UNSIGNED === '1';
+const ALLOW_UNSIGNED = String(process.env.ADSI_ALLOW_UNSIGNED || '').trim() === '1';
 // 150 MB floor — post-v2.8.13 slimmed builds land around 180-220 MB after
 // removing duplicate ffmpeg/go2rtc/service-dist payloads from the asar and
 // pinning locales to en-US (see package.json files globs). This includes three
@@ -55,7 +55,7 @@ const env = { ...process.env };
 let signed = false;
 let expectedThumbprint = null;
 
-if (fs.existsSync(envFile)) {
+if (!ALLOW_UNSIGNED && fs.existsSync(envFile)) {
   const content = fs.readFileSync(envFile, 'utf8');
   for (const rawLine of content.split(/\r?\n/)) {
     const line = rawLine.trim();
@@ -82,7 +82,7 @@ if (fs.existsSync(envFile)) {
     console.warn('  CSC_LINK         =', env.CSC_LINK || '(unset)');
     console.warn('  CSC_KEY_PASSWORD =', env.CSC_KEY_PASSWORD ? '(set)' : '(unset)');
   }
-} else {
+} else if (!ALLOW_UNSIGNED) {
   console.warn('[build-installer-signed] Code signing env file missing:', envFile);
   console.warn('[build-installer-signed] Run: powershell -ExecutionPolicy Bypass -File scripts/generate-codesign-cert.ps1');
 }

@@ -1,4 +1,4 @@
-﻿# ==============================================================================
+# ==============================================================================
 # Replicate Legacy Inverter Dashboard Data to v2.0 Root
 # Target Platform: Windows SCADA PC
 # Source: C:\ProgramData\InverterDashboard\
@@ -28,7 +28,7 @@ function Write-Log {
 }
 
 Write-Log "================================================================"
-Write-Log "  ADSI Inverter Dashboard — Legacy to v2.0 Data Replication"
+Write-Log "  ADSI Inverter Dashboard -- Legacy to v2.0 Data Replication"
 Write-Log "================================================================"
 Write-Log "Source Root     : $SourceRoot"
 Write-Log "Destination Root: $TargetRoot"
@@ -119,12 +119,39 @@ if ($sourceArchiveDir -and (Test-Path -LiteralPath $sourceArchiveDir)) {
     $archiveCount = @(Get-ChildItem -Path $sourceArchiveDir -Filter '*.db' -File -ErrorAction SilentlyContinue).Count
 }
 
+$sourceDbMb = 0
+$primaryDbInfo = "[NOT FOUND]"
+if ($sourceDb) {
+    $sourceDbMb = [Math]::Round((Get-Item $sourceDb).Length / 1MB, 2)
+    $primaryDbInfo = "$sourceDb [$sourceDbMb MB]"
+}
+
+$archiveInfo = "[NOT FOUND]"
+if ($sourceArchiveDir) {
+    $archiveInfo = "$sourceArchiveDir [$archiveCount shard files]"
+}
+
+$topoInfo = "[NOT FOUND]"
+if ($sourceIpconfig) {
+    $topoInfo = $sourceIpconfig
+}
+
+$autoInfo = "[NONE]"
+if ($sourceAutoreset) {
+    $autoInfo = $sourceAutoreset
+}
+
+$srvInfo = "[NONE]"
+if ($sourceServiceConfig) {
+    $srvInfo = $sourceServiceConfig
+}
+
 Write-Log "Discovered Source Artifacts:"
-Write-Log "  • Primary Database: $(if ($sourceDb) { "$sourceDb ($([Math]::Round((Get-Item $sourceDb).Length / 1MB, 2)) MB)" } else { '[NOT FOUND]' })"
-Write-Log "  • Topology Config : $(if ($sourceIpconfig) { $sourceIpconfig } else { '[NOT FOUND]' })"
-Write-Log "  • Archive Shards  : $(if ($sourceArchiveDir) { "$sourceArchiveDir ($archiveCount shard files)" } else { '[NOT FOUND]' })"
-Write-Log "  • Auto-Reset      : $(if ($sourceAutoreset) { $sourceAutoreset } else { '[NONE]' })"
-Write-Log "  • Service Config  : $(if ($sourceServiceConfig) { $sourceServiceConfig } else { '[NONE]' })"
+Write-Log "  * Primary Database: $primaryDbInfo"
+Write-Log "  * Topology Config : $topoInfo"
+Write-Log "  * Archive Shards  : $archiveInfo"
+Write-Log "  * Auto-Reset      : $autoInfo"
+Write-Log "  * Service Config  : $srvInfo"
 
 if (-not $sourceDb -and -not $sourceIpconfig) {
     Write-Log "No database or ipconfig found in $SourceRoot. Nothing to replicate." "ERROR"
@@ -159,12 +186,18 @@ function Copy-ArtifactSafely {
     if (-not (Test-Path -LiteralPath $SourcePath)) { return }
 
     $destExists = Test-Path -LiteralPath $DestinationPath
-    if ($destExists -and -not $DryRun) {
-        $ts = Get-Date -Format "yyyyMMdd_HHmmss"
-        $fileName = [System.IO.Path]::GetFileName($DestinationPath)
-        $bakPath = [System.IO.Path]::Combine($targetBackupsDir, "$($fileName).bak_$ts")
-        Copy-Item -LiteralPath $DestinationPath -Destination $bakPath -Force
-        Write-Log "Backed up existing $Description to: $bakPath" "WARN"
+    if ($destExists) {
+        if (-not $Force) {
+            Write-Log "Skipping existing $Description (already present at target)" "INFO"
+            return
+        }
+        if (-not $DryRun) {
+            $ts = Get-Date -Format "yyyyMMdd_HHmmss"
+            $fileName = [System.IO.Path]::GetFileName($DestinationPath)
+            $bakPath = [System.IO.Path]::Combine($targetBackupsDir, "$fileName.bak_$ts")
+            Copy-Item -LiteralPath $DestinationPath -Destination $bakPath -Force
+            Write-Log "Backed up existing $Description to: $bakPath" "WARN"
+        }
     }
 
     if ($DryRun) {
@@ -172,7 +205,8 @@ function Copy-ArtifactSafely {
     } else {
         Copy-Item -LiteralPath $SourcePath -Destination $DestinationPath -Force
         $copiedLen = (Get-Item -LiteralPath $DestinationPath).Length
-        Write-Log "Replicated $Description ($([Math]::Round($copiedLen / 1MB, 2)) MB)" "SUCCESS"
+        $copiedMb = [Math]::Round($copiedLen / 1MB, 2)
+        Write-Log "Replicated $Description [$copiedMb MB]" "SUCCESS"
     }
 }
 
@@ -201,7 +235,10 @@ if ($sourceIpconfig) {
     # Validate JSON before copying
     try {
         $jsonContent = Get-Content -LiteralPath $sourceIpconfig -Raw -Encoding UTF8 | ConvertFrom-Json
-        $invCount = if ($jsonContent.inverters) { ($jsonContent.inverters | Get-Member -MemberType NoteProperty).Count } else { 0 }
+        $invCount = 0
+        if ($jsonContent.inverters) {
+            $invCount = ($jsonContent.inverters | Get-Member -MemberType NoteProperty).Count
+        }
         Write-Log "Validated ipconfig.json: Contains $invCount inverter definitions." "SUCCESS"
     } catch {
         Write-Log "Warning: ipconfig.json could not be parsed as valid JSON: $_" "WARN"
@@ -218,12 +255,72 @@ if ($sourceArchiveDir -and (Test-Path -LiteralPath $sourceArchiveDir)) {
     $shardFiles = @(Get-ChildItem -Path $sourceArchiveDir -Filter "*.db" -File -ErrorAction SilentlyContinue)
     foreach ($shard in $shardFiles) {
         $destShard = [System.IO.Path]::Combine($targetArchiveDir, $shard.Name)
-        Copy-ArtifactSafely -SourcePath $shard.FullName -DestinationPath $destShard -Description "Archive Shard ($($shard.Name))"
+        $shardName = $shard.Name
+        Copy-ArtifactSafely -SourcePath $shard.FullName -DestinationPath $destShard -Description "Archive Shard [$shardName]"
     }
 }
 
 # ------------------------------------------------------------------------------
-# 8. Replicate Auto-Reset & Service Configurations
+# 8. Replicate AI/ML Forecast, Weather, License & Auth
+# ------------------------------------------------------------------------------
+$sourceForecastDir = [System.IO.Path]::Combine($SourceRoot, "forecast")
+if (Test-Path -LiteralPath $sourceForecastDir) {
+    $forecastFiles = @(Get-ChildItem -Path $sourceForecastDir -Recurse -File -ErrorAction SilentlyContinue)
+    foreach ($f in $forecastFiles) {
+        $rel = $f.FullName.Substring($sourceForecastDir.Length + 1)
+        $destFile = [System.IO.Path]::Combine($TargetRoot, "forecast", $rel)
+        $destParent = [System.IO.Path]::GetDirectoryName($destFile)
+        if (-not (Test-Path -LiteralPath $destParent) -and -not $DryRun) {
+            New-Item -Path $destParent -ItemType Directory -Force | Out-Null
+        }
+        Copy-ArtifactSafely -SourcePath $f.FullName -DestinationPath $destFile -Description "Forecast File ($rel)"
+    }
+}
+
+$sourceWeatherDir = [System.IO.Path]::Combine($SourceRoot, "weather")
+if (Test-Path -LiteralPath $sourceWeatherDir) {
+    $weatherFiles = @(Get-ChildItem -Path $sourceWeatherDir -Recurse -File -ErrorAction SilentlyContinue)
+    foreach ($f in $weatherFiles) {
+        $rel = $f.FullName.Substring($sourceWeatherDir.Length + 1)
+        $destFile = [System.IO.Path]::Combine($TargetRoot, "weather", $rel)
+        $destParent = [System.IO.Path]::GetDirectoryName($destFile)
+        if (-not (Test-Path -LiteralPath $destParent) -and -not $DryRun) {
+            New-Item -Path $destParent -ItemType Directory -Force | Out-Null
+        }
+        Copy-ArtifactSafely -SourcePath $f.FullName -DestinationPath $destFile -Description "Weather File ($rel)"
+    }
+}
+
+$sourceLicenseDir = [System.IO.Path]::Combine($SourceRoot, "license")
+if (Test-Path -LiteralPath $sourceLicenseDir) {
+    $licenseFiles = @(Get-ChildItem -Path $sourceLicenseDir -Recurse -File -ErrorAction SilentlyContinue)
+    foreach ($f in $licenseFiles) {
+        $rel = $f.FullName.Substring($sourceLicenseDir.Length + 1)
+        $destFile = [System.IO.Path]::Combine($TargetRoot, "license", $rel)
+        $destParent = [System.IO.Path]::GetDirectoryName($destFile)
+        if (-not (Test-Path -LiteralPath $destParent) -and -not $DryRun) {
+            New-Item -Path $destParent -ItemType Directory -Force | Out-Null
+        }
+        Copy-ArtifactSafely -SourcePath $f.FullName -DestinationPath $destFile -Description "License File ($rel)"
+    }
+}
+
+$sourceAuthDir = [System.IO.Path]::Combine($SourceRoot, "auth")
+if (Test-Path -LiteralPath $sourceAuthDir) {
+    $authFiles = @(Get-ChildItem -Path $sourceAuthDir -Recurse -File -ErrorAction SilentlyContinue)
+    foreach ($f in $authFiles) {
+        $rel = $f.FullName.Substring($sourceAuthDir.Length + 1)
+        $destFile = [System.IO.Path]::Combine($TargetRoot, "auth", $rel)
+        $destParent = [System.IO.Path]::GetDirectoryName($destFile)
+        if (-not (Test-Path -LiteralPath $destParent) -and -not $DryRun) {
+            New-Item -Path $destParent -ItemType Directory -Force | Out-Null
+        }
+        Copy-ArtifactSafely -SourcePath $f.FullName -DestinationPath $destFile -Description "Auth File ($rel)"
+    }
+}
+
+# ------------------------------------------------------------------------------
+# 9. Replicate Auto-Reset, Backup Metadata & Service Configurations
 # ------------------------------------------------------------------------------
 if ($sourceAutoreset) {
     $destAuto = [System.IO.Path]::Combine($TargetRoot, "autoreset.json")
@@ -235,8 +332,20 @@ if ($sourceServiceConfig) {
     Copy-ArtifactSafely -SourcePath $sourceServiceConfig -DestinationPath $destSrv -Description "Service Config"
 }
 
+$sourceBackupHist = [System.IO.Path]::Combine($SourceRoot, "backup_history.json")
+if (Test-Path -LiteralPath $sourceBackupHist) {
+    $destBackupHist = [System.IO.Path]::Combine($TargetRoot, "backup_history.json")
+    Copy-ArtifactSafely -SourcePath $sourceBackupHist -DestinationPath $destBackupHist -Description "Backup History"
+}
+
+$sourceBackupHealth = [System.IO.Path]::Combine($SourceRoot, "db", "backupHealth.json")
+if (Test-Path -LiteralPath $sourceBackupHealth) {
+    $destBackupHealth = [System.IO.Path]::Combine($targetDbDir, "backupHealth.json")
+    Copy-ArtifactSafely -SourcePath $sourceBackupHealth -DestinationPath $destBackupHealth -Description "Backup Health Metadata"
+}
+
 # ------------------------------------------------------------------------------
-# 9. Verification & Summary
+# 10. Verification & Summary
 # ------------------------------------------------------------------------------
 Write-Log "----------------------------------------------------------------"
 Write-Log "Replication Finished!" "SUCCESS"
@@ -246,8 +355,15 @@ if (-not $DryRun) {
     $targetItems = @(Get-ChildItem -Path $TargetRoot -Recurse -File | Where-Object { $_.FullName -notmatch '\\backups\\' })
     foreach ($item in $targetItems) {
         $relPath = $item.FullName.Substring($TargetRoot.Length + 1)
-        $sizeStr = if ($item.Length -ge 1MB) { "$([Math]::Round($item.Length / 1MB, 2)) MB" } else { "$([Math]::Round($item.Length / 1KB, 2)) KB" }
-        Write-Log "  ✓ $relPath ($sizeStr)"
+        $sizeStr = ""
+        if ($item.Length -ge 1MB) {
+            $mb = [Math]::Round($item.Length / 1MB, 2)
+            $sizeStr = "$mb MB"
+        } else {
+            $kb = [Math]::Round($item.Length / 1KB, 2)
+            $sizeStr = "$kb KB"
+        }
+        Write-Log "  [OK] $relPath [$sizeStr]"
     }
 }
 

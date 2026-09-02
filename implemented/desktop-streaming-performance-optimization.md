@@ -5,10 +5,11 @@ Timestamp: 2026-09-02 Asia/Taipei
 ## Status
 
 **Remote inverter-telemetry delay root cause confirmed in the running
-environment; source fix implemented and awaiting deployment verification.**
-The camera and packaged-renderer portions still require a live post-build test.
-Do not combine those separate results into a claim that every reported
-streaming symptom is field-verified.
+environment; source fix implemented, regression-tested, and packaged in the
+signed 1.0.8 installer. Linux-gateway deployment and an installed-client field
+measurement are still pending.** The camera and packaged-renderer portions
+still require a live post-install test. Do not combine those separate results
+into a claim that every reported streaming symptom is field-verified.
 
 ## Reported Symptom
 
@@ -23,13 +24,19 @@ This is a useful observation, but it is not sufficient to establish a cause.
 
 ## Confirmed Findings
 
-### 1. The available installer does not contain the current telemetry fix
+### 1. The 1.0.8 installer contains the current telemetry fix
 
-The available `release/Inverter-Dashboard-Setup-1.0.7.exe` was built before the
-WebSocket authorization, compression, frame-coalescing, and player-lifecycle
-changes documented below. It contains the earlier Chromium-policy and Remote
-relay-enrichment changes only. A newer installer is required for the current
-source fix.
+`release/Inverter-Dashboard-Setup-1.0.8.exe` was built from commit `520836e`
+after the WebSocket authorization, compression, frame-coalescing, and
+player-lifecycle changes documented below. The build script verified the
+expected signing-certificate thumbprint and the timestamp signature. Windows
+reports `UnknownError` on this build workstation because the private MCTech
+root is not installed in its Trusted Root store; the thumbprint pin still
+passed. This is an internal-PKI trust-state result, not a claim of public
+SmartScreen reputation.
+
+The older 1.0.7 installer does not contain these fixes and must not be used for
+post-fix performance validation.
 
 ### 2. The Remote desktop live WebSocket was blocked before token validation
 
@@ -272,6 +279,10 @@ separately installed package:
 - Canonical `C:\ProgramData\Inverter-Dashboard\db\ipconfig.json` parsed as
   valid JSON with all four maps and 27 inverter records; the engine source
   resolves the hyphenated ProgramData path.
+- `npm run build:installer:signed` produced
+  `release/Inverter-Dashboard-Setup-1.0.8.exe` (354,772,632 bytes) from clean
+  commit `520836e`; the expected signing thumbprint and Sectigo timestamp were
+  present and the signing-thumbprint pin passed.
 - Pre-fix live diagnostics reproduced the failed WebSocket fast path and the
   sample ages documented above. The corrected source has not yet been deployed
   to both endpoints, so a post-fix live latency number is not claimed here.
@@ -279,8 +290,8 @@ separately installed package:
 ## Release Decision
 
 **The confirmed Remote telemetry fault is fixed in version 1.0.8 source and
-fully covered by local regression tests.** The available 1.0.7 installer and
-currently running Linux gateway predate the correction. Build/install 1.0.8,
-update/restart the gateway, and repeat the live age capture before declaring
-the field symptom resolved. Camera smoothness likewise remains a live visual
-verification item.
+fully covered by local regression tests, and a signed 1.0.8 installer has been
+built.** The currently running Linux gateway still predates the correction.
+Install 1.0.8, update/restart the gateway, and repeat the live age capture
+before declaring the field symptom resolved. Camera smoothness likewise
+remains a live visual verification item.

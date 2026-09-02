@@ -16736,10 +16736,12 @@ class CameraPlayer {
     video.style.display = "block";
     video.muted = true;
 
-    const host = this._resolveGo2rtcHost(s.go2rtcIp);
-    const port = s.go2rtcPort || "1984";
-    const proto = window.location.protocol === "https:" ? "https:" : "http:";
-    const url = `${proto}//${host}:${port}/api/stream.m3u8?src=${encodeURIComponent(s.streamKey)}&mp4`;
+    const streamKey = s.streamKey || "tapo_cam";
+    const configuredHost = String(s.go2rtcIp || "").trim();
+    const useDirectHost = configuredHost && configuredHost !== "127.0.0.1" && configuredHost !== "localhost";
+    const url = useDirectHost
+      ? `${window.location.protocol === "https:" ? "https:" : "http:"}//${configuredHost}:${s.go2rtcPort || "1984"}/api/stream.m3u8?src=${encodeURIComponent(streamKey)}&mp4`
+      : `/api/streaming/hls/stream.m3u8?src=${encodeURIComponent(streamKey)}&mp4`;
 
     if (this.hlsInstance) {
       try { this.hlsInstance.destroy(); } catch (_) {}
@@ -16859,10 +16861,12 @@ class CameraPlayer {
     video.style.display = "block";
     video.muted = true;
 
-    const host = this._resolveGo2rtcHost(s.go2rtcIp);
-    const port = s.go2rtcPort || "1984";
-    const proto = window.location.protocol === "https:" ? "https:" : "http:";
-    const apiBase = `${proto}//${host}:${port}`;
+    const streamKey = s.streamKey || "tapo_cam";
+    const configuredHost = String(s.go2rtcIp || "").trim();
+    const useDirectHost = configuredHost && configuredHost !== "127.0.0.1" && configuredHost !== "localhost";
+    const webrtcUrl = useDirectHost
+      ? `${window.location.protocol === "https:" ? "https:" : "http:"}//${configuredHost}:${s.go2rtcPort || "1984"}/api/webrtc?src=${encodeURIComponent(streamKey)}`
+      : `/api/streaming/webrtc?src=${encodeURIComponent(streamKey)}`;
     const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
     this.rtcPeer = pc;
 
@@ -16922,7 +16926,7 @@ class CameraPlayer {
       return waitIceGathering(pc);
     }).then(() => {
       const sdp = pc.localDescription?.sdp || "";
-      return fetch(`${apiBase}/api/webrtc?src=${encodeURIComponent(s.streamKey)}`, {
+      return fetch(webrtcUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -607,10 +607,25 @@ function walkFiles(root) {
   if (!fs.existsSync(root)) return [];
   const output = [];
   const visit = (current) => {
-    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+    let entries;
+    try {
+      entries = fs.readdirSync(current, { withFileTypes: true });
+    } catch (err) {
+      throw new Error(`Cannot read directory ${current}: ${err.message}`);
+    }
+    for (const entry of entries) {
       const full = path.join(current, entry.name);
-      if (entry.isDirectory()) visit(full);
-      else if (entry.isFile()) output.push(full);
+      try {
+        const stat = fs.statSync(full);
+        if (stat.isDirectory()) {
+          visit(full);
+        } else if (stat.isFile()) {
+          output.push(full);
+        }
+      } catch (_) {
+        if (entry.isDirectory()) visit(full);
+        else if (entry.isFile()) output.push(full);
+      }
     }
   };
   visit(root);
@@ -623,7 +638,15 @@ function firstExisting(paths) {
 
 function legacyInventory(sourceRoot) {
   if (!fs.existsSync(sourceRoot)) return [];
-  return walkFiles(sourceRoot).filter((file) => !/-wal$|-shm$/i.test(file));
+  const allFiles = walkFiles(sourceRoot);
+  return allFiles.filter((file) => {
+    if (/-shm$/i.test(file)) return false;
+    if (/-wal$/i.test(file)) {
+      const baseDb = file.replace(/-wal$/i, "");
+      return !fs.existsSync(baseDb);
+    }
+    return true;
+  });
 }
 
 function processIsRunning(pid) {
@@ -786,20 +809,59 @@ async function runRequestedLegacyMigration(options = {}) {
         if (topologyResult.action === "invalid-source") manifest.errors.push(topologyResult);
       }
 
-      const directFiles = [
-        [path.join(sourceRoot, "autoreset.json"), path.join(targetRoot, "autoreset.json")],
-        [path.join(sourceRoot, "server-service-config.json"), path.join(targetRoot, "server-service-config.json")],
-        [path.join(sourceRoot, "backup_history.json"), path.join(targetRoot, "backup_history.json")],
-        [path.join(sourceRoot, "db", "backupHealth.json"), path.join(targetRoot, "db", "backupHealth.json")],
-        [path.join(sourceRoot, "cloud_tokens.enc"), path.join(targetRoot, "auth", "cloud_tokens.enc")],
+      const directCandidates = [
+        {
+          target: path.join(targetRoot, "autoreset.json"),
+          sources: [
+            path.join(sourceRoot, "autoreset.json"),
+            path.join(sourceRoot, "config", "autoreset.json"),
+            path.join(sourceRoot, "db", "autoreset.json"),
+          ],
+        },
+        {
+          target: path.join(targetRoot, "server-service-config.json"),
+          sources: [
+            path.join(sourceRoot, "server-service-config.json"),
+            path.join(sourceRoot, "config", "server-service-config.json"),
+            path.join(sourceRoot, "db", "server-service-config.json"),
+          ],
+        },
+        {
+          target: path.join(targetRoot, "backup_history.json"),
+          sources: [
+            path.join(sourceRoot, "backup_history.json"),
+            path.join(sourceRoot, "config", "backup_history.json"),
+            path.join(sourceRoot, "db", "backup_history.json"),
+          ],
+        },
+        {
+          target: path.join(targetRoot, "db", "backupHealth.json"),
+          sources: [
+            path.join(sourceRoot, "db", "backupHealth.json"),
+            path.join(sourceRoot, "backupHealth.json"),
+            path.join(sourceRoot, "config", "backupHealth.json"),
+          ],
+        },
+        {
+          target: path.join(targetRoot, "auth", "cloud_tokens.enc"),
+          sources: [
+            path.join(sourceRoot, "cloud_tokens.enc"),
+            path.join(sourceRoot, "auth", "cloud_tokens.enc"),
+            path.join(sourceRoot, "db", "cloud_tokens.enc"),
+          ],
+        },
       ];
-      for (const [source, destination] of directFiles) {
-        if (fs.existsSync(source)) manifest.files.push(migrateOrdinaryFile(source, destination, context));
+      for (const candidate of directCandidates) {
+        const found = firstExisting(candidate.sources);
+        if (found) {
+          manifest.files.push(migrateOrdinaryFile(found, candidate.target, context));
+        }
       }
 
       const sourceKeyring = firstExisting([
         path.join(sourceRoot, "auth", ".token-keyring"),
         path.join(sourceRoot, "db", ".token-keyring"),
+        path.join(sourceRoot, ".token-keyring"),
       ]);
       if (sourceKeyring) {
         manifest.files.push(migrateOrdinaryFile(

@@ -19,9 +19,13 @@
   IfSilent skipLegacyMigration
 
   ; Detect every legacy family supported by the application-side importer.
-  IfFileExists "$0\InverterDashboard\db\*.*" legacyFound
-  IfFileExists "$0\InverterDashboard\archive\*.*" legacyFound
-  IfFileExists "$0\InverterDashboard\forecast\*.*" legacyFound
+  IfFileExists "$0\InverterDashboard\db\adsi.db" legacyFound
+  IfFileExists "$0\InverterDashboard\db\ipconfig.json" legacyFound
+  IfFileExists "$0\InverterDashboard\db\backupHealth.json" legacyFound
+  IfFileExists "$0\InverterDashboard\db\*.db" legacyFound
+  IfFileExists "$0\InverterDashboard\db\archive\*.db" legacyFound
+  IfFileExists "$0\InverterDashboard\archive\*.db" legacyFound
+  IfFileExists "$0\InverterDashboard\forecast\*.json" legacyFound
   IfFileExists "$0\InverterDashboard\weather\*.*" legacyFound
   IfFileExists "$0\InverterDashboard\license\*.*" legacyFound
   IfFileExists "$0\InverterDashboard\auth\*.*" legacyFound
@@ -32,6 +36,7 @@
   IfFileExists "$0\InverterDashboard\server-service-config.json" legacyFound
   IfFileExists "$0\InverterDashboard\backup_history.json" legacyFound
   IfFileExists "$0\InverterDashboard\cloud_tokens.enc" legacyFound
+  IfFileExists "$0\InverterDashboard\.token-keyring" legacyFound
   Goto skipLegacyMigration
 
 legacyFound:

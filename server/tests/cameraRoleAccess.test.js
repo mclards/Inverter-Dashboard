@@ -40,6 +40,10 @@ function test() {
     { url: "/api/streaming/go2rtc-status", method: "GET" },
     { url: "/api/streaming/go2rtc/start", method: "POST" },
     { url: "/api/streaming/go2rtc/stop", method: "POST" },
+    { url: "/api/streaming/hls/stream.m3u8?src=tapo_cam&mp4", method: "GET" },
+    { url: "/api/streaming/hls/hls/playlist.m3u8?id=abc", method: "GET" },
+    { url: "/api/streaming/hls/hls/segment.m4s?id=abc&n=0", method: "GET" },
+    { url: "/api/streaming/webrtc?src=tapo_cam", method: "POST" },
   ];
 
   for (const r of operatorRoutes) {

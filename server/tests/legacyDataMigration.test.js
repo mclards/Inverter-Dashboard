@@ -249,6 +249,51 @@ async function testTableFailureRollsBackWholeDatabase() {
   }
 }
 
+async function testNothingToImportGuaranteesNoFalsePositive() {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "legacy-migration-nothing-test-"));
+  try {
+    const sourceRoot = path.join(tempRoot, "InverterDashboard");
+    const targetRoot = path.join(tempRoot, "Inverter-Dashboard");
+
+    // 1. Missing sourceRoot -> correctly returns nothing-to-import
+    let requestPath = marker(targetRoot);
+    let result = await runRequestedLegacyMigration({ Database, sourceRoot, targetRoot, requestPath });
+    assert.strictEqual(result.status, "nothing-to-import");
+    assert.strictEqual(result.inventoryCount, 0);
+
+    // 2. Empty sourceRoot with only empty subdirectories -> correctly returns nothing-to-import
+    fs.mkdirSync(path.join(sourceRoot, "db", "archive"), { recursive: true });
+    fs.mkdirSync(path.join(sourceRoot, "forecast"), { recursive: true });
+    requestPath = marker(targetRoot);
+    result = await runRequestedLegacyMigration({ Database, sourceRoot, targetRoot, requestPath });
+    assert.strictEqual(result.status, "nothing-to-import");
+    assert.strictEqual(result.inventoryCount, 0);
+
+    // 3. sourceRoot contains identical files -> status is "complete" (inventoryCount > 0), NEVER "nothing-to-import"
+    fs.mkdirSync(path.join(targetRoot, "db"), { recursive: true });
+    fs.writeFileSync(path.join(sourceRoot, "autoreset.json"), '{"test":1}\n', "utf8");
+    fs.writeFileSync(path.join(targetRoot, "autoreset.json"), '{"test":1}\n', "utf8");
+    requestPath = marker(targetRoot);
+    result = await runRequestedLegacyMigration({ Database, sourceRoot, targetRoot, requestPath });
+    assert.strictEqual(result.status, "complete");
+    assert.strictEqual(result.inventoryCount, 1);
+    assert.strictEqual(result.files[0].action, "identical");
+
+    // 4. sourceRoot contains direct candidate in alternative path (e.g. config/server-service-config.json)
+    fs.mkdirSync(path.join(sourceRoot, "config"), { recursive: true });
+    fs.writeFileSync(path.join(sourceRoot, "config", "server-service-config.json"), '{"service":true}\n', "utf8");
+    requestPath = marker(targetRoot);
+    result = await runRequestedLegacyMigration({ Database, sourceRoot, targetRoot, requestPath });
+    assert.strictEqual(result.status, "complete");
+    assert.ok(result.inventoryCount >= 2);
+    const serviceFile = result.files.find((f) => f.source.includes("server-service-config.json"));
+    assert.ok(serviceFile, "Alternative config path must be discovered");
+    assert.strictEqual(serviceFile.action, "copied-new");
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+}
+
 function testInstallerAndStartupWiring() {
   const repoRoot = path.resolve(__dirname, "..", "..");
   const installer = fs.readFileSync(path.join(repoRoot, "scripts", "installer.nsh"), "utf8");
@@ -267,6 +312,7 @@ function testInstallerAndStartupWiring() {
   await testContentAwareMerge();
   await testCorruptSourceDoesNotModifyTargetAndRetries();
   await testTableFailureRollsBackWholeDatabase();
+  await testNothingToImportGuaranteesNoFalsePositive();
   testInstallerAndStartupWiring();
   console.log("legacyDataMigration.test.js: PASS");
 })().catch((error) => {

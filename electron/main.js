@@ -386,12 +386,20 @@ if (!CALIBRATOR_STANDALONE && !_gotSingleInstanceLock) {
   _initShutdownSnapshot();
   app.on("second-instance", (_event, _argv, _cwd) => {
     try {
+      if (loginWin && !loginWin.isDestroyed()) {
+        if (loginWin.isMinimized()) loginWin.restore();
+        if (!loginWin.isVisible()) loginWin.show();
+        loginWin.focus();
+        return;
+      }
       const wins = BrowserWindow.getAllWindows();
       const primary = wins.find((w) => !w.isDestroyed());
       if (primary) {
         if (primary.isMinimized()) primary.restore();
         if (!primary.isVisible()) primary.show();
         primary.focus();
+      } else if (!hasAuthenticated) {
+        showLoginWindow();
       }
     } catch (err) {
       console.warn("[main] second-instance focus failed:", err?.message || err);
@@ -775,7 +783,7 @@ function configureRuntimeDataPath() {
 
 configureRuntimeDataPath();
 
-async function runInstallerRequestedLegacyMigration() {
+async function runInstallerRequestedLegacyMigration(parentWin = null) {
   // NSIS writes the request only after the operator accepts the migration
   // prompt. Keep portable/admin-overridden runtimes isolated from the
   // per-machine ProgramData migration.
@@ -818,8 +826,19 @@ async function runInstallerRequestedLegacyMigration() {
   const manifestLine = result.manifestPath
     ? `\n\nAudit manifest:\n${result.manifestPath}`
     : "";
-  if (result.status === "failed" || result.status === "busy") {
-    await dialog.showMessageBox({
+
+  const showBox = async (opts) => {
+    if (parentWin && !parentWin.isDestroyed()) {
+      return dialog.showMessageBox(parentWin, opts);
+    }
+    return dialog.showMessageBox(opts);
+  };
+
+  if (result.status === "nothing-to-import") {
+    console.log(`[legacy-migration] No legacy data artifacts found in ${sourceRoot} (inventoryCount=0).`);
+  } else if (result.status === "failed" || result.status === "busy") {
+    console.error(`[legacy-migration] Migration ${result.status}:`, result.errors || result.busyOwnerPid);
+    await showBox({
       type: "error",
       title: "Legacy Data Migration Incomplete",
       message: "The legacy-data migration did not complete.",
@@ -830,7 +849,8 @@ async function runInstallerRequestedLegacyMigration() {
       defaultId: 0,
     });
   } else if (result.status === "complete-with-conflicts") {
-    await dialog.showMessageBox({
+    console.warn(`[legacy-migration] Migration complete with conflicts (${result.conflictCount} conflict(s)): imported ${insertedRows} rows, ${copiedFiles} files.`);
+    await showBox({
       type: "warning",
       title: "Legacy Data Migration Completed With Conflicts",
       message: `Imported ${insertedRows} database row(s) and ${copiedFiles} file/config item(s).`,
@@ -840,17 +860,18 @@ async function runInstallerRequestedLegacyMigration() {
       buttons: ["Continue to Dashboard"],
       defaultId: 0,
     });
-  } else {
-    await dialog.showMessageBox({
+  } else if (insertedRows > 0 || copiedFiles > 0) {
+    console.log(`[legacy-migration] Migration complete: imported ${insertedRows} database row(s) and ${copiedFiles} file(s).`);
+    await showBox({
       type: "info",
       title: "Legacy Data Migration Complete",
-      message: result.status === "nothing-to-import"
-        ? "No legacy data artifacts required migration."
-        : `Imported ${insertedRows} database row(s) and ${copiedFiles} file/config item(s).`,
+      message: `Imported ${insertedRows} database row(s) and ${copiedFiles} file/config item(s).`,
       detail: "Source data was left untouched and the migrated databases passed SQLite integrity checks." + manifestLine,
       buttons: ["Continue to Dashboard"],
       defaultId: 0,
     });
+  } else {
+    console.log(`[legacy-migration] Migration complete: all ${result.inventoryCount} legacy artifacts were already identical to current data.`);
   }
   return result;
 }
@@ -2288,14 +2309,7 @@ app.whenReady().then(async () => {
   }
   app.setName("Inverter Dashboard");
 
-  writeBootLog("step 0: installer-requested legacy migration");
-  await runInstallerRequestedLegacyMigration();
-
   // v2.8.14 — powerMonitor handlers for OS-level shutdown / suspend / resume.
-  // powerMonitor requires app-ready, so it's bound here rather than at top.
-  // `shutdown` is the ACPI signal fired when Windows is about to power off
-  // or reboot; it is complementary to session-end and fires a bit earlier
-  // on some Windows editions.
   try {
     const { powerMonitor } = require("electron");
     if (powerMonitor && typeof powerMonitor.on === "function") {
@@ -2313,15 +2327,8 @@ app.whenReady().then(async () => {
           }).catch(() => { /* already logged */ });
         } catch (_) {}
       });
-      // Suspend is NOT a shutdown — but we record it so that if the machine
-      // is later power-cycled from sleep without resuming cleanly, the banner
-      // can surface "prior shutdown followed a suspend at 22:04" and the
-      // operator knows to check the UPS / power rail.
       powerMonitor.on("suspend", () => {
         try { console.log("[main] powerMonitor.suspend — recording advisory marker"); } catch (_) {}
-        // Use a lower-severity reason and DO NOT set _shutdownReasonRecorded
-        // so a later session-end can still overwrite with the authoritative
-        // shutdown reason. We reach around recordShutdownReasonOnce here.
         try {
           _shutdownReason.recordShutdownReasonSync(SHUTDOWN_REASONS.POWER_SUSPEND, {
             initiator: SHUTDOWN_INITIATORS.WINDOWS_OS,
@@ -2339,6 +2346,9 @@ app.whenReady().then(async () => {
   } catch (err) {
     console.warn("[main] powerMonitor wiring failed:", err?.message || err);
   }
+
+  writeBootLog("step 0: installer-requested legacy migration");
+  await runInstallerRequestedLegacyMigration();
 
   writeBootLog("step 1: initAppUpdater");
   initAppUpdater();

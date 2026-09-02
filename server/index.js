@@ -6022,6 +6022,7 @@ function checkTcpReachability(host, port, timeoutMs = 1800) {
 // Centralized proxy timeout rules: [pathPrefix, timeoutMs]
 // Ordered from most specific to least specific; first match wins.
 const PROXY_TIMEOUT_RULES = [
+  ["/api/streaming/",     30000],  // 30 s  — go2rtc stream / HLS / WebRTC proxy
   ["/api/hikvision/",     30000],  // 30 s  — DVR start/profile checks over Tailscale
   ["/api/export/",       600000],  // 10 min — large CSV/Excel exports
   ["/api/report/",        45000],  // 45 s  — daily report generation
@@ -13627,6 +13628,200 @@ app.post("/api/streaming/go2rtc/stop", (req, res) => {
       return res.json({ ok: true });
     })
     .catch((e) => res.status(500).json({ ok: false, error: e.message }));
+});
+
+/* ── Unified go2rtc / Tapo streaming proxy ───────────────────────── */
+function rewriteStreamingPlaylist(text) {
+  return String(text || "").replace(
+    /\/api\/hls\//g,
+    "/api/streaming/hls/hls/",
+  );
+}
+
+function proxyStreamingMediaToRemote(req, res, options = {}) {
+  const base = getRemoteGatewayBaseUrl();
+  if (!base) {
+    return res.status(503).json({ ok: false, error: "Remote gateway URL is not configured." });
+  }
+  if (isUnsafeRemoteLoop(base)) {
+    return res.status(400).json({ ok: false, error: "Remote gateway URL cannot be localhost in remote mode." });
+  }
+
+  let target;
+  try {
+    target = new URL(`${base}${req.originalUrl}`);
+  } catch (_) {
+    return res.status(400).json({ ok: false, error: "Remote streaming media URL is invalid." });
+  }
+  const transport = target.protocol === "https:" ? https : http;
+  const copyMediaHeaders = (mediaRes) => {
+    res.status(mediaRes.statusCode || 502);
+    for (const name of [
+      "content-type",
+      "content-length",
+      "cache-control",
+      "content-range",
+      "accept-ranges",
+      "etag",
+      "last-modified",
+    ]) {
+      if (mediaRes.headers[name]) res.set(name, mediaRes.headers[name]);
+    }
+  };
+  const upstream = transport.request(target, {
+    method: "GET",
+    headers: {
+      Accept: String(req.headers.accept || "*/*"),
+      ...buildRemoteProxyHeaders(),
+    },
+  }, (mediaRes) => {
+    const statusCode = Number(mediaRes.statusCode || 0);
+    if (statusCode < 200 || statusCode >= 300) {
+      mediaRes.resume();
+      mediaRes.once("end", () => {
+        if (!res.headersSent) {
+          res.status(statusCode || 502).json({
+            ok: false,
+            error: `Gateway streaming relay returned HTTP ${statusCode || 502}`,
+          });
+        }
+      });
+      return;
+    }
+
+    const isPlaylist = /\.m3u8(?:\?|$)/i.test(String(req.originalUrl || ""));
+    if (options.validateHlsManifest && isPlaylist) {
+      const chunks = [];
+      let size = 0;
+      mediaRes.on("data", (chunk) => {
+        size += chunk.length;
+        if (size <= 2 * 1024 * 1024) chunks.push(chunk);
+      });
+      mediaRes.once("end", () => {
+        const body = Buffer.concat(chunks);
+        const valid = size <= 2 * 1024 * 1024 && /^\uFEFF?\s*#EXTM3U(?:\r?\n|$)/i.test(body.toString("utf8"));
+        if (!valid) {
+          if (!res.headersSent) {
+            res.status(502).json({ ok: false, error: "Gateway streaming relay returned an invalid HLS manifest." });
+          }
+          return;
+        }
+        copyMediaHeaders(mediaRes);
+        res.send(body);
+      });
+      return;
+    }
+
+    copyMediaHeaders(mediaRes);
+    mediaRes.pipe(res);
+  });
+  upstream.setTimeout(30000, () => upstream.destroy(new Error("Remote streaming media request timed out")));
+  upstream.on("error", (err) => {
+    if (!res.headersSent) {
+      res.status(502).json({ ok: false, error: `Remote streaming media failed: ${err.message}` });
+    } else res.end();
+  });
+  res.on("close", () => {
+    if (!res.writableEnded) upstream.destroy();
+  });
+  upstream.end();
+}
+
+function proxyLocalGo2rtcMedia(req, res) {
+  const GO2RTC_API_HOST = "127.0.0.1";
+  const GO2RTC_API_PORT = Number(process.env.GO2RTC_API_PORT || 1984);
+  const rawSuffix = String(req.params?.[0] || "stream.m3u8").replace(/^\/+/, "");
+  const normalizedSuffix = rawSuffix.replace(/^(?:hls\/)+/, "");
+  const query = req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "";
+
+  let upstreamPath;
+  if (normalizedSuffix === "stream.m3u8" || rawSuffix === "stream.m3u8" || normalizedSuffix === "master.m3u8") {
+    const src = String(req.query?.src || "tapo_cam").trim().slice(0, 64);
+    upstreamPath = `/api/stream.m3u8?src=${encodeURIComponent(src)}&mp4`;
+  } else if (rawSuffix.startsWith("hls/")) {
+    upstreamPath = `/api/hls/${normalizedSuffix}${query}`;
+  } else if (/\.(?:m3u8|m4s|mp4|ts)(?:\?|$)/i.test(normalizedSuffix)) {
+    upstreamPath = `/api/hls/${normalizedSuffix}${query}`;
+  } else {
+    return res.status(404).end();
+  }
+
+  const upstream = http.get(
+    { host: GO2RTC_API_HOST, port: GO2RTC_API_PORT, path: upstreamPath, timeout: 10000 },
+    (mediaRes) => {
+      const isPlaylist = /\.m3u8(?:\?|$)/i.test(upstreamPath);
+      res.status(mediaRes.statusCode || 502);
+      for (const name of ["content-type", "cache-control", "accept-ranges"]) {
+        if (mediaRes.headers[name]) res.set(name, mediaRes.headers[name]);
+      }
+      res.set("Cache-Control", "no-store, no-cache, must-revalidate");
+      if (!isPlaylist) {
+        if (mediaRes.headers["content-length"]) res.set("Content-Length", mediaRes.headers["content-length"]);
+        mediaRes.pipe(res);
+        return;
+      }
+      const chunks = [];
+      mediaRes.on("data", (chunk) => chunks.push(chunk));
+      mediaRes.on("end", () => {
+        const rawBody = Buffer.concat(chunks).toString("utf8");
+        const playlist = rewriteStreamingPlaylist(rawBody);
+        res.set("Content-Type", mediaRes.headers["content-type"] || "application/vnd.apple.mpegurl");
+        res.set("Content-Length", String(Buffer.byteLength(playlist)));
+        res.send(playlist);
+      });
+    }
+  );
+  upstream.on("timeout", () => upstream.destroy(new Error("go2rtc streaming proxy timed out")));
+  upstream.on("error", (err) => {
+    if (!res.headersSent) res.status(502).json({ ok: false, error: `go2rtc streaming failed: ${err.message}` });
+    else res.end();
+  });
+  res.on("close", () => {
+    if (!res.writableEnded) upstream.destroy();
+  });
+}
+
+app.get("/api/streaming/hls/*", (req, res) => {
+  if (isRemoteMode()) {
+    return proxyStreamingMediaToRemote(req, res, { validateHlsManifest: true });
+  }
+  return proxyLocalGo2rtcMedia(req, res);
+});
+
+app.post("/api/streaming/webrtc", (req, res) => {
+  if (isRemoteMode()) {
+    return proxyToRemote(req, res);
+  }
+  const GO2RTC_API_HOST = "127.0.0.1";
+  const GO2RTC_API_PORT = Number(process.env.GO2RTC_API_PORT || 1984);
+  const src = String(req.query?.src || "tapo_cam").trim().slice(0, 64);
+  const targetPath = `/api/webrtc?src=${encodeURIComponent(src)}`;
+  const bodyData = JSON.stringify(req.body || {});
+
+  const upstream = http.request(
+    {
+      host: GO2RTC_API_HOST,
+      port: GO2RTC_API_PORT,
+      path: targetPath,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(bodyData),
+      },
+      timeout: 10000,
+    },
+    (mediaRes) => {
+      res.status(mediaRes.statusCode || 200);
+      if (mediaRes.headers["content-type"]) res.set("Content-Type", mediaRes.headers["content-type"]);
+      mediaRes.pipe(res);
+    }
+  );
+  upstream.on("timeout", () => upstream.destroy(new Error("WebRTC proxy timed out")));
+  upstream.on("error", (err) => {
+    if (!res.headersSent) res.status(502).json({ ok: false, error: err.message });
+  });
+  upstream.write(bodyData);
+  upstream.end();
 });
 
 /* ── Dedicated Hikvision DVR streaming ───────────────────────────── */

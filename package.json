@@ -145,8 +145,8 @@
         "sha256"
       ],
       "signAndEditExecutable": true,
-      "rfc3161TimeStampServer": "http://timestamp.sectigo.com",
-      "timeStampServer": "http://timestamp.sectigo.com",
+      "rfc3161TimeStampServer": "http://timestamp.digicert.com",
+      "timeStampServer": "http://timestamp.digicert.com",
       "publisherName": [
         "Engr. Clariden D. Montaño REE"
       ],

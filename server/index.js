@@ -7091,8 +7091,10 @@ function applyRemoteBridgeLiveFrame(payload, context = {}) {
   remoteBridgeState.lastReasonCode = "";
   remoteBridgeState.lastReasonClass = "";
   remoteBridgeState.lastError = "";
+  let forwardedTodayEnergy = null;
   if (Array.isArray(msg.todayEnergy)) {
     const normalizedRows = normalizeTodayEnergyRows(msg.todayEnergy);
+    forwardedTodayEnergy = normalizedRows;
     remoteBridgeState.todayEnergyRows = normalizedRows;
     remoteBridgeState.lastTodayEnergyFetchTs = successTs;
     if (shouldPersistRemoteTodayEnergyShadow(successTs)) {
@@ -7101,13 +7103,25 @@ function applyRemoteBridgeLiveFrame(payload, context = {}) {
     }
     todayEnergyCache.ts = 0;
   }
-  broadcastUpdate({
+  // A gateway live payload is already enriched with today energy, its day
+  // summary, and plant-cap status. Preserve those authoritative fields through
+  // the local Remote-mode relay instead of rebuilding them for every frame.
+  // The local health snapshot is deliberately added here: it describes this
+  // client-to-gateway bridge and is not available from the gateway payload.
+  const forwardedLivePayload = {
     type: "live",
     data: remoteBridgeState.liveData,
     totals: remoteBridgeState.totals,
-    todayEnergy: getTodayEnergyRowsForWs(),
+    todayEnergy: forwardedTodayEnergy || getTodayEnergyRowsForWs(),
     remoteHealth: buildRemoteHealthSnapshot(successTs),
-  });
+  };
+  if (msg.todaySummary && typeof msg.todaySummary === "object") {
+    forwardedLivePayload.todaySummary = msg.todaySummary;
+  }
+  if (msg.plantCap && typeof msg.plantCap === "object") {
+    forwardedLivePayload.plantCap = msg.plantCap;
+  }
+  broadcastUpdate(forwardedLivePayload);
   remoteBridgeState.lastHealthBroadcastKey = "";
   remoteBridgeState.lastSyncDirection = "stream-live";
   return true;

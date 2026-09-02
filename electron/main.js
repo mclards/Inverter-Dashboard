@@ -87,14 +87,13 @@ process.on("unhandledRejection", (reason) => {
   _routeStartupFatal(reason, "unhandledRejection");
 });
 
-// ── A2. Memory & Performance Optimizations ─────────────────────────────────────
-// Limit V8 engine's garbage collection heap to prevent memory bloat in long-
-// running instances. Default V8 allows 1GB+; we cap it at 256MB per process.
-app.commandLine.appendSwitch("js-flags", "--max-old-space-size=256 --expose-gc");
+// ── A2. Chromium defaults ─────────────────────────────────────────────────────
+// Do not impose a process-wide V8 heap cap or override Chromium's GPU blocklist.
+// Electron and Chromium select safe memory and GPU paths for the workstation;
+// hardware-specific tuning must follow a measured GPU/renderer investigation.
 
 app.commandLine.appendSwitch("disable-features", "SharedArrayBuffer");
 app.commandLine.appendSwitch("disable-logging");
-app.commandLine.appendSwitch("disable-software-rasterizer");
 // Disable aggressive background networking features not needed for local dashboards
 app.commandLine.appendSwitch("disable-background-networking");
 app.commandLine.appendSwitch("disable-metrics");

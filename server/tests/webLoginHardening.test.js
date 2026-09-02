@@ -3,10 +3,12 @@
 const assert = require("assert");
 const crypto = require("crypto");
 const express = require("express");
+const expressWs = require("express-ws");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { createBrowserAuth } = require("../browserAuth");
+const WebSocket = require("ws");
 
 function cookieFrom(response) {
   return String(response.headers.get("set-cookie") || "").split(";", 1)[0];
@@ -24,12 +26,22 @@ async function main() {
   );
 
   const app = express();
+  expressWs(app);
   app.use(express.json());
   const auth = createBrowserAuth({ credentialPath });
 
   app.use(auth.originGuard);
   auth.registerRoutes(app);
   app.use(auth.pageGuard);
+
+  app.ws("/ws", (ws, req) => {
+    const access = auth.authorizeWebSocket(req, "test-remote-bridge-token");
+    if (!access.ok) {
+      ws.close(Number(access.closeCode || 1008), "Authentication required");
+      return;
+    }
+    ws.send(JSON.stringify({ type: "init", authorizedBy: access.mode }));
+  });
 
   // Developer restricted pages
   const DEVELOPER_PAGES = new Set(["/topology.html", "/global-config.html"]);
@@ -162,6 +174,38 @@ async function main() {
     });
     assert.equal(devTopoRes.status, 200, "Developer can access /topology.html");
 
+    // A Remote desktop bridge has no browser cookie. The page guard must let
+    // the upgrade reach the route-specific validator, which still requires
+    // the exact configured API token.
+    const bridgeInit = await new Promise((resolve, reject) => {
+      const ws = new WebSocket(baseUrl.replace(/^http/, "ws") + "/ws", {
+        headers: { "x-inverter-remote-token": "test-remote-bridge-token" },
+      });
+      const timer = setTimeout(() => reject(new Error("Remote-token WebSocket timed out")), 3000);
+      ws.once("message", (raw) => {
+        clearTimeout(timer);
+        const value = JSON.parse(String(raw));
+        ws.close();
+        resolve(value);
+      });
+      ws.once("error", reject);
+    });
+    assert.equal(bridgeInit.type, "init");
+    assert.equal(bridgeInit.authorizedBy, "remote-token");
+
+    const rejectedCode = await new Promise((resolve, reject) => {
+      const ws = new WebSocket(baseUrl.replace(/^http/, "ws") + "/ws", {
+        headers: { "x-inverter-remote-token": "wrong-token" },
+      });
+      const timer = setTimeout(() => reject(new Error("Rejected WebSocket did not close")), 3000);
+      ws.once("close", (code) => {
+        clearTimeout(timer);
+        resolve(code);
+      });
+      ws.once("error", reject);
+    });
+    assert.equal(rejectedCode, 1008, "An invalid Remote token must still be rejected");
+
     // 13. Developer logout revokes session
     const logoutRes = await fetch(`${baseUrl}/api/auth/logout`, {
       method: "POST",
@@ -175,7 +219,7 @@ async function main() {
     });
     assert.equal(postLogoutSess.status, 401, "Revoked session returns 401");
 
-    console.log("PASS: Web login hardening test passed all 13 assertions successfully.");
+    console.log("PASS: Web login hardening and Remote WebSocket authorization passed.");
   } finally {
     server.close();
     fs.rmSync(tempDir, { recursive: true, force: true });
@@ -186,4 +230,3 @@ main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
-

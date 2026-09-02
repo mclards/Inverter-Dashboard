@@ -542,10 +542,21 @@ function createBrowserAuth(options = {}) {
 
   function pageGuard(req, res, next) {
     if (isPublicBrowserPath(req)) return next();
+    const requestPath = String(req?.path || req?.url || "").split("?")[0];
+    const isWebSocketUpgrade = headerValue(req, "upgrade").trim().toLowerCase() === "websocket";
+    // WebSocket endpoints apply their own token/session authorization after
+    // the HTTP upgrade. Let those upgrade requests reach app.ws(); otherwise
+    // Remote desktop bridges authenticated with the API token are closed by
+    // this page-only guard before authorizeWebSocket() can validate them.
+    if (
+      isWebSocketUpgrade &&
+      (requestPath === "/ws" || requestPath.startsWith("/ws/"))
+    ) {
+      return next();
+    }
     // Only the Electron desktop renderer shell is exempt from the page login guard on loopback.
     // Standard web browsers (including localhost / 127.0.0.1) MUST sign in.
     if (isElectronLoopback(req)) return next();
-    const requestPath = String(req?.path || req?.url || "").split("?")[0];
     if (requestPath === "/api" || requestPath.startsWith("/api/")) return next();
     if (sessionFromRequest(req).ok) return next();
     const method = String(req?.method || "GET").toUpperCase();

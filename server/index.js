@@ -255,7 +255,20 @@ const {
 
 const app = express();
 let plantCapController = null;
-expressWs(app);
+expressWs(app, undefined, {
+  wsOptions: {
+    // Live telemetry snapshots are highly repetitive JSON. Compression cuts
+    // the WAN payload by roughly an order of magnitude and prevents a Remote
+    // desktop bridge from accumulating seconds of stale WebSocket frames.
+    perMessageDeflate: {
+      zlibDeflateOptions: { level: 3 },
+      clientNoContextTakeover: true,
+      serverNoContextTakeover: true,
+      concurrencyLimit: 4,
+      threshold: 1024,
+    },
+  },
+});
 const browserAuth = createBrowserAuth({
   credentialPath: process.env.ADSI_LOGIN_CREDENTIAL_PATH,
 });
@@ -7072,10 +7085,17 @@ function applyRemoteBridgeLiveFrame(payload, context = {}) {
 
   const successTs = Date.now();
   remoteBridgeState.liveData = buildRemoteLiveSnapshot(data, successTs);
-  remoteBridgeState.lastLatencyMs = Math.max(
+  const gatewayWsSentTs = Math.max(
     0,
-    Number(context?.startedAt ? successTs - Number(context.startedAt || 0) : 0),
+    Number(msg.gatewayWsSentTs || msg.wsSentTs || 0),
   );
+  // A WebSocket can remain open indefinitely, so connection start time is not
+  // frame latency. Prefer the gateway's per-frame send timestamp; older
+  // gateways omit it and report zero until upgraded.
+  remoteBridgeState.lastLatencyMs =
+    gatewayWsSentTs > 0 && gatewayWsSentTs <= successTs
+      ? Math.max(0, successTs - gatewayWsSentTs)
+      : 0;
   remoteBridgeState.lastLiveNodeCount = countRemoteLiveNodes(remoteBridgeState.liveData);
   remoteBridgeState.totals =
     msg.totals && typeof msg.totals === "object"
@@ -7115,6 +7135,9 @@ function applyRemoteBridgeLiveFrame(payload, context = {}) {
     todayEnergy: forwardedTodayEnergy || getTodayEnergyRowsForWs(),
     remoteHealth: buildRemoteHealthSnapshot(successTs),
   };
+  if (gatewayWsSentTs > 0) {
+    forwardedLivePayload.gatewayWsSentTs = gatewayWsSentTs;
+  }
   if (msg.todaySummary && typeof msg.todaySummary === "object") {
     forwardedLivePayload.todaySummary = msg.todaySummary;
   }
@@ -13518,6 +13541,7 @@ app.ws("/ws", (ws, req) => {
         })(),
       },
       plantCap: plantCap || null,
+      wsSentTs: Date.now(),
     }),
   );
 });

@@ -32,7 +32,10 @@ function resolveFfmpegPath() {
 function broadcastToClients(chunk) {
   for (const ws of clients) {
     if (ws.readyState === 1 && ws.bufferedAmount < 512 * 1024) {
-      ws.send(chunk, { binary: true });
+      // MPEG-TS is already compressed media. The server-wide WebSocket
+      // per-message deflate is for repetitive telemetry JSON only; applying
+      // it here wastes CPU and can add camera latency without shrinking video.
+      ws.send(chunk, { binary: true, compress: false });
     }
   }
 }

@@ -12,6 +12,7 @@
   let hlsInstance = null;
   let updateQueued = false;
   let stallWatchdog = null;
+  let mediaReadyAbortController = null;
 
   const requestedTheme = new URLSearchParams(window.location.search).get("theme") || "dark";
   if (["dark", "light", "classic", "midnight"].includes(requestedTheme)) {
@@ -44,6 +45,8 @@
   }
 
   function stopHls() {
+    mediaReadyAbortController?.abort();
+    mediaReadyAbortController = null;
     if (stallWatchdog) {
       clearInterval(stallWatchdog);
       stallWatchdog = null;
@@ -68,15 +71,20 @@
     const url = `/api/hikvision/hls/master.m3u8?mode=${encodeURIComponent(mode)}&_=${Date.now()}`;
 
     const onPlaying = () => {
+      if (video.readyState < 2 || video.videoWidth <= 0 || video.videoHeight <= 0) return;
       placeholder.style.display = "none";
       retryButton.hidden = true;
+      mediaReadyAbortController?.abort();
+      mediaReadyAbortController = null;
     };
-    video.addEventListener("playing", onPlaying, { once: true });
-    video.addEventListener("loadeddata", onPlaying, { once: true });
-    video.addEventListener("canplay", onPlaying, { once: true });
+    mediaReadyAbortController = new AbortController();
+    const mediaReadySignal = mediaReadyAbortController.signal;
+    video.addEventListener("playing", onPlaying, { signal: mediaReadySignal });
+    video.addEventListener("loadeddata", onPlaying, { signal: mediaReadySignal });
+    video.addEventListener("canplay", onPlaying, { signal: mediaReadySignal });
     video.addEventListener("timeupdate", () => {
       if (video.currentTime > 0) onPlaying();
-    });
+    }, { signal: mediaReadySignal });
 
     if (typeof Hls !== "undefined" && Hls.isSupported()) {
       const hls = new Hls({
@@ -100,11 +108,9 @@
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         video.play().catch(() => {});
-        onPlaying();
       });
       hls.on(Hls.Events.FRAG_LOADED, () => {
         video.play().catch(() => {});
-        onPlaying();
       });
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) {
@@ -129,8 +135,7 @@
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = url;
       video.play().catch(() => {});
-      video.addEventListener("loadedmetadata", onPlaying, { once: true });
-      video.addEventListener("error", () => showError("Hikvision HLS playback failed"), { once: true });
+      video.addEventListener("error", () => showError("Hikvision HLS playback failed"), { once: true, signal: mediaReadySignal });
     } else {
       showError("HLS playback is unavailable in this runtime.");
       return;

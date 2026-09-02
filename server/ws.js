@@ -3,10 +3,17 @@
 
 const clients = new Set();
 let payloadEnricher = null;
+const LIVE_BROADCAST_MIN_INTERVAL_MS = 500;
+const LIVE_BACKPRESSURE_LIMIT_BYTES = 256 * 1024;
+const EVENT_BACKPRESSURE_LIMIT_BYTES = 1024 * 1024;
+let lastLiveBroadcastTs = 0;
+let pendingLivePayload = null;
+let pendingLiveTimer = null;
 const wsStats = {
   startedAt: Date.now(),
   totalConnections: 0,
   sentFrames: 0,
+  coalescedLiveFrames: 0,
   droppedFramesBackpressure: 0,
   sendErrors: 0,
   lastPayloadBytes: 0,
@@ -33,7 +40,7 @@ function registerClient(ws) {
   });
 }
 
-function broadcastUpdate(payload) {
+function sendBroadcast(payload) {
   if (clients.size === 0) return;
   let finalPayload = payload;
   if (typeof payloadEnricher === "function") {
@@ -44,8 +51,15 @@ function broadcastUpdate(payload) {
       console.warn("[WS] payload enrich failed:", err.message);
     }
   }
+  const payloadType = String(finalPayload?.type || "").trim().toLowerCase();
+  if (payloadType === "live") {
+    finalPayload = { ...finalPayload, wsSentTs: Date.now() };
+  }
   const msg = JSON.stringify(finalPayload);
   wsStats.lastPayloadBytes = Buffer.byteLength(msg, "utf8");
+  const backpressureLimit = payloadType === "live"
+    ? LIVE_BACKPRESSURE_LIMIT_BYTES
+    : EVENT_BACKPRESSURE_LIMIT_BYTES;
   for (const ws of clients) {
     try {
       if (ws.readyState !== 1) {
@@ -54,7 +68,7 @@ function broadcastUpdate(payload) {
         continue;
       }
       // Drop frame for congested sockets to keep realtime path responsive.
-      if (Number(ws.bufferedAmount || 0) > 1024 * 1024) {
+      if (Number(ws.bufferedAmount || 0) > backpressureLimit) {
         wsStats.droppedFramesBackpressure += 1;
         wsStats.lastDropTs = Date.now();
         continue;
@@ -69,6 +83,36 @@ function broadcastUpdate(payload) {
       console.warn("[WS] send failed, client removed:", err.message);
     }
   }
+}
+
+function broadcastUpdate(payload) {
+  if (clients.size === 0) return;
+  const payloadType = String(payload?.type || "").trim().toLowerCase();
+  if (payloadType !== "live") {
+    sendBroadcast(payload);
+    return;
+  }
+
+  const now = Date.now();
+  const elapsed = now - lastLiveBroadcastTs;
+  if (elapsed >= LIVE_BROADCAST_MIN_INTERVAL_MS && !pendingLiveTimer) {
+    lastLiveBroadcastTs = now;
+    sendBroadcast(payload);
+    return;
+  }
+
+  pendingLivePayload = payload;
+  wsStats.coalescedLiveFrames += 1;
+  if (pendingLiveTimer) return;
+  pendingLiveTimer = setTimeout(() => {
+    pendingLiveTimer = null;
+    const latest = pendingLivePayload;
+    pendingLivePayload = null;
+    if (!latest || clients.size === 0) return;
+    lastLiveBroadcastTs = Date.now();
+    sendBroadcast(latest);
+  }, Math.max(0, LIVE_BROADCAST_MIN_INTERVAL_MS - elapsed));
+  pendingLiveTimer.unref?.();
 }
 
 function setBroadcastPayloadEnricher(fn) {

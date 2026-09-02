@@ -16373,6 +16373,41 @@ function _clearWsReconnectTimer() {
   }
 }
 
+// Apply at most the newest live snapshot from a burst. WebSocket message tasks
+// can accumulate while Chromium is painting charts/video; processing every
+// stale full-plant frame makes the renderer fall progressively behind even
+// after the network recovers.
+const LIVE_WS_APPLY_MIN_INTERVAL_MS = 100;
+let pendingLiveWsMessage = null;
+let pendingLiveWsSource = null;
+let liveWsApplyTimer = null;
+let lastLiveWsApplyTs = 0;
+
+function clearPendingLiveWs(source = null) {
+  if (source && pendingLiveWsSource && source !== pendingLiveWsSource) return;
+  if (liveWsApplyTimer) clearTimeout(liveWsApplyTimer);
+  liveWsApplyTimer = null;
+  pendingLiveWsMessage = null;
+  pendingLiveWsSource = null;
+}
+
+function scheduleLatestLiveWs(msg, source) {
+  pendingLiveWsMessage = msg;
+  pendingLiveWsSource = source;
+  if (liveWsApplyTimer) return;
+  const elapsed = Date.now() - lastLiveWsApplyTs;
+  liveWsApplyTimer = setTimeout(() => {
+    liveWsApplyTimer = null;
+    const latest = pendingLiveWsMessage;
+    const latestSource = pendingLiveWsSource;
+    pendingLiveWsMessage = null;
+    pendingLiveWsSource = null;
+    if (!latest || State.ws !== latestSource || latestSource.readyState !== WebSocket.OPEN) return;
+    lastLiveWsApplyTs = Date.now();
+    handleWS(latest);
+  }, Math.max(0, LIVE_WS_APPLY_MIN_INTERVAL_MS - elapsed));
+}
+
 function connectWS() {
   if (State.wsConnecting) return;
   const current = State.ws;
@@ -16410,7 +16445,11 @@ function connectWS() {
     netIOTrackRx(typeof data === "string" ? data.length : (data.byteLength || 0));
     try {
       const msg = JSON.parse(data);
-      handleWS(msg);
+      if (String(msg?.type || "").trim().toLowerCase() === "live") {
+        scheduleLatestLiveWs(msg, ws);
+      } else {
+        handleWS(msg);
+      }
     } catch (err) {
       // T5.2 fix: surface enough context to diagnose a stream-corruption
       // incident.  Previously only err.message was logged — the stack trace
@@ -16430,7 +16469,10 @@ function connectWS() {
 
   ws.onclose = () => {
     State.wsConnecting = false;
-    if (State.ws === ws) State.ws = null;
+    if (State.ws === ws) {
+      State.ws = null;
+      clearPendingLiveWs(ws);
+    }
     resetTodayMwhAuthority();
     setWsState(false, "RECONNECT");
     const retries = ++State.wsRetries;
@@ -17269,6 +17311,7 @@ class HikVisionPlayer {
     this.reconnectTimer = null;
     this.reconnectCount = 0;
     this.playTimeout = null;
+    this.mediaReadyAbortController = null;
     this.snapshotTimer = null;
     this.snapshotObjectUrl = "";
     this.snapshotGeneration = 0;
@@ -17281,6 +17324,7 @@ class HikVisionPlayer {
     this.requestedMode = "localservice";
     this.effectiveMode = "localservice";
     this.autoFallbackTried = false;
+    this.forcedHlsMode = null;
     this.connectGeneration = 0;
     this._pausedForNativeViewer = false;
   }
@@ -17290,6 +17334,7 @@ class HikVisionPlayer {
     this.active = true;
     this.reconnectCount = 0;
     this.autoFallbackTried = false;
+    this.forcedHlsMode = null;
     await this.connect();
   }
 
@@ -17308,6 +17353,8 @@ class HikVisionPlayer {
     this._teardown();
     this.active = true;
     this.reconnectCount = 0;
+    this.autoFallbackTried = false;
+    this.forcedHlsMode = null;
     return this.connect();
   }
 
@@ -17331,11 +17378,14 @@ class HikVisionPlayer {
         || (typeof isClientModeActive === "function" && isClientModeActive())
         || State.settings?.operationMode === "remote"
         || State.runtimeMode === "remote";
-      this.effectiveMode = isRemote
+      const configuredMode = isRemote
         ? (this.requestedMode === "compatible" || this.requestedMode === "localservice" ? "compatible" : this.requestedMode)
         : (this.requestedMode === "localservice"
         ? "browser"
         : this.requestedMode);
+      // Automatic fallback must survive the config re-read performed by the
+      // next connect(). A manual Retry/reconnect resets this override.
+      this.effectiveMode = this.forcedHlsMode || configuredMode;
       if (this.effectiveMode === "localservice" && !isRemote) {
         await this._openNative(generation);
       } else {
@@ -17452,6 +17502,8 @@ class HikVisionPlayer {
       if ((!manifestResponse.ok || !/^\uFEFF?\s*#EXTM3U(?:\r?\n|$)/i.test(manifestText)) && streamMode === "browser") {
         console.warn("[hikvision] Primary browser manifest failed, trying compatible stream...");
         streamMode = "compatible";
+        this.autoFallbackTried = true;
+        this.forcedHlsMode = "compatible";
         this.effectiveMode = "compatible";
         url = `/api/hikvision/hls/master.m3u8?mode=compatible&_=${Date.now()}`;
         manifestResponse = await fetch(url, { cache: "no-store" });
@@ -17473,6 +17525,9 @@ class HikVisionPlayer {
 
     const markPlaying = () => {
       if (!this._isCurrent(generation)) return;
+      // Network/manifest events do not prove that Chromium decoded a frame.
+      // Keep the overlay and startup timeout until video data is renderable.
+      if (video.readyState < 2 || video.videoWidth <= 0 || video.videoHeight <= 0) return;
       if (this.playTimeout) {
         clearTimeout(this.playTimeout);
         this.playTimeout = null;
@@ -17485,14 +17540,19 @@ class HikVisionPlayer {
       }
       this._hideOverlay();
       this._setLive(true);
+      this.mediaReadyAbortController?.abort();
+      this.mediaReadyAbortController = null;
     };
 
-    video.addEventListener("playing", markPlaying, { once: true });
-    video.addEventListener("loadeddata", markPlaying, { once: true });
-    video.addEventListener("canplay", markPlaying, { once: true });
+    this.mediaReadyAbortController?.abort();
+    this.mediaReadyAbortController = new AbortController();
+    const mediaReadySignal = this.mediaReadyAbortController.signal;
+    video.addEventListener("playing", markPlaying, { signal: mediaReadySignal });
+    video.addEventListener("loadeddata", markPlaying, { signal: mediaReadySignal });
+    video.addEventListener("canplay", markPlaying, { signal: mediaReadySignal });
     video.addEventListener("timeupdate", () => {
       if (video.currentTime > 0) markPlaying();
-    });
+    }, { signal: mediaReadySignal });
 
     if (typeof Hls !== "undefined" && Hls.isSupported()) {
       const hls = new Hls({
@@ -17520,12 +17580,10 @@ class HikVisionPlayer {
         const badge = this.card.querySelector("#hikvisionCodecBadge");
         if (badge) badge.textContent = /avc|h264/i.test(codec) ? (this.effectiveMode === "compatible" ? "H.264 HD" : "H.264 HLS") : "HLS";
         video.play().catch(() => {});
-        markPlaying();
       });
       hls.on(Hls.Events.FRAG_LOADED, () => {
         if (!this._isCurrent(generation)) return;
         video.play().catch(() => {});
-        markPlaying();
       });
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) {
@@ -17539,13 +17597,7 @@ class HikVisionPlayer {
               hls.recoverMediaError();
               break;
             default:
-              if (this.effectiveMode !== "compatible" && !this.autoFallbackTried) {
-                console.warn("[hikvision] HLS fatal error, falling back to compatible stream...");
-                this.autoFallbackTried = true;
-                this.effectiveMode = "compatible";
-                this.connect();
-                return;
-              }
+              if (this._fallbackToCompatible(generation, "HLS fatal error")) return;
               if (this._isCurrent(generation)) this._onError(`Hikvision ${data.details || "stream error"}`, generation);
               break;
           }
@@ -17554,10 +17606,9 @@ class HikVisionPlayer {
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = url;
       video.play().catch(() => {});
-      video.addEventListener("loadedmetadata", markPlaying, { once: true });
       video.addEventListener("error", () => {
         if (this._isCurrent(generation)) this._onError("Hikvision HLS playback failed", generation);
-      }, { once: true });
+      }, { once: true, signal: mediaReadySignal });
     } else {
       this._onError("HLS playback is unavailable in this runtime");
       return;
@@ -17599,11 +17650,7 @@ class HikVisionPlayer {
           console.warn("[hikvision] Persistent playback stall, reconnecting stream...");
           clearInterval(this.stallWatchdog);
           this.stallWatchdog = null;
-          if (this.effectiveMode !== "compatible" && !this.autoFallbackTried) {
-            this.autoFallbackTried = true;
-            this.effectiveMode = "compatible";
-            this.connect();
-          } else {
+          if (!this._fallbackToCompatible(generation, "persistent playback stall")) {
             this._onError("Playback stalled", generation);
           }
         }
@@ -17615,19 +17662,29 @@ class HikVisionPlayer {
 
     this.playTimeout = setTimeout(() => {
       if (this._isCurrent(generation) && !this.card.querySelector("#hikvisionLiveDot")?.classList.contains("active")) {
-        if (this.effectiveMode !== "compatible" && !this.autoFallbackTried) {
-          this.autoFallbackTried = true;
-          this.effectiveMode = "compatible";
-          this.connect();
-        } else {
+        if (!this._fallbackToCompatible(generation, "playback startup timeout")) {
           this._onError("Hikvision browser video did not begin playing", generation);
         }
       }
     }, 45000);
   }
 
+  _fallbackToCompatible(generation, reason) {
+    if (!this._isCurrent(generation)) return false;
+    if (this.effectiveMode === "compatible" || this.autoFallbackTried) return false;
+    console.warn(`[hikvision] ${reason}; falling back to compatible stream...`);
+    this.autoFallbackTried = true;
+    this.forcedHlsMode = "compatible";
+    this.effectiveMode = "compatible";
+    this._clearTimers();
+    this._teardownMediaOnly();
+    this.connect();
+    return true;
+  }
+
   _onError(message, generation = this.connectGeneration) {
     if (!this._isCurrent(generation)) return;
+    this._clearTimers();
     this._teardown();
     this._setLive(false);
     const requiresGatewayUpdate = /gateway(?: hikvision)? (?:does not support|relay is unavailable)|complete remote mode requires|update or restart the gateway/i.test(String(message || ""));
@@ -17663,6 +17720,8 @@ class HikVisionPlayer {
   }
 
   _teardownMediaOnly() {
+    this.mediaReadyAbortController?.abort();
+    this.mediaReadyAbortController = null;
     if (this.stallWatchdog) {
       clearInterval(this.stallWatchdog);
       this.stallWatchdog = null;

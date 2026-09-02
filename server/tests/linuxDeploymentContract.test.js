@@ -142,8 +142,8 @@ try {
 const bootstrap = read("deploy/linux/install.sh");
 assert.match(bootstrap, /apt-get install -y -qq ca-certificates git/);
 assert.match(bootstrap, /git clone --depth 1 --branch main/);
-assert.match(bootstrap, /status --porcelain/);
-assert.match(bootstrap, /merge --ff-only origin\/main/);
+assert.match(bootstrap, /core\.fileMode false/);
+assert.match(bootstrap, /fetch origin main/);
 assert.match(bootstrap, /exec "\$\{APP_DIR\}\/deploy\/linux\/setup\.sh"/);
 assert.match(bootstrap, /Removing the unreadable NodeSource repository left by an older installer/);
 

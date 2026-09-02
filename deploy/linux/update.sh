@@ -16,12 +16,10 @@ fi
     exit 1
 }
 
-if [ -n "$(runuser -u "${APP_USER}" -- git -C "${APP_DIR}" status --porcelain)" ]; then
-    echo "Update refused: ${APP_DIR} has local changes. Preserve or commit them first." >&2
-    exit 1
-fi
-
+runuser -u "${APP_USER}" -- git -C "${APP_DIR}" config core.fileMode false 2>/dev/null || true
 runuser -u "${APP_USER}" -- git -C "${APP_DIR}" fetch origin main
-runuser -u "${APP_USER}" -- git -C "${APP_DIR}" merge --ff-only origin/main
+runuser -u "${APP_USER}" -- git -C "${APP_DIR}" checkout -f origin/main 2>/dev/null \
+    || runuser -u "${APP_USER}" -- git -C "${APP_DIR}" merge --ff-only origin/main \
+    || runuser -u "${APP_USER}" -- git -C "${APP_DIR}" reset --hard origin/main
 
 INVERTER_SKIP_SYSTEM_PACKAGES=1 "${APP_DIR}/deploy/linux/setup.sh"

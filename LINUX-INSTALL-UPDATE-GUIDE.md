@@ -38,9 +38,9 @@ On reruns it preserves any valid operator-customized topology. It upgrades only
 the exact untouched synthetic fresh-install topology and keeps an
 `ipconfig.json.pre-canonical-seed` backup beside it.
 
-An existing checkout with uncommitted changes or an unexpected Git remote is
-rejected instead of overwritten. Runtime data and credentials under
-`/var/lib/inverter-dashboard` are preserved.
+An existing checkout with an unexpected Git remote is rejected. Application
+source is cleanly synchronized to the canonical `main` branch, while runtime data
+and credentials under `/var/lib/inverter-dashboard` are strictly preserved.
 
 ## Tailscale enrollment
 

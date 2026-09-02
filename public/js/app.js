@@ -16668,6 +16668,23 @@ class CameraPlayer {
     else if (s.mode === "ffmpeg") this._startFfmpeg(s);
   }
 
+  _resolveGo2rtcHost(configuredIp) {
+    const raw = String(configuredIp || "").trim();
+    if (raw && raw !== "127.0.0.1" && raw !== "localhost") {
+      return raw;
+    }
+    const remoteGateway = String(State.settings?.remoteGatewayUrl || "").trim();
+    if (remoteGateway) {
+      try {
+        const u = new URL(remoteGateway);
+        if (u.hostname && u.hostname !== "127.0.0.1" && u.hostname !== "localhost") {
+          return u.hostname;
+        }
+      } catch (_) {}
+    }
+    return window.location.hostname || "127.0.0.1";
+  }
+
   /* ── HLS via hls.js ──────────────────────────── */
   _startHls(s) {
     const video = $("cameraVideo");
@@ -16677,9 +16694,7 @@ class CameraPlayer {
     video.style.display = "block";
     video.muted = true;
 
-    const host = (!s.go2rtcIp || s.go2rtcIp === "127.0.0.1" || s.go2rtcIp === "localhost")
-      ? (window.location.hostname || "127.0.0.1")
-      : s.go2rtcIp;
+    const host = this._resolveGo2rtcHost(s.go2rtcIp);
     const port = s.go2rtcPort || "1984";
     const proto = window.location.protocol === "https:" ? "https:" : "http:";
     const url = `${proto}//${host}:${port}/api/stream.m3u8?src=${encodeURIComponent(s.streamKey)}&mp4`;
@@ -16802,9 +16817,7 @@ class CameraPlayer {
     video.style.display = "block";
     video.muted = true;
 
-    const host = (!s.go2rtcIp || s.go2rtcIp === "127.0.0.1" || s.go2rtcIp === "localhost")
-      ? (window.location.hostname || "127.0.0.1")
-      : s.go2rtcIp;
+    const host = this._resolveGo2rtcHost(s.go2rtcIp);
     const port = s.go2rtcPort || "1984";
     const proto = window.location.protocol === "https:" ? "https:" : "http:";
     const apiBase = `${proto}//${host}:${port}`;
@@ -17319,7 +17332,7 @@ class HikVisionPlayer {
         || State.settings?.operationMode === "remote"
         || State.runtimeMode === "remote";
       this.effectiveMode = isRemote
-        ? "compatible"
+        ? "browser"
         : (this.requestedMode === "localservice"
         ? "browser"
         : this.requestedMode);

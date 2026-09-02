@@ -92,9 +92,6 @@ process.on("unhandledRejection", (reason) => {
 // running instances. Default V8 allows 1GB+; we cap it at 256MB per process.
 app.commandLine.appendSwitch("js-flags", "--max-old-space-size=256 --expose-gc");
 
-// Hikvision LocalService owns its hardware-decoded native video surface; this
-// Chromium memory optimization therefore does not affect that stream.
-app.commandLine.appendSwitch("disable-gpu-memory-buffer-video-frames");
 app.commandLine.appendSwitch("disable-features", "SharedArrayBuffer");
 app.commandLine.appendSwitch("disable-logging");
 app.commandLine.appendSwitch("disable-software-rasterizer");
@@ -4702,6 +4699,7 @@ function createMainWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       webSecurity: true,
+      backgroundThrottling: false,
     },
   });
 
@@ -4983,6 +4981,7 @@ function openPopoutWindow(page, theme) {
       nodeIntegration: false,
       contextIsolation: true,
       webSecurity: true,
+      backgroundThrottling: false,
     },
   });
 
@@ -6513,6 +6512,7 @@ function openHikvisionNativeViewer(requester, theme = "dark") {
       nodeIntegration: false,
       contextIsolation: true,
       webSecurity: true,
+      backgroundThrottling: false,
     },
   });
   hikvisionNativeViewerWin = win;

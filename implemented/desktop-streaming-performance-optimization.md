@@ -122,8 +122,15 @@ The following safe changes have been made in the working tree:
    while adding only its local bridge-health snapshot. It no longer recomputes
    the day summary or plant-cap status on every relayed frame. A missing
    gateway `todayEnergy` field still uses the established local fallback.
+4. **Hikvision CCTV WAN Streaming & Reload Loop Optimization:**
+   - **Root Cause Identified:** Channel 101 (2944x1664 H.264 @ 6 Mbps) 0.5s segment download took ~3,210 ms over WAN/Tailscale, causing buffer starvation and stall watchdog timeouts (every 4000ms after 3 ticks), throwing the player into an endless restart loop.
+   - **Remote Substream Default:** In Remote client mode, the camera tile preview now defaults to Channel 102 (`compatible`, 960x576 @ 0.8 Mbps), which downloads segments in <100ms.
+   - **WAN Buffer Tuning:** Configured Hls.js with `lowLatencyMode: false`, `liveSyncDurationCount: 3`, `maxBufferLength: 20`, `maxMaxBufferLength: 40`, and `maxBufferSize: 30MB` to absorb jitter.
+   - **Overlay and Spinner Management:** Bound player active state and overlay removal to multiple media events (`playing`, `loadeddata`, `canplay`, `timeupdate`, `FRAG_LOADED`) rather than solely relying on `playing`.
+   - **Automatic Fallback:** Added automatic fallback from `browser` -> `compatible` upon repeated stall/network errors, and relaxed watchdog to 10 consecutive ticks (40s) before reconnect.
+   - **Media Proxy Normalization:** Sanitized proxy request URLs in `hikvisionManager.js` to prevent double `/hls/` path prefixing.
 
-This improves a confirmed redundant relay workload without exposing the remote
+This improves a confirmed redundant relay workload and eliminates CCTV WAN buffer stalls without exposing the remote
 API token, bypassing browser authorization, or changing gateway authority.
 It is not a claim that the original packaged-app symptom is fully resolved.
 
@@ -135,16 +142,17 @@ The evidence supports these ranked hypotheses:
    installed application may not contain the same revision as the tested
    development application. The current pending code is definitely absent from
    the available installer.
-2. **Expected relay overhead in Remote mode.** The local bridge performs a
+2. **WAN Bandwidth / Substream selection for CCTV.** High-bitrate 3K streams (Channel 101) saturate WAN links, whereas Channel 102 runs smoothly in Remote mode.
+3. **Expected relay overhead in Remote mode.** The local bridge performs a
    second WebSocket hop, JSON parse/serialize cycle, and, for gateway-relayed
    Hikvision HLS, an HTTP media proxy. This explains why a direct browser can
    be lower latency, but not by itself why development Electron is smoother
    than packaged Electron.
-3. **Machine-specific Chromium GPU/decoder behavior.** This remains plausible
+4. **Machine-specific Chromium GPU/decoder behavior.** This remains plausible
    for an installed build, but must be verified from Chromium GPU feature
    status and dropped-frame counters rather than forced by a global blocklist
    override.
-4. **Renderer workload or local gateway contention.** A long task, repeated
+5. **Renderer workload or local gateway contention.** A long task, repeated
    rendering, congested local WebSocket, or media proxy buffering can cause
    stutter. The gateway already exposes process and WebSocket statistics that
    can be captured during a reproduction.
@@ -186,9 +194,10 @@ separately installed package:
 - `package.json` parsed as valid JSON.
 - `node server/tests/desktopStreamingPerformanceSource.test.js` passed. It
   locks the safe Chromium policy and gateway-field-preserving Remote relay.
+- `node server/tests/hikvisionHybridMode.test.js` passed. It validates HLS player contracts and manifest handling.
 - The existing `scripts/.smoke-summary.json` records the declared
   `node scripts/smoke-all.js --skip-python --no-rebuild` run as **116 / 116**
-  successful Node test suites in 60.5 seconds. It does not exercise a packaged
+  successful Node test suites in 74.2 seconds. It does not exercise a packaged
   renderer, GPU path, or remote video stream.
 
 ## Release Decision
@@ -197,3 +206,4 @@ separately installed package:
 yet declared fixed.** The available installer predates these edits, so a new
 installer and the live Remote-mode comparison above are still required before
 making a release-performance claim.
+

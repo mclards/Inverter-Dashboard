@@ -17332,7 +17332,7 @@ class HikVisionPlayer {
         || State.settings?.operationMode === "remote"
         || State.runtimeMode === "remote";
       this.effectiveMode = isRemote
-        ? "browser"
+        ? (this.requestedMode === "compatible" || this.requestedMode === "localservice" ? "compatible" : this.requestedMode)
         : (this.requestedMode === "localservice"
         ? "browser"
         : this.requestedMode);
@@ -17444,12 +17444,14 @@ class HikVisionPlayer {
     if (!video) return;
     video.style.display = "block";
     video.muted = true;
-    let url = `/api/hikvision/hls/master.m3u8?mode=${encodeURIComponent(this.effectiveMode)}&_=${Date.now()}`;
+    let streamMode = this.effectiveMode === "compatible" ? "compatible" : "browser";
+    let url = `/api/hikvision/hls/master.m3u8?mode=${encodeURIComponent(streamMode)}&_=${Date.now()}`;
     try {
       let manifestResponse = await fetch(url, { cache: "no-store" });
       let manifestText = await manifestResponse.text();
-      if ((!manifestResponse.ok || !/^\uFEFF?\s*#EXTM3U(?:\r?\n|$)/i.test(manifestText)) && this.effectiveMode === "browser") {
+      if ((!manifestResponse.ok || !/^\uFEFF?\s*#EXTM3U(?:\r?\n|$)/i.test(manifestText)) && streamMode === "browser") {
         console.warn("[hikvision] Primary browser manifest failed, trying compatible stream...");
+        streamMode = "compatible";
         this.effectiveMode = "compatible";
         url = `/api/hikvision/hls/master.m3u8?mode=compatible&_=${Date.now()}`;
         manifestResponse = await fetch(url, { cache: "no-store" });
@@ -17468,31 +17470,40 @@ class HikVisionPlayer {
       return;
     }
     if (!this._isCurrent(generation)) return;
-    const onPlaying = () => {
+
+    const markPlaying = () => {
       if (!this._isCurrent(generation)) return;
-      clearTimeout(this.playTimeout);
-      this.playTimeout = null;
+      if (this.playTimeout) {
+        clearTimeout(this.playTimeout);
+        this.playTimeout = null;
+      }
       this.reconnectCount = 0;
       const badge = this.card.querySelector("#hikvisionCodecBadge");
       if (badge) {
         const size = video.videoWidth && video.videoHeight ? `${video.videoWidth}x${video.videoHeight} ` : "";
-        badge.textContent = `${size}${this.effectiveMode === "browser" || this.effectiveMode === "compatible" ? "H.264 HLS" : "HLS"}`;
+        badge.textContent = `${size}${this.effectiveMode === "compatible" ? "H.264 HD" : "H.264 HLS"}`;
       }
       this._hideOverlay();
       this._setLive(true);
     };
-    video.addEventListener("playing", onPlaying, { once: true });
+
+    video.addEventListener("playing", markPlaying, { once: true });
+    video.addEventListener("loadeddata", markPlaying, { once: true });
+    video.addEventListener("canplay", markPlaying, { once: true });
+    video.addEventListener("timeupdate", () => {
+      if (video.currentTime > 0) markPlaying();
+    });
 
     if (typeof Hls !== "undefined" && Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
-        lowLatencyMode: true,
-        backBufferLength: 0,
-        liveSyncDurationCount: 2,
-        liveMaxLatencyDurationCount: 5,
-        maxBufferLength: 8,
-        maxMaxBufferLength: 16,
-        maxBufferSize: 20 * 1024 * 1024,
+        lowLatencyMode: false,
+        backBufferLength: 10,
+        liveSyncDurationCount: 3,
+        liveMaxLatencyDurationCount: 10,
+        maxBufferLength: 20,
+        maxMaxBufferLength: 40,
+        maxBufferSize: 30 * 1024 * 1024,
         manifestLoadingTimeOut: 15000,
         manifestLoadingMaxRetry: 5,
         levelLoadingTimeOut: 15000,
@@ -17505,10 +17516,16 @@ class HikVisionPlayer {
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
         if (!this._isCurrent(generation)) return;
-        const codec = data?.levels?.[0]?.videoCodec || (this.effectiveMode === "browser" || this.effectiveMode === "compatible" ? "H.264" : "H.265");
+        const codec = data?.levels?.[0]?.videoCodec || "H.264";
         const badge = this.card.querySelector("#hikvisionCodecBadge");
-        if (badge) badge.textContent = /avc|h264/i.test(codec) ? "H.264 HLS" : "H.265 HLS";
+        if (badge) badge.textContent = /avc|h264/i.test(codec) ? (this.effectiveMode === "compatible" ? "H.264 HD" : "H.264 HLS") : "HLS";
         video.play().catch(() => {});
+        markPlaying();
+      });
+      hls.on(Hls.Events.FRAG_LOADED, () => {
+        if (!this._isCurrent(generation)) return;
+        video.play().catch(() => {});
+        markPlaying();
       });
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) {
@@ -17522,6 +17539,13 @@ class HikVisionPlayer {
               hls.recoverMediaError();
               break;
             default:
+              if (this.effectiveMode !== "compatible" && !this.autoFallbackTried) {
+                console.warn("[hikvision] HLS fatal error, falling back to compatible stream...");
+                this.autoFallbackTried = true;
+                this.effectiveMode = "compatible";
+                this.connect();
+                return;
+              }
               if (this._isCurrent(generation)) this._onError(`Hikvision ${data.details || "stream error"}`, generation);
               break;
           }
@@ -17530,6 +17554,7 @@ class HikVisionPlayer {
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = url;
       video.play().catch(() => {});
+      video.addEventListener("loadedmetadata", markPlaying, { once: true });
       video.addEventListener("error", () => {
         if (this._isCurrent(generation)) this._onError("Hikvision HLS playback failed", generation);
       }, { once: true });
@@ -17554,7 +17579,7 @@ class HikVisionPlayer {
       const cur = this.video.currentTime;
       if (cur > 0 && cur === lastTime && !this.video.paused) {
         stallCount++;
-        if (stallCount >= 2) {
+        if (stallCount >= 3) {
           console.warn("[hikvision] Playback stall detected, recovering live edge...");
           if (this.hls) {
             try {
@@ -17570,23 +17595,35 @@ class HikVisionPlayer {
             } catch (_) {}
           }
         }
-        if (stallCount >= 5) {
+        if (stallCount >= 10) {
           console.warn("[hikvision] Persistent playback stall, reconnecting stream...");
           clearInterval(this.stallWatchdog);
           this.stallWatchdog = null;
-          this._onError("Playback stalled", generation);
+          if (this.effectiveMode !== "compatible" && !this.autoFallbackTried) {
+            this.autoFallbackTried = true;
+            this.effectiveMode = "compatible";
+            this.connect();
+          } else {
+            this._onError("Playback stalled", generation);
+          }
         }
       } else {
         lastTime = cur;
         stallCount = 0;
       }
-    }, 3500);
+    }, 4000);
 
     this.playTimeout = setTimeout(() => {
       if (this._isCurrent(generation) && !this.card.querySelector("#hikvisionLiveDot")?.classList.contains("active")) {
-        this._onError("Hikvision browser video did not begin playing", generation);
+        if (this.effectiveMode !== "compatible" && !this.autoFallbackTried) {
+          this.autoFallbackTried = true;
+          this.effectiveMode = "compatible";
+          this.connect();
+        } else {
+          this._onError("Hikvision browser video did not begin playing", generation);
+        }
       }
-    }, 30000);
+    }, 45000);
   }
 
   _onError(message, generation = this.connectGeneration) {

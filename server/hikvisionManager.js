@@ -711,18 +711,21 @@ function proxyMedia(req, res, configRaw) {
       ? { playbackMode: requestedMode }
       : {}),
   });
-  const suffix = String(req.params?.[0] || "master.m3u8").replace(/^\/+/, "");
+  const rawSuffix = String(req.params?.[0] || "master.m3u8").replace(/^\/+/, "");
+  const normalizedSuffix = rawSuffix.replace(/^(?:hls\/)+/, "");
+  const query = req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "";
+
   let upstreamPath;
-  if (suffix === "master.m3u8") {
+  if (normalizedSuffix === "master.m3u8" || rawSuffix === "master.m3u8") {
     // go2rtc 1.9.x MPEG-TS HLS can expose video-only TS fragments without
     // transport program tables, which hls.js rejects as fragParsingError.
     // Its official fragmented-MP4 HLS output supplies an init segment and
     // standards-compliant .m4s fragments that Chromium can append directly.
     upstreamPath = `/api/stream.m3u8?src=${encodeURIComponent(selectedStream(cfg))}&mp4`;
-  } else if (suffix.startsWith("hls/")) {
-    upstreamPath = `/api/${suffix}${req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : ""}`;
-  } else if (/\.(?:m3u8|m4s|mp4|ts)(?:\?|$)/i.test(suffix)) {
-    upstreamPath = `/api/hls/${suffix}${req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : ""}`;
+  } else if (rawSuffix.startsWith("hls/")) {
+    upstreamPath = `/api/hls/${normalizedSuffix}${query}`;
+  } else if (/\.(?:m3u8|m4s|mp4|ts)(?:\?|$)/i.test(normalizedSuffix)) {
+    upstreamPath = `/api/hls/${normalizedSuffix}${query}`;
   } else {
     return res.status(404).end();
   }

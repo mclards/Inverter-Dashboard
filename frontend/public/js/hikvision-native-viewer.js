@@ -72,17 +72,22 @@
       retryButton.hidden = true;
     };
     video.addEventListener("playing", onPlaying, { once: true });
+    video.addEventListener("loadeddata", onPlaying, { once: true });
+    video.addEventListener("canplay", onPlaying, { once: true });
+    video.addEventListener("timeupdate", () => {
+      if (video.currentTime > 0) onPlaying();
+    });
 
     if (typeof Hls !== "undefined" && Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
-        lowLatencyMode: true,
-        backBufferLength: 0,
-        liveSyncDurationCount: 2,
-        liveMaxLatencyDurationCount: 5,
-        maxBufferLength: 8,
-        maxMaxBufferLength: 16,
-        maxBufferSize: 20 * 1024 * 1024,
+        lowLatencyMode: false,
+        backBufferLength: 10,
+        liveSyncDurationCount: 3,
+        liveMaxLatencyDurationCount: 10,
+        maxBufferLength: 20,
+        maxMaxBufferLength: 40,
+        maxBufferSize: 30 * 1024 * 1024,
         manifestLoadingTimeOut: 15000,
         manifestLoadingMaxRetry: 5,
         levelLoadingTimeOut: 15000,
@@ -95,6 +100,11 @@
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         video.play().catch(() => {});
+        onPlaying();
+      });
+      hls.on(Hls.Events.FRAG_LOADED, () => {
+        video.play().catch(() => {});
+        onPlaying();
       });
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) {
@@ -106,6 +116,11 @@
               hls.recoverMediaError();
               break;
             default:
+              if (mode !== "compatible") {
+                console.warn("[hikvision popout] Fatal error on high-res HLS, trying compatible substream...");
+                startHls("compatible");
+                return;
+              }
               showError(`Hikvision stream error: ${data.details || "playback failed"}`);
               break;
           }
@@ -114,6 +129,7 @@
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = url;
       video.play().catch(() => {});
+      video.addEventListener("loadedmetadata", onPlaying, { once: true });
       video.addEventListener("error", () => showError("Hikvision HLS playback failed"), { once: true });
     } else {
       showError("HLS playback is unavailable in this runtime.");
@@ -136,7 +152,7 @@
       const cur = video.currentTime;
       if (cur > 0 && cur === lastTime && !video.paused) {
         stallCount++;
-        if (stallCount >= 2) {
+        if (stallCount >= 3) {
           if (hlsInstance) {
             try {
               const b = video.buffered;
@@ -151,17 +167,21 @@
             } catch (_) {}
           }
         }
-        if (stallCount >= 5) {
+        if (stallCount >= 10) {
           console.warn("[hikvision popout] Persistent playback stall, recovering stream...");
           clearInterval(stallWatchdog);
           stallWatchdog = null;
-          showError("Playback stalled");
+          if (mode !== "compatible") {
+            startHls("compatible");
+          } else {
+            showError("Playback stalled");
+          }
         }
       } else {
         lastTime = cur;
         stallCount = 0;
       }
-    }, 3500);
+    }, 4000);
   }
 
   async function startPlayback() {

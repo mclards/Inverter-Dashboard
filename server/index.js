@@ -8003,8 +8003,6 @@ const DEVELOPER_API_PREFIXES = [
   "/api/server/start",
   "/api/server/stop",
   "/api/server/config",
-  "/api/streaming/",
-  "/api/hikvision/",
   "/api/system/",
   "/api/health/db-integrity",
   "/api/counter-",
@@ -8027,19 +8025,34 @@ const DEVELOPER_API_PREFIXES = [
   "/api/substation-meter/",
 ];
 
+const DEVELOPER_HIKVISION_ADMIN_PREFIXES = [
+  "/api/hikvision/test",
+  "/api/hikvision/substream-profile",
+  "/api/hikvision/optimize-substream",
+  "/api/hikvision/route-status",
+];
+
 function isDeveloperOnlyApiRequest(req) {
   const requestPath = String(req.originalUrl || req.url || "").split("?")[0].toLowerCase();
+  const method = String(req.method || "GET").toUpperCase();
   if (DEVELOPER_API_PREFIXES.some((prefix) => requestPath === prefix || requestPath.startsWith(prefix))) {
     return true;
   }
+  // Camera & DVR administration is developer-only; streaming/playback, safe status, and snapshot views remain operator-accessible.
+  if (requestPath === "/api/hikvision/config" && method === "POST") return true;
+  if (DEVELOPER_HIKVISION_ADMIN_PREFIXES.some((prefix) => requestPath === prefix || requestPath.startsWith(prefix))) {
+    return true;
+  }
+  if (requestPath === "/api/streaming/config" && method === "POST") return true;
   if (requestPath === "/api/settings/defaults") return true;
-  if (requestPath === "/api/settings" && String(req.method || "GET").toUpperCase() === "POST") {
+  if (requestPath === "/api/settings" && method === "POST") {
     const body = req.body && typeof req.body === "object" ? req.body : {};
     return Object.keys(body).some((key) => !OPERATOR_SHARED_SETTINGS_KEYS.has(key));
   }
   if (requestPath === "/api/forecast/solcast/test") return true;
   return false;
 }
+
 
 function developerRoleGate(req, res, next) {
   if (!isDeveloperOnlyApiRequest(req)) return next();

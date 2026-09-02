@@ -80,7 +80,14 @@ if ($existingBinary) {
             exit 1
         }
     } else {
-        Write-Host "[~] signtool.exe not available; skipping signature verification" -ForegroundColor Yellow
+        $sig = Get-AuthenticodeSignature -FilePath $existingBinary.FullName
+        if ($sig.Status -eq "Valid") {
+            Write-Host "[+] Signature verified via Get-AuthenticodeSignature (Status: Valid)" -ForegroundColor Green
+        } else {
+            Write-Host "[!] Signature did NOT verify via Get-AuthenticodeSignature" -ForegroundColor Red
+            Write-Host "    Status: $($sig.Status) ($($sig.StatusMessage))" -ForegroundColor Yellow
+            exit 1
+        }
     }
 } else {
     Write-Host ""

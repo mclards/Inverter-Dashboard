@@ -4,12 +4,12 @@ Timestamp: 2026-09-02 Asia/Taipei
 
 ## Status
 
-**Remote inverter-telemetry delay root cause confirmed in the running
-environment; source fix implemented, regression-tested, and packaged in the
-signed 1.0.8 installer. Linux-gateway deployment and an installed-client field
-measurement are still pending.** The camera and packaged-renderer portions
-still require a live post-install test. Do not combine those separate results
-into a claim that every reported streaming symptom is field-verified.
+**Remote inverter-telemetry delay root cause confirmed and corrected end to
+end: the fixed revision is deployed on the Linux gateway, the updated Windows
+bridge remains on WebSocket, and measured transport age is below one second.
+The source is regression-tested and packaged in the signed 1.0.8 installer.**
+An installed-package visual test is still required for camera smoothness. Do
+not combine that separate video result with the now-verified telemetry result.
 
 ## Reported Symptom
 
@@ -227,15 +227,51 @@ The live evidence separates these latency components:
 The previous database-size, ASAR-decompression, and guaranteed-GPU claims are
 not supported by the codebase and have been removed as root-cause assertions.
 
-## Required Validation Before a Release Claim
+## Post-Deployment Live Verification
+
+The canonical Linux installer/update workflow completed on the Remote gateway
+at revision `7302ef6`, which contains implementation commit `520836e`. The
+post-restart health check reported the gateway, telemetry engine, forecast
+worker, go2rtc, and Tailscale services active, and all HTTP probes reachable.
+As required by the appliance health contract, this service check does not by
+itself assert a successful fresh Modbus poll.
+
+The same authenticated WebSocket that closed immediately before the fix was
+then measured from the Windows workstation:
+
+- Direct gateway WebSocket: per-message deflate negotiated; one `init` and 21
+  `live` frames received in 11.43 seconds. Live-frame interval averaged 548.9
+  ms, with a 1,325.3 ms maximum. Gateway-to-workstation frame transport age
+  averaged 339.3 ms and reached 356.0 ms maximum.
+- Updated Windows bridge: Remote state `connected`, 89 live-node snapshots,
+  and zero local backpressure drops. One `init` and 21 `live` frames arrived
+  in 10.31 seconds. The interval averaged 508.0 ms and reached 514.9 ms
+  maximum; local bridge-to-client age averaged 4.7 ms and reached 11.8 ms;
+  total gateway-to-client age averaged 438.4 ms and reached 514.9 ms.
+- The renderer-facing local socket also negotiated per-message deflate. JSON
+  byte counts in the diagnostic are decoded message sizes, not on-wire
+  compressed byte counts.
+- A separate compatible-camera HLS transport smoke test returned a valid
+  master playlist, media playlist, MP4 initialization object, and both sampled
+  fragmented-MP4 segments. The advertised segment duration was 0.5 seconds;
+  the larger sampled segment was 60,988 bytes and arrived in 319.2 ms. This
+  confirms that the low-bandwidth Remote media path can keep up during that
+  sample, but it does not measure Chromium decoding or glass-to-glass delay.
+
+These results verify removal of the previous 3-4 second Remote update gaps and
+roughly 10-12 second stale transport. They do not measure decoded camera frame
+drops or prove the signed installer behaves identically until it is installed
+on the affected workstation.
+
+## Remaining Packaged-Client and Camera Validation
 
 Run the following on the same affected Windows workstation and the same Remote
 gateway, using a clearly identified development build and a newly built,
 separately installed package:
 
-1. Deploy the same corrected revision to the Linux gateway and Windows client,
-   restart both gateway processes, and verify that the Remote bridge remains on
-   WebSocket instead of returning to `pull-live` fallback.
+1. Install the signed 1.0.8 package on the affected Windows client and verify
+   that its Remote bridge remains on WebSocket instead of returning to
+   `pull-live` fallback. The corrected gateway revision is already deployed.
 2. Record application version, executable path, Electron/Chromium version,
    remote gateway URL, camera mode, and whether the gateway relay or direct
    camera route is active.
@@ -284,14 +320,14 @@ separately installed package:
   commit `520836e`; the expected signing thumbprint and Sectigo timestamp were
   present and the signing-thumbprint pin passed.
 - Pre-fix live diagnostics reproduced the failed WebSocket fast path and the
-  sample ages documented above. The corrected source has not yet been deployed
-  to both endpoints, so a post-fix live latency number is not claimed here.
+  sample ages documented above. Post-fix deployment and live WebSocket results
+  are recorded in the preceding section.
 
 ## Release Decision
 
 **The confirmed Remote telemetry fault is fixed in version 1.0.8 source and
 fully covered by local regression tests, and a signed 1.0.8 installer has been
-built.** The currently running Linux gateway still predates the correction.
-Install 1.0.8, update/restart the gateway, and repeat the live age capture
-before declaring the field symptom resolved. Camera smoothness likewise
-remains a live visual verification item.
+built.** The corrected Linux gateway and development desktop bridge now pass
+the end-to-end live latency check with sub-second frame age. Install 1.0.8 on
+the operator workstation for the packaged-client comparison. Camera
+smoothness remains a live visual verification item.

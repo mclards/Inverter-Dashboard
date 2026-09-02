@@ -162,6 +162,10 @@ if (!_integrityResult.ok && !_recoveryShown) {
 
 // ── Third-party requires (wrapped) ───────────────────────────────────────────
 const Database = safeRequire("better-sqlite3");
+const _legacyDataMigration = safeRequire("./legacyDataMigration", {
+  REQUEST_FILE_NAME: "legacy-import-request-v1.txt",
+  runRequestedLegacyMigration: async () => ({ attempted: false, status: "module-unavailable" }),
+});
 const _electronUpdaterModule = safeRequire("electron-updater", { autoUpdater: null });
 const { autoUpdater } = _electronUpdaterModule || { autoUpdater: null };
 const _runtimeEnvPaths = safeRequire("../server/runtimeEnvPaths", {
@@ -770,6 +774,86 @@ function configureRuntimeDataPath() {
 }
 
 configureRuntimeDataPath();
+
+async function runInstallerRequestedLegacyMigration() {
+  // NSIS writes the request only after the operator accepts the migration
+  // prompt. Keep portable/admin-overridden runtimes isolated from the
+  // per-machine ProgramData migration.
+  if (!app.isPackaged || process.platform !== "win32" || isPortableRuntime()) return null;
+  if (String(getExplicitDataDir(process.env) || "").trim()) return null;
+
+  const sourceRoot = path.join(PROGRAMDATA_ROOT, "InverterDashboard");
+  const targetRoot = path.join(PROGRAMDATA_ROOT, "Inverter-Dashboard");
+  const requestPath = path.join(
+    targetRoot,
+    "migration",
+    _legacyDataMigration.REQUEST_FILE_NAME || "legacy-import-request-v1.txt",
+  );
+  let result;
+  try {
+    result = await _legacyDataMigration.runRequestedLegacyMigration({
+      Database,
+      sourceRoot,
+      targetRoot,
+      requestPath,
+    });
+  } catch (error) {
+    console.error("[legacy-migration] startup migration failed:", error?.stack || error);
+    result = {
+      attempted: true,
+      status: "failed",
+      manifestPath: "",
+      errors: [{ error: String(error?.message || error) }],
+    };
+  }
+  if (!result?.attempted) return result;
+
+  const insertedRows = (result.databases || []).reduce(
+    (sum, database) => sum + Number(database.insertedRows || 0),
+    0,
+  );
+  const copiedFiles = (result.files || []).filter((item) =>
+    ["copied-new", "merged", "merged-with-conflicts"].includes(String(item.action || "")),
+  ).length;
+  const manifestLine = result.manifestPath
+    ? `\n\nAudit manifest:\n${result.manifestPath}`
+    : "";
+  if (result.status === "failed" || result.status === "busy") {
+    await dialog.showMessageBox({
+      type: "error",
+      title: "Legacy Data Migration Incomplete",
+      message: "The legacy-data migration did not complete.",
+      detail:
+        "Existing Inverter-Dashboard data was preserved and the migration request remains available for retry." +
+        manifestLine,
+      buttons: ["Continue to Dashboard"],
+      defaultId: 0,
+    });
+  } else if (result.status === "complete-with-conflicts") {
+    await dialog.showMessageBox({
+      type: "warning",
+      title: "Legacy Data Migration Completed With Conflicts",
+      message: `Imported ${insertedRows} database row(s) and ${copiedFiles} file/config item(s).`,
+      detail:
+        `${Number(result.conflictCount || 0)} conflict(s) were preserved without overwriting current settings or files.` +
+        manifestLine,
+      buttons: ["Continue to Dashboard"],
+      defaultId: 0,
+    });
+  } else {
+    await dialog.showMessageBox({
+      type: "info",
+      title: "Legacy Data Migration Complete",
+      message: result.status === "nothing-to-import"
+        ? "No legacy data artifacts required migration."
+        : `Imported ${insertedRows} database row(s) and ${copiedFiles} file/config item(s).`,
+      detail: "Source data was left untouched and the migrated databases passed SQLite integrity checks." + manifestLine,
+      buttons: ["Continue to Dashboard"],
+      defaultId: 0,
+    });
+  }
+  return result;
+}
 
 function copyFileIfMissing(src, dest) {
   try {
@@ -2203,6 +2287,9 @@ app.whenReady().then(async () => {
     app.setAppUserModelId("com.inverter.dashboard");
   }
   app.setName("Inverter Dashboard");
+
+  writeBootLog("step 0: installer-requested legacy migration");
+  await runInstallerRequestedLegacyMigration();
 
   // v2.8.14 — powerMonitor handlers for OS-level shutdown / suspend / resume.
   // powerMonitor requires app-ready, so it's bound here rather than at top.

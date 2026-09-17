@@ -1,6 +1,6 @@
-﻿"use strict";
+"use strict";
 /**
- * hardware.js — Stop Reasons, Inverter Serial, Clock Sync & Diagnostics API
+ * hardware.js � Stop Reasons, Inverter Serial, Clock Sync & Diagnostics API
  */
 const express = require("express");
 
@@ -8,7 +8,7 @@ module.exports = function createHardwareRouter(dbManager) {
   const router = express.Router();
   const db = dbManager.db;
 
-  // ── 1. Stop Reasons Endpoints ─────────────────────────────────────────────
+  // -- 1. Stop Reasons Endpoints ---------------------------------------------
   router.get("/stop-reasons/:inverter/recent", (req, res) => {
     const inv = Number(req.params.inverter) || 1;
     try {
@@ -44,7 +44,7 @@ module.exports = function createHardwareRouter(dbManager) {
     res.json({ ok: true, inverter: inv, slave, slots: [] });
   });
 
-  // ── 2. Serial Number Endpoints ────────────────────────────────────────────
+  // -- 2. Serial Number Endpoints --------------------------------------------
   router.get("/serial/log/:inverter", (req, res) => {
     const inv = Number(req.params.inverter) || 1;
     try {
@@ -96,7 +96,7 @@ module.exports = function createHardwareRouter(dbManager) {
     }
   });
 
-  // ── 3. Clock Sync Endpoints ───────────────────────────────────────────────
+  // -- 3. Clock Sync Endpoints -----------------------------------------------
   router.get("/clock/status", (req, res) => {
     res.json({
       ok: true,
@@ -110,7 +110,7 @@ module.exports = function createHardwareRouter(dbManager) {
     res.json({ ok: true, message: "Clock synchronization triggered across fleet." });
   });
 
-  // ── 4. IGBT Health Endpoints ──────────────────────────────────────────────
+  // -- 4. IGBT Health Endpoints ----------------------------------------------
   router.get("/igbt/fleet", (req, res) => {
     res.json({ ok: true, units: [] });
   });
@@ -120,7 +120,7 @@ module.exports = function createHardwareRouter(dbManager) {
     res.json({ ok: true, inverter: inv, score: 98, nodes: [] });
   });
 
-  // ── 5. Compliance & Grid Controller Endpoints ─────────────────────────────
+  // -- 5. Compliance & Grid Controller Endpoints -----------------------------
   router.get("/compliance/runs", (req, res) => {
     res.json({ ok: true, runs: [] });
   });

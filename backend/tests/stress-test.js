@@ -1,6 +1,6 @@
-﻿"use strict";
+"use strict";
 /**
- * stress-test.js — High-Concurrency & Multi-Controller Mutex Stress Test Suite
+ * stress-test.js � High-Concurrency & Multi-Controller Mutex Stress Test Suite
  */
 
 const http = require("http");
@@ -35,12 +35,12 @@ const BASE_URL = `http://127.0.0.1:${TEST_PORT}`;
 
 async function runStress() {
   console.log("================================================================");
-  console.log("  ADSI INVERTER DASHBOARD 2.0 — STRESS & CONCURRENCY TEST");
+  console.log("  ADSI INVERTER DASHBOARD 2.0 � STRESS & CONCURRENCY TEST");
   console.log("================================================================\n");
 
   server.listen(TEST_PORT, "127.0.0.1", async () => {
     try {
-      // ── Test 1: 50 Rapid Database Writes in WAL Mode ──────────────
+      // -- Test 1: 50 Rapid Database Writes in WAL Mode --------------
       console.log("[1/3] Testing 50 Concurrent SQLite WAL Writes & Preference Updates...");
       const writePromises = [];
       for (let i = 1; i <= 50; i++) {
@@ -59,12 +59,12 @@ async function runStress() {
       const writeResults = await Promise.all(writePromises);
       const allSuccess = writeResults.every(r => r.ok === true);
       if (allSuccess) {
-        console.log("  ✅ PASS: 50 concurrent SQLite writes completed with 0 errors.");
+        console.log("  ? PASS: 50 concurrent SQLite writes completed with 0 errors.");
       } else {
         throw new Error("Some concurrent writes failed!");
       }
 
-      // ── Test 2: Multi-Operator Inverter Lock Contention ───────────
+      // -- Test 2: Multi-Operator Inverter Lock Contention -----------
       console.log("\n[2/3] Testing Inverter Control Lock Contention & Rejection...");
       // Operator 1 claims lease
       const acq1 = await (await fetch(`${BASE_URL}/api/control/acquire`, {
@@ -73,7 +73,7 @@ async function runStress() {
         body: JSON.stringify({ durationSec: 2 })
       })).json();
       if (!acq1.leaseGranted) throw new Error("Operator 1 failed to acquire lease");
-      console.log("  ✅ PASS: Operator 1 acquired 2-second exclusive control lease.");
+      console.log("  ? PASS: Operator 1 acquired 2-second exclusive control lease.");
 
       // Operators 2 through 10 try to acquire at the same time -> All must receive 423
       const clashPromises = [];
@@ -89,14 +89,14 @@ async function runStress() {
       const clashResults = await Promise.all(clashPromises);
       const allBlocked = clashResults.every(r => r.status === 423);
       if (allBlocked) {
-        console.log("  ✅ PASS: 9 concurrent conflicting operators successfully blocked (HTTP 423).");
+        console.log("  ? PASS: 9 concurrent conflicting operators successfully blocked (HTTP 423).");
       } else {
         throw new Error("Lock safety failure: Conflicting operator was not blocked!");
       }
 
-      // ── Test 3: Auto-Expiration & Mutex Hand-off ─────────────────
+      // -- Test 3: Auto-Expiration & Mutex Hand-off -----------------
       console.log("\n[3/3] Testing 2-Second Sliding Mutex Auto-Expiration...");
-      console.log("  ⏳ Waiting 2.2 seconds for Operator 1's lease to expire naturally...");
+      console.log("  ? Waiting 2.2 seconds for Operator 1's lease to expire naturally...");
       await new Promise(r => setTimeout(r, 2200));
 
       // Operator 2 now attempts to acquire -> Must succeed
@@ -107,7 +107,7 @@ async function runStress() {
       })).json();
 
       if (acq2.leaseGranted && acq2.activeLock.deviceId === "stress-operator-2") {
-        console.log("  ✅ PASS: Lease auto-expired cleanly and was handed off to Operator 2.");
+        console.log("  ? PASS: Lease auto-expired cleanly and was handed off to Operator 2.");
       } else {
         throw new Error("Auto-expiration failed!");
       }
@@ -117,7 +117,7 @@ async function runStress() {
       console.log("================================================================");
 
     } catch (err) {
-      console.error("\n❌ STRESS TEST FAILED:", err);
+      console.error("\n? STRESS TEST FAILED:", err);
       process.exit(1);
     } finally {
       server.close();

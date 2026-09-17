@@ -1,13 +1,13 @@
-ï»¿"use strict";
+"use strict";
 /**
- * smoke-comprehensive.js â€” Multi-Cycle Production Smoke Test Suite
+ * smoke-comprehensive.js — Multi-Cycle Production Smoke Test Suite
  */
 
 const BASE_URL = "http://127.0.0.1:3500";
 
 async function runCycle(cycleNumber) {
   console.log(`\n========================================`);
-  console.log(`  CYCLE ${cycleNumber} â€” SMOKE TESTING`);
+  console.log(`  CYCLE ${cycleNumber} — SMOKE TESTING`);
   console.log(`========================================`);
 
   const now = new Date();

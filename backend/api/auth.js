@@ -1,6 +1,6 @@
-﻿"use strict";
+"use strict";
 /**
- * auth.js — Authentication Router for Inverter Dashboard 2.0
+ * auth.js � Authentication Router for Inverter Dashboard 2.0
  * Fixed Roles:
  * 1. Developer: devClard / dev<MM> (Current minute digits with +-1 min drift tolerance)
  * 2. Operator: admin / 1234 (Configurable via credentials.json)
@@ -45,7 +45,7 @@ module.exports = function createAuthRouter(dbManager) {
     const trimmedUser = String(username || "").trim();
     const rawPass = String(password || "");
 
-    // ── 1. Developer Role (devClard / dev<MM>) ───────────────────────────────
+    // -- 1. Developer Role (devClard / dev<MM>) -------------------------------
     if (timingSafeStringEqual(trimmedUser, "devClard")) {
       const now = new Date();
       const currentMin = now.getMinutes();
@@ -65,7 +65,7 @@ module.exports = function createAuthRouter(dbManager) {
       return { ok: false, error: "Invalid developer credentials or expired minute code." };
     }
 
-    // ── 2. Operator Role (admin / 1234 or configured) ────────────────────────
+    // -- 2. Operator Role (admin / 1234 or configured) ------------------------
     const op = getOperatorCredentials();
     const suppliedHash = crypto.createHash("sha256").update(rawPass, "utf8").digest("hex");
     const userOk = timingSafeStringEqual(trimmedUser, op.username);

@@ -1,6 +1,6 @@
-﻿"use strict";
+"use strict";
 /**
- * telemetry.js — Live Inverter Telemetry & 5-Min Aggregations
+ * telemetry.js � Live Inverter Telemetry & 5-Min Aggregations
  */
 const express = require("express");
 const http = require("http");

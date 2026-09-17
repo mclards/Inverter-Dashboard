@@ -1,10 +1,10 @@
-ï»¿"use strict";
+"use strict";
 /**
- * privileges.js â€” Role Privileges & Permissions Matrix for ADSI Inverter Dashboard
+ * privileges.js — Role Privileges & Permissions Matrix for ADSI Inverter Dashboard
  * 
  * Strict Invariant: Exactly Two Roles
- * 1. Developer (devClard / dev<MM>) â€” Master privileges (diagnostics, firmware, tuning, lock override)
- * 2. Operator (admin / 1234) â€” Operational privileges (SCADA telemetry, APC commands, export, report)
+ * 1. Developer (devClard / dev<MM>) — Master privileges (diagnostics, firmware, tuning, lock override)
+ * 2. Operator (admin / 1234) — Operational privileges (SCADA telemetry, APC commands, export, report)
  */
 
 const ROLES = Object.freeze({

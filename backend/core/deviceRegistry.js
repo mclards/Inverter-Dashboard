@@ -1,6 +1,6 @@
-﻿"use strict";
+"use strict";
 /**
- * deviceRegistry.js — Multi-User / Controller Device Identity & Personalization Store
+ * deviceRegistry.js � Multi-User / Controller Device Identity & Personalization Store
  *
  * Persists connected device IDs, controller friendly names, role permissions,
  * and per-device personalizations (Dark/Solar/Cyberpunk themes, layout zoom,

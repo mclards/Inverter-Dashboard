@@ -1,6 +1,6 @@
-﻿"use strict";
+"use strict";
 /**
- * smoke-all.js — Comprehensive Automated Smoke & Integration Test Suite
+ * smoke-all.js � Comprehensive Automated Smoke & Integration Test Suite
  * Tests all core subsystems, REST APIs, static assets, and WebSocket streams.
  */
 
@@ -62,22 +62,22 @@ let failedCount = 0;
 
 function assert(condition, testName) {
   if (condition) {
-    console.log(`  ✅ PASS: ${testName}`);
+    console.log(`  ? PASS: ${testName}`);
     passedCount++;
   } else {
-    console.error(`  ❌ FAIL: ${testName}`);
+    console.error(`  ? FAIL: ${testName}`);
     failedCount++;
   }
 }
 
 async function runTests() {
   console.log("================================================================");
-  console.log("  ADSI INVERTER DASHBOARD 2.0 — COMPREHENSIVE SMOKE TEST");
+  console.log("  ADSI INVERTER DASHBOARD 2.0 � COMPREHENSIVE SMOKE TEST");
   console.log("================================================================\n");
 
   server.listen(TEST_PORT, "127.0.0.1", async () => {
     try {
-      // ── Group 1: Core Health & Info ──────────────────────────────
+      // -- Group 1: Core Health & Info ------------------------------
       console.log("[1/6] Testing Core Server Health & Network Discovery...");
       const health = await (await fetch(`${BASE_URL}/api/health`)).json();
       assert(health.ok === true && health.version === "2.0.0", "GET /api/health returns 2.0.0");
@@ -85,7 +85,7 @@ async function runTests() {
       const connectUrls = await (await fetch(`${BASE_URL}/api/config/connect-urls`)).json();
       assert(connectUrls.ok === true && Array.isArray(connectUrls.urls) && connectUrls.urls.length > 0, "GET /api/config/connect-urls enumerates reachable IPs");
 
-      // ── Group 2: Device Identity & Multi-Controller Registry ──────
+      // -- Group 2: Device Identity & Multi-Controller Registry ------
       console.log("\n[2/6] Testing Multi-User Device Identity & Personalization...");
       const reg = await (await fetch(`${BASE_URL}/api/device/register`, {
         method: "POST",
@@ -108,7 +108,7 @@ async function runTests() {
       const devList = await (await fetch(`${BASE_URL}/api/device/list`)).json();
       assert(devList.ok === true && devList.devices.some(d => d.device_id === "smoke-dev-001"), "GET /api/device/list returns registered controllers");
 
-      // ── Group 3: Single-Writer Inverter Control Arbitration ──────
+      // -- Group 3: Single-Writer Inverter Control Arbitration ------
       console.log("\n[3/6] Testing Single-Writer Inverter Control Arbitration...");
       const leaseA = await (await fetch(`${BASE_URL}/api/control/acquire`, {
         method: "POST",
@@ -131,7 +131,7 @@ async function runTests() {
       })).json();
       assert(releaseA.ok === true && releaseA.released === true, "POST /api/control/release releases lease cleanly");
 
-      // ── Group 4: Telemetry, Settings, and Topology ───────────────
+      // -- Group 4: Telemetry, Settings, and Topology ---------------
       console.log("\n[4/6] Testing Telemetry & Authoritative Settings...");
       const live = await (await fetch(`${BASE_URL}/api/live`)).json();
       assert(live.ok === true && typeof live.timestamp === "number", "GET /api/live returns active telemetry structure");
@@ -149,7 +149,7 @@ async function runTests() {
       const settingsGet = await (await fetch(`${BASE_URL}/api/config/settings`)).json();
       assert(settingsGet.ok === true && settingsGet.settings?.plantName === "ADSI Solar Farm 2.0", "GET /api/config/settings reads persisted settings");
 
-      // ── Group 5: Static Assets & CSS/JS Integrity ────────────────
+      // -- Group 5: Static Assets & CSS/JS Integrity ----------------
       console.log("\n[5/6] Testing Static Assets & Frontend Files...");
       const htmlRes = await fetch(`${BASE_URL}/`);
       assert(htmlRes.status === 200 && (await htmlRes.text()).includes("ADSI Inverter Dashboard"), "GET / serves index.html");
@@ -160,7 +160,7 @@ async function runTests() {
       const appJsRes = await fetch(`${BASE_URL}/js/app.js`);
       assert(appJsRes.status === 200 && (await appJsRes.text()).includes("installFetchInterceptor"), "GET /js/app.js serves frontend app with fetch interceptor");
 
-      // ── Group 6: Real-Time WebSocket Hub ─────────────────────────
+      // -- Group 6: Real-Time WebSocket Hub -------------------------
       console.log("\n[6/6] Testing WebSocket Telemetry & Lock Broadcasts...");
       await new Promise((resolve) => {
         const ws = new WebSocket(`ws://127.0.0.1:${TEST_PORT}/ws?deviceId=smoke-dev-001&operatorName=Clariden`);

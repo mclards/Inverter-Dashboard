@@ -1,6 +1,6 @@
-﻿"use strict";
+"use strict";
 /**
- * forecast.js — Solar AI Day-Ahead Generation & QA Accuracy Scoring
+ * forecast.js � Solar AI Day-Ahead Generation & QA Accuracy Scoring
  */
 const express = require("express");
 const { spawn } = require("child_process");

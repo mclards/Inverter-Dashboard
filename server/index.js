@@ -7710,8 +7710,6 @@ const DEVELOPER_API_PREFIXES = [
   "/api/runtime/",
   "/api/tailscale/",
   "/api/wireguard/",
-  "/api/ip-config",
-  "/api/substation-meter/",
 ];
 
 const DEVELOPER_HIKVISION_ADMIN_PREFIXES = [
@@ -7723,6 +7721,7 @@ const DEVELOPER_HIKVISION_ADMIN_PREFIXES = [
 
 function isDeveloperOnlyApiRequest(req) {
   const requestPath = String(req.originalUrl || req.url || "").split("?")[0].toLowerCase();
+  if (requestPath === "/api/runtime/data-health") return false;
   const method = String(req.method || "GET").toUpperCase();
   if (DEVELOPER_API_PREFIXES.some((prefix) => requestPath === prefix || requestPath.startsWith(prefix))) {
     return true;
@@ -7732,6 +7731,8 @@ function isDeveloperOnlyApiRequest(req) {
   if (DEVELOPER_HIKVISION_ADMIN_PREFIXES.some((prefix) => requestPath === prefix || requestPath.startsWith(prefix))) {
     return true;
   }
+  if (requestPath === "/api/ip-config" && method === "POST") return true;
+  if (requestPath.startsWith("/api/substation-meter/") && method === "POST") return true;
   if (requestPath === "/api/streaming/config" && method === "POST") return true;
   if (requestPath === "/api/settings/defaults") return true;
   if (requestPath === "/api/settings" && method === "POST") {

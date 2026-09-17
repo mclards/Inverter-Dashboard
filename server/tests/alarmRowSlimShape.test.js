@@ -26,7 +26,7 @@ const path = require("path");
 const indexSrc = fs.readFileSync(
   path.join(__dirname, "..", "index.js"),
   "utf8",
-);
+).replace(/\r/g, "");
 
 function loadEnrichBlock() {
   const m = indexSrc.match(

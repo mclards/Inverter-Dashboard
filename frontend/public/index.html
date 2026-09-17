@@ -14,6 +14,7 @@
     <meta name="apple-mobile-web-app-title" content="ADSI Dashboard" />
     <link rel="apple-touch-icon" href="/assets/icon-256.png" />
     <link rel="stylesheet" href="css/style.css?v=2.1.8" />
+    <script>
       // Pre-paint calibrator-mode gate. Runs during <head> parsing — before
       // <body> exists — so the fleet dashboard chrome is hidden on the very
       // first paint of the standalone Inverter Calibration Tool window (no
@@ -63,17 +64,6 @@
         </div>
 
         <div class="tb-right">
-          <button
-            id="btnChatToggle"
-            class="tb-nav-toggle tb-chat-toggle"
-            type="button"
-            aria-label="Operator messages"
-            aria-expanded="false"
-            title="Operator messages (chat)"
-          >
-            <span class="mdi mdi-message-text-outline"></span>
-            <span id="chatHeaderBadge" class="tb-chat-badge" hidden>0</span>
-          </button>
           <button
             id="btnAlarmSound"
             class="tb-nav-toggle"
@@ -2091,16 +2081,6 @@
                   title="Geographic longitude of the plant site, used for weather lookups and solar forecast alignment."
               /></label>
             </div>
-            <div class="srow">
-              <label class="chk-inline" title="Show or hide the floating operator chat button at the bottom-right of the dashboard.">
-                <input
-                  type="checkbox"
-                  id="chkShowChatBubble"
-                  checked
-                />
-                <span>Show floating chat button (bottom-right)</span>
-              </label>
-            </div>
           </div>
 
           <!-- SERVER LIFECYCLE (devClard only) -->
@@ -2306,6 +2286,30 @@
                   <span class="smsg" id="networkMsg"></span>
                 </div>
                 <div class="rep-group-label" style="margin-top: 20px;" title="API token required for Remote client dashboards and external SCADA clients to connect to this server.">Remote Client Access &amp; API Token</div>
+                <div class="srow" style="margin-top: 8px;">
+                  <label style="width: 100%;">Remote API Token (Client Access Secret)
+                    <div style="display: flex; gap: 8px; align-items: center; width: 100%; margin-top: 4px; flex-wrap: wrap;">
+                      <input type="password" id="setRemoteApiToken" class="inp" placeholder="Set or generate a unique token to allow Remote clients" autocomplete="new-password" style="flex: 1 1 240px; font-family: var(--font-mono);" />
+                      <button id="btnToggleShowRemoteToken" class="btn btn-outline btn-sm" type="button" title="Show or hide token">
+                        <span class="mdi mdi-eye" id="btnToggleShowRemoteTokenIcon" aria-hidden="true"></span>
+                      </button>
+                      <button id="btnGenerateRemoteToken" class="btn btn-outline btn-sm" type="button" title="Generate a unique secure random token">
+                        <span class="mdi mdi-key-plus icon-inline" aria-hidden="true"></span><span>Generate</span>
+                      </button>
+                      <button id="btnCopyRemoteToken" class="btn btn-outline btn-sm" type="button" title="Copy token to clipboard">
+                        <span class="mdi mdi-content-copy icon-inline" aria-hidden="true"></span><span>Copy</span>
+                      </button>
+                      <button id="btnSaveRemoteToken" class="btn btn-primary btn-sm" type="button" title="Save updated remote API token to server settings">
+                        <span class="mdi mdi-content-save icon-inline" aria-hidden="true"></span><span>Save Token</span>
+                      </button>
+                    </div>
+                  </label>
+                </div>
+                <div class="helper-text" style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">
+                  Remote Client dashboards must enter this exact token when connecting to this server. Leave blank to disable Remote client access.
+                </div>
+                <span class="smsg" id="remoteTokenMsg" style="margin-top: 4px; display: inline-block;"></span>
+              </div>
             </div>
             <div id="connPanelLink" class="card-tab-panel" data-card-tab-panel="link" role="tabpanel" aria-labelledby="connTabLink" hidden>
               <div class="settings-subsection">
@@ -3600,95 +3604,6 @@ Hover any pill in the column for the row-specific explanation.">Anchor</th>
       <div id="notifList" class="notif-list"></div>
     </div>
 
-    <div id="chatBubbleWrap" class="chat-bubble-wrap" role="region" aria-label="Operator chat launcher">
-      <button
-        id="chatBubble"
-        class="chat-bubble"
-        type="button"
-        aria-label="Open operator messages"
-        aria-expanded="false"
-        title="Operator messages (Click to open, right-click to hide)"
-      >
-        <span class="mdi mdi-message-text-outline" aria-hidden="true"></span>
-        <span id="chatBadge" class="chat-badge" hidden>0</span>
-      </button>
-      <button
-        id="chatBubbleHideBtn"
-        class="chat-bubble-hide-btn"
-        type="button"
-        aria-label="Hide floating chat button"
-        title="Hide chat button (restore from header or Settings)"
-      >
-        <span class="mdi mdi-close" aria-hidden="true"></span>
-      </button>
-    </div>
-
-    <section
-      id="chatPanel"
-      class="chat-panel"
-      aria-label="Operator messages"
-      aria-hidden="true"
-    >
-      <div class="chat-panel-header">
-        <div>
-          <div class="chat-panel-title">Operator Messages</div>
-          <div class="chat-panel-subtitle">Gateway and remote operator notes</div>
-        </div>
-        <div class="chat-panel-actions">
-          <button
-            id="chatClear"
-            class="chat-clear-btn"
-            type="button"
-            aria-label="Clear operator messages"
-            title="Clear the message thread for all connected workstations."
-          >
-            Clear
-          </button>
-          <button
-            id="chatHideBubble"
-            class="chat-hide-bubble-btn"
-            type="button"
-            aria-label="Hide floating chat button"
-            title="Hide floating chat button (access messages from top header)"
-          >
-            <span class="mdi mdi-eye-off-outline" aria-hidden="true"></span>
-          </button>
-          <button
-            id="chatClose"
-            class="chat-close-btn"
-            type="button"
-            aria-label="Close operator messages"
-            title="Close the operator messages panel."
-          >
-            <span class="mdi mdi-close" aria-hidden="true"></span>
-          </button>
-        </div>
-      </div>
-
-      <div id="chatThread" class="chat-thread">
-        <div class="chat-empty">No recent operator messages.</div>
-      </div>
-
-      <div class="chat-input-row">
-        <input
-          id="chatInput"
-          class="chat-input inp"
-          type="text"
-          maxlength="500"
-          autocomplete="off"
-          placeholder="Write a short operator note..."
-          title="Type a short operator note to send to connected workstations (max 500 characters)."
-        />
-        <button id="chatSend" class="btn btn-accent chat-send-btn" type="button" title="Send this operator note to the gateway message thread.">
-          Send
-        </button>
-      </div>
-
-      <div class="chat-autodismiss-bar">
-        <span class="chat-dismiss-hint">Closes automatically after inactivity</span>
-      </div>
-    </section>
-
     <div id="guideModal" class="guide-modal hidden" role="dialog" aria-modal="true">
       <div class="guide-modal-card">
         <div class="guide-modal-head">
@@ -3785,6 +3700,8 @@ Hover any pill in the column for the row-specific explanation.">Anchor</th>
     <script src="js/jsmpeg.min.js"></script>
     <script src="/vendor/hls.min.js"></script>
     <script src="js/app.js?v=2.1.21"></script>
+
+    <!-- Cap Schedule Form Modal -->
     <div id="capScheduleModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="capScheduleFormTitle">
       <div class="cap-sched-modal-card">
         <div class="cap-sched-modal-header">

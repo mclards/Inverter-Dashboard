@@ -807,17 +807,6 @@ db.exec(`
     updated_ts INTEGER NOT NULL DEFAULT (CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER))
   );
 
-  CREATE TABLE IF NOT EXISTS chat_messages (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    ts           INTEGER NOT NULL,
-    from_machine TEXT NOT NULL CHECK (from_machine IN ('gateway', 'remote')),
-    to_machine   TEXT NOT NULL CHECK (to_machine IN ('gateway', 'remote')),
-    from_name    TEXT NOT NULL DEFAULT '',
-    message      TEXT NOT NULL,
-    read_ts      INTEGER DEFAULT NULL
-  );
-  CREATE INDEX IF NOT EXISTS idx_chat_to_machine_id
-    ON chat_messages(to_machine, id);
 
   CREATE TABLE IF NOT EXISTS forecast_dayahead (
     date       TEXT NOT NULL,
@@ -2948,54 +2937,6 @@ const stmts = {
   pruneForecastIntradayRunAuditBeforeTs: db.prepare(
     `DELETE FROM forecast_intraday_run_audit WHERE generated_ts < ?`,
   ),
-  insertChatMessage: db.prepare(`
-    INSERT INTO chat_messages (ts, from_machine, to_machine, from_name, message, read_ts)
-    VALUES (@ts, @from_machine, @to_machine, @from_name, @message, @read_ts)
-  `),
-  getChatMessageById: db.prepare(
-    `SELECT id, ts, from_machine, to_machine, from_name, message, read_ts
-       FROM chat_messages
-      WHERE id=?`,
-  ),
-  getChatThread: db.prepare(
-    `SELECT id, ts, from_machine, to_machine, from_name, message, read_ts
-       FROM (
-         SELECT id, ts, from_machine, to_machine, from_name, message, read_ts
-           FROM chat_messages
-          ORDER BY id DESC
-          LIMIT ?
-       )
-      ORDER BY id ASC`,
-  ),
-  getChatInboxAfterId: db.prepare(
-    `SELECT id, ts, from_machine, to_machine, from_name, message, read_ts
-       FROM chat_messages
-      WHERE to_machine=? AND id>?
-      ORDER BY id ASC
-      LIMIT ?`,
-  ),
-  getLatestChatInboundId: db.prepare(
-    `SELECT COALESCE(MAX(id), 0) AS id
-       FROM chat_messages
-      WHERE to_machine=?`,
-  ),
-  markChatReadUpToId: db.prepare(
-    `UPDATE chat_messages
-        SET read_ts=?
-      WHERE to_machine=?
-        AND id<=?
-        AND read_ts IS NULL`,
-  ),
-  clearChatMessages: db.prepare(`DELETE FROM chat_messages`),
-  purgeChatOverflow: db.prepare(
-    `DELETE FROM chat_messages
-      WHERE id<=COALESCE((
-        SELECT id
-          FROM chat_messages
-         ORDER BY id DESC
-         LIMIT 1 OFFSET ?
-      ), 0)`,
-  ),
   // v2.9.0 Slice B — hardware counter persistence
   upsertCounterState: db.prepare(
     `INSERT INTO inverter_counter_state
@@ -4353,64 +4294,12 @@ function setSetting(key, value) {
   stmts.setSetting.run(key, String(value), Date.now());
 }
 
-function normalizeChatMachine(machine, def = "gateway") {
-  const v = String(machine || def)
-    .trim()
-    .toLowerCase();
-  return v === "remote" ? "remote" : "gateway";
-}
 
-const insertChatMessage = db.transaction((row, retainCount = 500) => {
-  const info = stmts.insertChatMessage.run({
-    ts: Number(row?.ts || Date.now()),
-    from_machine: normalizeChatMachine(row?.from_machine, "gateway"),
-    to_machine: normalizeChatMachine(row?.to_machine, "remote"),
-    from_name: String(row?.from_name || "").trim(),
-    message: String(row?.message || ""),
-    read_ts:
-      row?.read_ts == null || row?.read_ts === ""
-        ? null
-        : Number(row.read_ts || 0),
-  });
-  const keep = Math.max(1, Math.trunc(Number(retainCount || 500)));
-  stmts.purgeChatOverflow.run(keep);
-  return stmts.getChatMessageById.get(info.lastInsertRowid);
-});
 
-function getChatThread(limit = 20) {
-  const cap = Math.max(1, Math.min(100, Math.trunc(Number(limit || 20))));
-  return stmts.getChatThread.all(cap);
-}
 
-function getChatInboxAfterId(machine, afterId = 0, limit = 50) {
-  const normalizedMachine = normalizeChatMachine(machine, "gateway");
-  const after = Math.max(0, Math.trunc(Number(afterId || 0)));
-  const cap = Math.max(1, Math.min(200, Math.trunc(Number(limit || 50))));
-  return stmts.getChatInboxAfterId.all(normalizedMachine, after, cap);
-}
 
-function getLatestChatInboundId(machine) {
-  const normalizedMachine = normalizeChatMachine(machine, "gateway");
-  const row = stmts.getLatestChatInboundId.get(normalizedMachine);
-  return Math.max(0, Math.trunc(Number(row?.id || 0)));
-}
 
-function markChatReadUpToId(machine, upToId, readTs = Date.now()) {
-  const normalizedMachine = normalizeChatMachine(machine, "gateway");
-  const maxId = Math.max(0, Math.trunc(Number(upToId || 0)));
-  if (!maxId) return 0;
-  const info = stmts.markChatReadUpToId.run(
-    Math.max(0, Math.trunc(Number(readTs || Date.now()))),
-    normalizedMachine,
-    maxId,
-  );
-  return Math.max(0, Math.trunc(Number(info?.changes || 0)));
-}
 
-function clearAllChatMessages() {
-  const info = stmts.clearChatMessages.run();
-  return Math.max(0, Math.trunc(Number(info?.changes || 0)));
-}
 
 function ensureArchiveSchema(archiveDb) {
   archiveDb.pragma("journal_mode = WAL");
@@ -7639,12 +7528,6 @@ module.exports = {
   beginArchiveDbReplacement,
   endArchiveDbReplacement,
   validateSqliteFileSync,
-  insertChatMessage,
-  getChatThread,
-  getChatInboxAfterId,
-  getLatestChatInboundId,
-  markChatReadUpToId,
-  clearAllChatMessages,
   getScheduledMaintenance,
   insertScheduledMaintenance,
   deleteScheduledMaintenance,

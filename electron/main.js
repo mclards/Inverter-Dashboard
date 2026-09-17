@@ -349,6 +349,9 @@ function _initShutdownSnapshot() {
 // Allow dashboard alarm audio to start immediately on packaged clients.
 app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 
+let migrationWin = null;
+let isMigrating = false;
+
 // Standalone Field Calibrator launch mode. The Desktop shortcut created from
 // Settings → "Calibrator Desktop Shortcut" passes `--calibrator`, which makes
 // this process boot ONLY the calibrator stack (Python :9200 + Node :3600 +
@@ -358,6 +361,7 @@ app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 const CALIBRATOR_STANDALONE =
   process.argv.includes("--calibrator") ||
   process.argv.includes("--calibrator-standalone");
+const MIGRATION_STANDALONE = process.argv.includes("--migrate-now");
 
 // T6.1 fix: single-instance lock.  Prevents two copies of the packaged app
 // from running simultaneously against the same adsi.db + ports 3500/9000,
@@ -375,17 +379,29 @@ const _gotSingleInstanceLock = CALIBRATOR_STANDALONE
   ? true
   : app.requestSingleInstanceLock();
 if (!CALIBRATOR_STANDALONE && !_gotSingleInstanceLock) {
-  console.warn("[main] Another instance is already running — quitting this one.");
-  // Second instance — DO NOT touch lifecycle markers. The running first
-  // instance owns the current sentinel; we just exit cleanly so the user
-  // is signalled (focus first-instance window) without corrupting state.
-  app.exit(0);
+  if (MIGRATION_STANDALONE) {
+    console.warn("[main] Another instance is already running — cannot run standalone legacy migration now.");
+    app.exit(1);
+  } else {
+    console.warn("[main] Another instance is already running — quitting this one.");
+    app.exit(0);
+  }
 } else {
-  // First instance — safe to read & rotate prior-shutdown markers and
-  // write a fresh boot sentinel for THIS run.
-  _initShutdownSnapshot();
+  if (!MIGRATION_STANDALONE) {
+    // First instance — safe to read & rotate prior-shutdown markers and
+    // write a fresh boot sentinel for THIS run.
+    _initShutdownSnapshot();
+  }
   app.on("second-instance", (_event, _argv, _cwd) => {
     try {
+      if (MIGRATION_STANDALONE) {
+        if (migrationWin && !migrationWin.isDestroyed()) {
+          if (migrationWin.isMinimized()) migrationWin.restore();
+          if (!migrationWin.isVisible()) migrationWin.show();
+          migrationWin.focus();
+        }
+        return;
+      }
       if (loginWin && !loginWin.isDestroyed()) {
         if (loginWin.isMinimized()) loginWin.restore();
         if (!loginWin.isVisible()) loginWin.show();
@@ -787,7 +803,7 @@ async function runInstallerRequestedLegacyMigration(parentWin = null) {
   // NSIS writes the request only after the operator accepts the migration
   // prompt. Keep portable/admin-overridden runtimes isolated from the
   // per-machine ProgramData migration.
-  if (!app.isPackaged || process.platform !== "win32" || isPortableRuntime()) return null;
+  if ((!app.isPackaged && !MIGRATION_STANDALONE) || process.platform !== "win32" || isPortableRuntime()) return null;
   if (String(getExplicitDataDir(process.env) || "").trim()) return null;
 
   const sourceRoot = path.join(PROGRAMDATA_ROOT, "InverterDashboard");
@@ -827,11 +843,17 @@ async function runInstallerRequestedLegacyMigration(parentWin = null) {
     ? `\n\nAudit manifest:\n${result.manifestPath}`
     : "";
 
+  const continueButton = MIGRATION_STANDALONE ? "Continue" : "Continue to Dashboard";
   const showBox = async (opts) => {
+    const dialogOpts = {
+      buttons: [continueButton],
+      defaultId: 0,
+      ...opts,
+    };
     if (parentWin && !parentWin.isDestroyed()) {
-      return dialog.showMessageBox(parentWin, opts);
+      return dialog.showMessageBox(parentWin, dialogOpts);
     }
-    return dialog.showMessageBox(opts);
+    return dialog.showMessageBox(dialogOpts);
   };
 
   if (result.status === "nothing-to-import") {
@@ -845,8 +867,6 @@ async function runInstallerRequestedLegacyMigration(parentWin = null) {
       detail:
         "Existing Inverter-Dashboard data was preserved and the migration request remains available for retry." +
         manifestLine,
-      buttons: ["Continue to Dashboard"],
-      defaultId: 0,
     });
   } else if (result.status === "complete-with-conflicts") {
     console.warn(`[legacy-migration] Migration complete with conflicts (${result.conflictCount} conflict(s)): imported ${insertedRows} rows, ${copiedFiles} files.`);
@@ -857,8 +877,6 @@ async function runInstallerRequestedLegacyMigration(parentWin = null) {
       detail:
         `${Number(result.conflictCount || 0)} conflict(s) were preserved without overwriting current settings or files.` +
         manifestLine,
-      buttons: ["Continue to Dashboard"],
-      defaultId: 0,
     });
   } else if (insertedRows > 0 || copiedFiles > 0) {
     console.log(`[legacy-migration] Migration complete: imported ${insertedRows} database row(s) and ${copiedFiles} file(s).`);
@@ -867,13 +885,92 @@ async function runInstallerRequestedLegacyMigration(parentWin = null) {
       title: "Legacy Data Migration Complete",
       message: `Imported ${insertedRows} database row(s) and ${copiedFiles} file/config item(s).`,
       detail: "Source data was left untouched and the migrated databases passed SQLite integrity checks." + manifestLine,
-      buttons: ["Continue to Dashboard"],
-      defaultId: 0,
     });
   } else {
     console.log(`[legacy-migration] Migration complete: all ${result.inventoryCount} legacy artifacts were already identical to current data.`);
   }
   return result;
+}
+
+function hasLegacyMigrationRequest() {
+  try {
+    const targetRoot = path.join(PROGRAMDATA_ROOT, "Inverter-Dashboard");
+    const requestPath = path.join(
+      targetRoot,
+      "migration",
+      _legacyDataMigration?.REQUEST_FILE_NAME || "legacy-import-request-v1.txt",
+    );
+    return fs.existsSync(requestPath);
+  } catch (_) {
+    return false;
+  }
+}
+
+async function openMigrationWindow() {
+  if (migrationWin && !migrationWin.isDestroyed()) {
+    focusWindow(migrationWin);
+    return migrationWin;
+  }
+  migrationWin = new BrowserWindow({
+    width: 480,
+    height: 250,
+    useContentSize: true,
+    title: "Inverter Dashboard - Legacy Data Migration",
+    icon: APP_ICON,
+    frame: false,
+    resizable: false,
+    autoHideMenuBar: true,
+    center: true,
+    backgroundColor: "#050c17",
+    show: false,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      webSecurity: true,
+    },
+  });
+
+  migrationWin.on("close", (e) => {
+    if (isMigrating) {
+      e.preventDefault();
+    }
+  });
+
+  const readyPromise = new Promise((resolve) => {
+    migrationWin.once("ready-to-show", resolve);
+    migrationWin.webContents.once("did-finish-load", resolve);
+  });
+
+  migrationWin.loadFile(path.join(PUBLIC_DIR, "migration.html"));
+  await readyPromise;
+  migrationWin.show();
+  // Allow an event-loop tick so Chromium's renderer paints the UI before
+  // any synchronous SQLite work starts.
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  return migrationWin;
+}
+
+async function runMigrationStandalone() {
+  isMigrating = true;
+  let win = null;
+  let exitCode = 0;
+  try {
+    win = await openMigrationWindow();
+    const result = await runInstallerRequestedLegacyMigration(win);
+    if (result && (result.status === "failed" || result.status === "busy")) {
+      exitCode = 1;
+    }
+  } catch (err) {
+    console.error("[main] Standalone migration error:", err?.stack || err);
+    exitCode = 1;
+  } finally {
+    isMigrating = false;
+    if (win && !win.isDestroyed()) {
+      win.destroy();
+      migrationWin = null;
+    }
+    app.exit(exitCode);
+  }
 }
 
 function copyFileIfMissing(src, dest) {
@@ -2304,6 +2401,14 @@ app.whenReady().then(async () => {
     return;
   }
 
+  // Standalone In-Installer Legacy Data Migration (--migrate-now).
+  // Runs during the installer before the finish page, showing a dedicated
+  // progress window and exiting cleanly once done without starting any dashboard services.
+  if (MIGRATION_STANDALONE) {
+    await runMigrationStandalone();
+    return;
+  }
+
   if (process.platform === "win32") {
     app.setAppUserModelId("com.inverter.dashboard");
   }
@@ -2348,7 +2453,24 @@ app.whenReady().then(async () => {
   }
 
   writeBootLog("step 0: installer-requested legacy migration");
-  await runInstallerRequestedLegacyMigration();
+  if (hasLegacyMigrationRequest()) {
+    isMigrating = true;
+    let fallbackWin = null;
+    try {
+      fallbackWin = await openMigrationWindow();
+      await runInstallerRequestedLegacyMigration(fallbackWin);
+    } catch (err) {
+      console.error("[main] Fallback migration error:", err?.message || err);
+    } finally {
+      isMigrating = false;
+      if (fallbackWin && !fallbackWin.isDestroyed()) {
+        fallbackWin.destroy();
+        migrationWin = null;
+      }
+    }
+  } else {
+    await runInstallerRequestedLegacyMigration();
+  }
 
   writeBootLog("step 1: initAppUpdater");
   initAppUpdater();

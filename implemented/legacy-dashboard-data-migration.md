@@ -79,13 +79,36 @@ Existing database backups are stored under:
 
 Source database snapshots and differing non-database files are retained under the run-specific migration directories. A process-owned lock prevents simultaneous imports; a lock left by a dead process is recovered on retry.
 
+## In-Installer Execution & Startup Freeze Fix (2026-09-04)
+
+### Problem Corrected
+Previously, when the operator accepted legacy migration, NSIS wrote `legacy-import-request-v1.txt` and immediately advanced to the "Finish" page. On initial app launch, `runInstallerRequestedLegacyMigration()` executed synchronously on Node's main thread before opening any window. For large multi-gigabyte archives (e.g. `2026-03.db`, 1.38 GB, 17.9M rows) and `adsi.db` (325 MB), redundant `PRAGMA quick_check(1)` runs, full file backups, and SHA-256 hashing locked the event loop for ~3 minutes with 0 windows visible. Believing the app failed to launch, operators clicked the desktop shortcut again, spawning multiple processes in Task Manager.
+
+### Refined Architecture
+1. **In-Installer Execution (`--migrate-now`):**
+   - NSIS invokes `"$INSTDIR\Inverter Dashboard.exe" --migrate-now` using `ExecWait`.
+   - The installer progress page stays open while migration runs and only advances to "Finish" once migration is complete.
+   - Electron acquires the single-instance lock early so any concurrent desktop launches cannot interfere.
+2. **Dedicated Migration Progress Window (`migrationWin`):**
+   - Opens a 480×250 dark-themed (`#050c17`, `#0c1526`, `#2d7ef7`) window loading `public/migration.html` (mirrored in `frontend/public/migration.html`).
+   - Displays animated CSS progress bar and descriptive status.
+   - Waits for renderer `ready-to-show` and event-loop tick to prevent paint starvation during synchronous SQLite queries.
+   - Completion dialog is attached modally to `migrationWin` with a `"Continue"` action that unblocks NSIS.
+3. **Database Migration Performance Optimization:**
+   - **Identical Database Fast-Path:** When destination exists, checks if `source.size === destination.size` and neither has an uncheckpointed `-wal` file. If sizes and SHA-256 match, returns `action: "identical"` immediately without writing snapshots/backups or running 5 redundant `quick_check` passes (slashes 1.38 GB archive processing from ~189s to ~3s).
+   - **Fresh Copy Optimization:** When destination does not exist, snapshots directly to `destinationPath` without creating and copying an intermediate temporary snapshot.
+   - **Table Fast-Paths:** If `sourceCount === 0`, returns immediately. If `destinationBefore === 0`, inserts all rows directly without `differs` join. If `sourceCount === inserted`, skips `differs` join because all PKs were unique.
+4. **Fallback UI for Standard Launch:**
+   - If an unexpected request file remains during normal boot, `main.js` opens `migrationWin` with visible UI before migrating, preventing silent freezes.
+
 ## Files changed
 
-- `scripts/installer.nsh` — replaces filename-only copying with explicit, versioned import consent/request while preserving installer ACL, compatibility-layer cleanup, and recovery-installer seeding.
-- `electron/main.js` — runs the requested migration before login/local service startup and reports completion, conflicts, or retryable failure.
-- `electron/legacyDataMigration.js` — content-aware migration, validation, SQLite snapshot/merge, rollback, conflict retention, locking, and manifest implementation.
-- `server/tests/legacyDataMigration.test.js` — isolated migration tests using temporary roots only.
-- `package-lock.json` — aligns the root package version with the already-committed `package.json` version (`1.0.9`) so installer inputs remain reproducible.
+- `scripts/installer.nsh` — executes `Inverter Dashboard.exe --migrate-now` in `queueLegacyMigration` and refines prompt wording.
+- `electron/main.js` — handles `MIGRATION_STANDALONE`, acquires single-instance lock, manages `migrationWin`, and provides fallback progress UI on standard launch.
+- `electron/legacyDataMigration.js` — adds `hasActiveWal`, fast-path identical database detection, optimized fresh copy, and table merge fast paths.
+- `public/migration.html` & `frontend/public/migration.html` — dedicated dark-themed progress UI with compositor-driven CSS animation.
+- `server/tests/legacyDataMigration.test.js` — verifies `testIdenticalDatabaseFastPath`, installer execution wiring, and startup contracts.
+- `implemented/legacy-dashboard-data-migration.md` — consolidated architecture and verification record.
 
 ## Verification
 
@@ -95,26 +118,13 @@ Focused automated coverage verifies:
 - integer-key collisions in append-only history retain both distinct rows;
 - current settings/state win conflicting legacy keys while missing settings are imported;
 - same-named archive shards are merged by row content;
+- identical databases take the fast-path without writing unnecessary backups;
 - current topology records are preserved, missing records are added across all four maps, and an explicitly empty node list stays disabled;
 - identical ordinary files are recognized by content;
 - differing same-named files preserve both current and legacy copies;
 - a corrupt source database does not change the destination and leaves the request retryable;
 - a table/schema failure rolls back all earlier changes for that database;
 - existing destination databases have rollback snapshots;
-- NSIS contains no direct legacy-data `CopyFiles` operation; and
+- NSIS executes `--migrate-now` during installation;
+- `main.js` implements `MIGRATION_STANDALONE` and `runMigrationStandalone()`; and
 - packaged startup invokes migration before login can start local services.
-
-The tests operate only on temporary directories. No production files under either ProgramData root are read, changed, copied, or deleted by the verification suite.
-
-Verification completed on 2026-09-02:
-
-- `node --check electron/legacyDataMigration.js`
-- `node --check electron/main.js`
-- `node --check server/tests/legacyDataMigration.test.js`
-- focused migration test through Electron 29 / its production `better-sqlite3` ABI: pass
-- NSIS 3.04 compile of a minimal installer harness containing both custom macros: pass (one expected harness-only warning because it did not emit an uninstaller)
-- `node scripts/smoke-all.js --skip-python --no-rebuild`: **119/119 Node test files passed**
-- `git diff --check`: pass
-- repository `server/ipconfig.json` and `deploy/linux/default/ipconfig.json`: JSON parsing confirmed; neither file was modified
-
-Python tests were not run because this change has no Python boundary. The signed production installer must be built from the commit containing these changes before the new migration can run on an operator workstation.

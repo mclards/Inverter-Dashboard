@@ -17,7 +17,7 @@ const SAFE_INTEGER_PK_REMAP_TABLES = new Set([
   "energy_5min",
   "alarms",
   "audit_log",
-  "chat_messages",
+  
   "daily_report",
   "scheduled_maintenance",
   "inverter_clock_sync_log",
@@ -200,6 +200,15 @@ function createFingerprintTempTable(db, tableName, columns) {
   return tempName;
 }
 
+function hasActiveWal(filePath) {
+  try {
+    const wal = `${filePath}-wal`;
+    return fs.existsSync(wal) && fs.statSync(wal).size > 0;
+  } catch (_) {
+    return false;
+  }
+}
+
 function mergeTable(db, tableName) {
   const sourceInfo = tableInfo(db, "legacy", tableName);
   if (!sourceInfo.length) return { table: tableName, action: "skipped", reason: "no-source-columns" };
@@ -233,6 +242,51 @@ function mergeTable(db, tableName) {
   const commonSql = common.map(quoteIdent).join(", ");
   const sourceCount = Number(db.prepare(`SELECT COUNT(*) FROM legacy.${quoteIdent(tableName)}`).pluck().get() || 0);
   const destinationBefore = Number(db.prepare(`SELECT COUNT(*) FROM main.${quoteIdent(tableName)}`).pluck().get() || 0);
+
+  if (sourceCount === 0) {
+    return {
+      table: tableName,
+      action: "skipped",
+      reason: "source-table-empty",
+      sourceRows: 0,
+      destinationRowsBefore: destinationBefore,
+      destinationRowsAfter: destinationBefore,
+      inserted: 0,
+      conflicts: 0,
+      remapped: 0,
+      unresolvedConflicts: 0,
+      conflictKeys: [],
+      conflictKeysTruncated: false,
+      sourceOnlyColumns: sourceOnly,
+    };
+  }
+
+  if (destinationBefore === 0) {
+    const copyAll = db.transaction(() => {
+      const result = db.prepare(
+        `INSERT INTO main.${quoteIdent(tableName)} (${commonSql}) ` +
+        `SELECT ${common.map((column) => `s.${quoteIdent(column)}`).join(", ")} ` +
+        `FROM legacy.${quoteIdent(tableName)} s`,
+      ).run();
+      return Number(result.changes || 0);
+    });
+    const directInserted = copyAll();
+    return {
+      table: tableName,
+      action: "merged",
+      sourceRows: sourceCount,
+      destinationRowsBefore: 0,
+      destinationRowsAfter: directInserted,
+      inserted: directInserted,
+      conflicts: 0,
+      remapped: 0,
+      unresolvedConflicts: 0,
+      conflictKeys: [],
+      conflictKeysTruncated: false,
+      sourceOnlyColumns: sourceOnly,
+    };
+  }
+
   let inserted = 0;
   let conflicts = 0;
   let remapped = 0;
@@ -264,6 +318,10 @@ function mergeTable(db, tableName) {
       `)`,
     ).run();
     inserted += Number(result.changes || 0);
+
+    // If every row in source was newly inserted with non-colliding PKs,
+    // zero conflicting rows can exist.
+    if (sourceCount === inserted) return;
 
     const nonPkColumns = common.filter((column) => !pkColumns.includes(column));
     if (!nonPkColumns.length) return;
@@ -343,20 +401,42 @@ async function mergeDatabase(options) {
     return result;
   }
 
+  // Fast-path for identical database: when destination already exists,
+  // compare file sizes and hashes in place without creating multi-gigabyte
+  // snapshot/backup copies or running 5 redundant PRAGMA quick_checks.
+  if (fs.existsSync(destinationPath)) {
+    try {
+      const sourceStat = fs.statSync(sourcePath);
+      const destStat = fs.statSync(destinationPath);
+      if (sourceStat.size === destStat.size && !hasActiveWal(sourcePath) && !hasActiveWal(destinationPath)) {
+        const sourceHash = sha256File(sourcePath);
+        const destHash = sha256File(destinationPath);
+        if (sourceHash === destHash) {
+          result.action = "identical";
+          result.sourceSha256 = sourceHash;
+          result.destinationSha256 = destHash;
+          result.destinationSha256Before = destHash;
+          return result;
+        }
+      }
+    } catch (_) {
+      // Fall through to full snapshot and merge path if stat or hash fails.
+    }
+  }
+
+  if (!fs.existsSync(destinationPath)) {
+    // Snapshot directly to destinationPath to avoid creating and copying intermediate snapshot files.
+    await snapshotDatabase(Database, sourcePath, destinationPath);
+    result.insertedRows = countUserRows(Database, destinationPath);
+    result.destinationSha256 = sha256File(destinationPath);
+    result.sourceSha256 = result.destinationSha256;
+    result.action = "copied-new";
+    return result;
+  }
+
   await snapshotDatabase(Database, sourcePath, snapshotPath);
   result.sourceSnapshot = snapshotPath;
   result.sourceSha256 = sha256File(snapshotPath);
-
-  if (!fs.existsSync(destinationPath)) {
-    atomicCopyFile(snapshotPath, destinationPath);
-    quickCheck(Database, destinationPath);
-    result.insertedRows = countUserRows(Database, destinationPath);
-    result.destinationSha256 = sha256File(destinationPath);
-    result.action = "copied-new";
-    try { fs.rmSync(snapshotPath, { force: true }); } catch (_) {}
-    delete result.sourceSnapshot;
-    return result;
-  }
 
   quickCheck(Database, destinationPath);
   await snapshotDatabase(Database, destinationPath, backupPath);
@@ -929,6 +1009,7 @@ module.exports = {
   REQUEST_FILE_NAME,
   SAFE_INTEGER_PK_REMAP_TABLES,
   atomicCopyFile,
+  hasActiveWal,
   migrateOrdinaryFile,
   migrateTopology,
   mergeDatabase,

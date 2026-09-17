@@ -69,8 +69,6 @@ async function run() {
   const stats = {
     wsOpened: 0,
     wsClosed: 0,
-    chatRequests: 0,
-    lastChatRequestTs: 0,
     settingsRequests: 0,
     lastSettingsPostBody: null,
     lastSettingsHeaders: null,
@@ -97,13 +95,6 @@ async function run() {
       }
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(stats.gatewaySettings));
-      return;
-    }
-    if (String(req.url || "").startsWith("/api/chat/messages")) {
-      stats.chatRequests += 1;
-      stats.lastChatRequestTs = Date.now();
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ ok: true, rows: [] }));
       return;
     }
     if (String(req.url || "").startsWith("/api/forecast/solcast/")) {
@@ -175,16 +166,15 @@ async function run() {
     );
 
     const remoteReady = await waitFor(
-      () => stats.wsOpened >= 1 && stats.chatRequests >= 1,
+      () => stats.wsOpened >= 1,
       15000,
       100,
     );
     if (!remoteReady) {
       const latestSettings = await fetchJson(`${APP_BASE_URL}/api/settings`).catch(() => ({}));
       throw new Error(
-        `remote mode should open WS and chat polling | wsOpened=${stats.wsOpened}` +
-        ` wsClosed=${stats.wsClosed}` +
-        ` chatRequests=${stats.chatRequests}` +
+        `remote mode should open WS | wsOpened=${stats.wsOpened}` +
+        ` wsClosed=${stats.wsClosed}`
         ` remoteConnected=${Boolean(latestSettings?.remoteConnected)}` +
         ` remoteLastError=${String(latestSettings?.remoteLastError || "")}` +
         ` remoteLastSyncDirection=${String(latestSettings?.remoteLastSyncDirection || "")}`,
@@ -265,7 +255,6 @@ async function run() {
     );
     assert.equal(wsStopped, true, "remote live websocket should close after switch to gateway");
 
-    const frozenChatCount = stats.chatRequests;
     await waitMs(6500);
     assert.equal(
       stats.chatRequests,

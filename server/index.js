@@ -77,11 +77,6 @@ const {
   validateSqliteFileSync,
   endArchiveDbReplacement,
   upsertDailyReportRowsToSnapshot,
-  insertChatMessage,
-  getChatThread,
-  getChatInboxAfterId,
-  markChatReadUpToId,
-  clearAllChatMessages,
   getScheduledMaintenance,
   insertScheduledMaintenance,
   deleteScheduledMaintenance,
@@ -493,8 +488,6 @@ const REMOTE_ENERGY_POLL_INTERVAL_MS = 30000; // today-energy endpoint is rate-l
 const REMOTE_DB_MIN_PERSIST_MS = 1000;
 const REMOTE_DB_PAC_DELTA_PERSIST_W = 250;
 const REMOTE_FETCH_TIMEOUT_MS = 5000;
-const REMOTE_CHAT_POLL_INTERVAL_MS = 5000;
-const REMOTE_CHAT_POLL_LIMIT = 50;
 const REMOTE_LIVE_FETCH_RETRIES = 2;
 const REMOTE_LIVE_FETCH_RETRY_BASE_MS = 350;
 const REMOTE_LIVE_FAILURES_BEFORE_OFFLINE = 6;
@@ -552,10 +545,6 @@ const REMOTE_INCREMENTAL_CATCHUP_PASSES = 8;
 const REMOTE_INCREMENTAL_REQUEST_TIMEOUT_MS = 90000;
 const REMOTE_INCREMENTAL_FETCH_RETRIES = 3;
 const REMOTE_INCREMENTAL_FETCH_RETRY_BASE_MS = 1200;
-const CHAT_THREAD_LIMIT = 20;
-const CHAT_RETENTION_COUNT = 500;
-const CHAT_MESSAGE_MAX_LEN = 500;
-const CHAT_PROXY_TIMEOUT_MS = 8000;
 const REMOTE_ARCHIVE_TRANSFER_CONCURRENCY = 3; // parallel archive file downloads (was 1)
 // Priority standby pulls also benefit from parallel downloads — the live bridge
 // is already paused, so we can use the headroom for faster archive transfer.
@@ -575,8 +564,6 @@ const REMOTE_FETCH_MAX_SOCKETS = 8;
 const REMOTE_FETCH_MAX_SOCKETS_REPLICATION = 16;
 const REMOTE_FETCH_MAX_SOCKETS_CONTROL = 8;
 const REMOTE_CONTROL_PROXY_TIMEOUT_MS = 60000;
-const CHAT_RATE_LIMIT_WINDOW_MS = 60000;
-const CHAT_RATE_LIMIT_MAX = 10;
 const LIVE_FRESH_MS = 15000; // keep live metric freshness aligned with renderer semantics
 const REMOTE_CLIENT_PULL_ONLY = false;
 const WRITE_ENGINE_TIMEOUT_MS = 25000;
@@ -850,10 +837,8 @@ const REPLICATION_INCREMENTAL_STRATEGY = {
 
 let remoteBridgeTimer = null;
 let remoteBridgeSocket = null;
-let remoteChatPollTimer = null;
 let remoteLiveFetchController = null;
 let remoteTodayEnergyFetchController = null;
-let remoteChatFetchController = null;
 const remoteBridgeState = {
   running: false,
   connected: false,
@@ -898,13 +883,6 @@ const remoteBridgeState = {
 };
 const remoteBridgePersistState = Object.create(null); // per-node persisted hot-data cadence
 const remoteBridgeEnergyMirrorState = Object.create(null); // per-inverter 5-min bucket mirror
-const remoteChatBridgeState = {
-  running: false,
-  lastInboundId: 0,
-  primed: false,
-  lastError: "",
-  lastWarnTs: 0,
-};
 const remoteTodayEnergyShadow = {
   day: "",
   rows: [],
@@ -1778,7 +1756,6 @@ function broadcastRemoteHealthUpdate(force = false) {
 function shouldProxyApiPath(pathname) {
   const p = String(pathname || "");
   if (p === "/backup" || p.startsWith("/backup/")) return false;
-  if (p === "/chat" || p.startsWith("/chat/")) return false;
   if (p === "/forecast/solcast" || p.startsWith("/forecast/solcast/")) return false;
   // Solcast snapshot data must stay accessible in EVERY operation mode — the
   // Day-Ahead Export date list reads the LOCAL solcast_snapshots table so an
@@ -1821,127 +1798,6 @@ function shouldServeLocalFallback(pathname, nowTs = Date.now()) {
   // Viewer model: remote mode never falls back to local DB for historical reads.
   // Gateway unavailability is surfaced honestly instead of serving stale local data.
   return false;
-}
-
-function normalizeChatMachine(value, def = "gateway") {
-  const v = String(value || def)
-    .trim()
-    .toLowerCase();
-  return v === "remote" ? "remote" : "gateway";
-}
-
-function getOppositeChatMachine(machine) {
-  return normalizeChatMachine(machine, "gateway") === "remote"
-    ? "gateway"
-    : "remote";
-}
-
-function getChatModeLabel(machine) {
-  return normalizeChatMachine(machine, "gateway") === "remote"
-    ? "Remote"
-    : "Server";
-}
-
-function buildChatDisplayName(machine, operatorName) {
-  const operator = String(operatorName || "").trim() || "OPERATOR";
-  return `${operator} - ${getChatModeLabel(machine)}`.slice(0, 160);
-}
-
-function buildLocalChatIdentity(machineOverride = "") {
-  const fromMachine = normalizeChatMachine(machineOverride || readOperationMode(), "gateway");
-  return {
-    from_machine: fromMachine,
-    to_machine: getOppositeChatMachine(fromMachine),
-    from_name: buildChatDisplayName(
-      fromMachine,
-      getSetting("operatorName", "OPERATOR"),
-    ),
-  };
-}
-
-function sanitizeChatMessageText(raw) {
-  const normalized = String(raw || "")
-    .replace(/\r\n?/g, "\n")
-    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, " ")
-    .trim();
-  if (!normalized) {
-    const err = new Error("Message cannot be empty.");
-    err.httpStatus = 400;
-    throw err;
-  }
-  if (normalized.length > CHAT_MESSAGE_MAX_LEN) {
-    const err = new Error(`Message must be ${CHAT_MESSAGE_MAX_LEN} characters or fewer.`);
-    err.httpStatus = 400;
-    throw err;
-  }
-  return normalized;
-}
-
-const _chatRateBuckets = new Map(); // key: machine → { timestamps[] }
-
-function checkChatRateLimit(machine) {
-  const key = String(machine || "local");
-  const now = Date.now();
-  let bucket = _chatRateBuckets.get(key);
-  if (!bucket) {
-    bucket = { timestamps: [] };
-    _chatRateBuckets.set(key, bucket);
-  }
-  // Prune entries outside the window.
-  bucket.timestamps = bucket.timestamps.filter((ts) => now - ts < CHAT_RATE_LIMIT_WINDOW_MS);
-  if (bucket.timestamps.length >= CHAT_RATE_LIMIT_MAX) {
-    const err = new Error(`Rate limit exceeded. Maximum ${CHAT_RATE_LIMIT_MAX} messages per minute.`);
-    err.httpStatus = 429;
-    throw err;
-  }
-  bucket.timestamps.push(now);
-}
-
-function normalizeChatRow(row) {
-  if (!row || typeof row !== "object") return null;
-  const id = Math.max(0, Math.trunc(Number(row.id || 0)));
-  if (!id) return null;
-  const fromMachine = normalizeChatMachine(row.from_machine, "gateway");
-  const toMachine = normalizeChatMachine(
-    row.to_machine,
-    getOppositeChatMachine(fromMachine),
-  );
-  return {
-    id,
-    ts: Math.max(0, Math.trunc(Number(row.ts || 0))),
-    from_machine: fromMachine,
-    to_machine: toMachine,
-    from_name: String(row.from_name || "").trim().slice(0, 160),
-    message: String(row.message || ""),
-    read_ts:
-      row.read_ts == null || row.read_ts === ""
-        ? null
-        : Math.max(0, Math.trunc(Number(row.read_ts || 0))),
-  };
-}
-
-function normalizeChatRows(rows) {
-  return (Array.isArray(rows) ? rows : [])
-    .map(normalizeChatRow)
-    .filter(Boolean);
-}
-
-function getNewestChatIdForMachine(rows, machine) {
-  const targetMachine = normalizeChatMachine(machine, "gateway");
-  let maxId = 0;
-  for (const row of normalizeChatRows(rows)) {
-    if (row.to_machine !== targetMachine) continue;
-    if (row.id > maxId) maxId = row.id;
-  }
-  return maxId;
-}
-
-function updateRemoteChatCursorFromRows(rows, machine = "remote") {
-  const maxId = getNewestChatIdForMachine(rows, machine);
-  if (maxId > Number(remoteChatBridgeState.lastInboundId || 0)) {
-    remoteChatBridgeState.lastInboundId = maxId;
-  }
-  return remoteChatBridgeState.lastInboundId;
 }
 
 function getRuntimeLiveData() {
@@ -6044,7 +5900,6 @@ const PROXY_TIMEOUT_RULES = [
   ["/api/energy/5min",     60000],  // 60 s  — energy range queries
   ["/api/alarms",          20000],  // 20 s  — alarm queries
   ["/api/audit",           20000],  // 20 s  — audit queries
-  ["/api/chat/",           10000],  // 10 s  — chat messaging
   ["/api/backup/",         60000],  // 60 s  — cloud backup operations
   ["/api/substation-meter/", 20000],  // 20 s  — substation meter reads/writes
   // Remote-mode IP-config read/save is proxied to the gateway. The write is a
@@ -6797,171 +6652,6 @@ async function executeLocalBatchControlWriteRequest(bodyRaw = {}, options = {}) 
     })();
     throw e;
   }
-}
-
-async function requestRemoteChat(pathname, {
-  method = "GET",
-  body = null,
-  timeout = CHAT_PROXY_TIMEOUT_MS,
-  retry = null,
-  signal = null,
-} = {}) {
-  const base = getRemoteGatewayBaseUrl();
-  if (!base) {
-    const err = new Error("Remote gateway URL is not configured.");
-    err.httpStatus = 503;
-    throw err;
-  }
-  if (isUnsafeRemoteLoop(base)) {
-    const err = new Error("Remote gateway URL cannot be localhost in remote mode.");
-    err.httpStatus = 400;
-    throw err;
-  }
-  const target = `${base}${pathname}`;
-  const hasBody = !["GET", "HEAD"].includes(String(method || "GET").toUpperCase());
-  const headers = {
-    ...buildRemoteProxyHeaders(),
-  };
-  if (hasBody) headers["Content-Type"] = "application/json";
-
-  const fetchOptions = {
-    method,
-    headers,
-    body: hasBody ? JSON.stringify(body || {}) : undefined,
-    timeout: Math.max(1000, Number(timeout || CHAT_PROXY_TIMEOUT_MS)),
-    signal: signal || undefined,
-  };
-  const response = retry
-    ? await fetchWithRetry(target, fetchOptions, retry)
-    : await fetch(target, fetchOptions);
-  const text = await response.text();
-  let parsed = null;
-  try {
-    parsed = text ? JSON.parse(text) : null;
-  } catch (_) {
-    parsed = null;
-  }
-  if (!response.ok) {
-    const err = new Error(
-      String(parsed?.error || parsed?.message || text || `HTTP ${response.status}`),
-    );
-    err.httpStatus = Number(response.status || 0);
-    throw err;
-  }
-  return parsed && typeof parsed === "object" ? parsed : {};
-}
-
-function warnRemoteChatPoll(message) {
-  const now = Date.now();
-  if (now - Number(remoteChatBridgeState.lastWarnTs || 0) < 30000) return;
-  remoteChatBridgeState.lastWarnTs = now;
-  console.warn("[chat] remote poll failed:", String(message || "unknown error"));
-}
-
-async function primeRemoteChatCursor(signal = null) {
-  if (!isRemoteMode()) return 0;
-  const payload = await requestRemoteChat(
-    `/api/chat/messages?mode=thread&limit=${CHAT_THREAD_LIMIT}`,
-    {
-      method: "GET",
-      timeout: CHAT_PROXY_TIMEOUT_MS,
-      signal,
-      retry: {
-        attempts: 2,
-        baseDelayMs: REMOTE_LIVE_FETCH_RETRY_BASE_MS,
-      },
-    },
-  );
-  const rows = normalizeChatRows(payload?.rows);
-  remoteChatBridgeState.lastInboundId = getNewestChatIdForMachine(rows, "remote");
-  remoteChatBridgeState.primed = true;
-  remoteChatBridgeState.lastError = "";
-  return remoteChatBridgeState.lastInboundId;
-}
-
-async function pollRemoteChatOnce() {
-  if (!isRemoteMode()) return;
-  const controller = new AbortController();
-  remoteChatFetchController = controller;
-  try {
-    if (!remoteChatBridgeState.primed) {
-      await primeRemoteChatCursor(controller.signal);
-    }
-    const afterId = Math.max(0, Number(remoteChatBridgeState.lastInboundId || 0));
-    const qs = new URLSearchParams({
-      mode: "inbox",
-      machine: "remote",
-      afterId: String(afterId),
-      limit: String(REMOTE_CHAT_POLL_LIMIT),
-    });
-    const payload = await requestRemoteChat(`/api/chat/messages?${qs.toString()}`, {
-      method: "GET",
-      timeout: CHAT_PROXY_TIMEOUT_MS,
-      signal: controller.signal,
-      retry: {
-        attempts: 2,
-        baseDelayMs: REMOTE_LIVE_FETCH_RETRY_BASE_MS,
-      },
-    });
-    const rows = normalizeChatRows(payload?.rows);
-    if (!rows.length) {
-      remoteChatBridgeState.lastError = "";
-      return;
-    }
-    for (const row of rows) {
-      if (row.id > Number(remoteChatBridgeState.lastInboundId || 0)) {
-        remoteChatBridgeState.lastInboundId = row.id;
-      }
-      broadcastUpdate({ type: "chat", row });
-    }
-    remoteChatBridgeState.lastError = "";
-  } finally {
-    if (remoteChatFetchController === controller) {
-      remoteChatFetchController = null;
-    }
-  }
-}
-
-function stopRemoteChatBridge() {
-  if (remoteChatPollTimer) {
-    clearTimeout(remoteChatPollTimer);
-    remoteChatPollTimer = null;
-  }
-  if (remoteChatFetchController) {
-    try { remoteChatFetchController.abort(); } catch (_) {}
-    remoteChatFetchController = null;
-  }
-  remoteChatBridgeState.running = false;
-  remoteChatBridgeState.primed = false;
-  remoteChatBridgeState.lastInboundId = 0;
-  remoteChatBridgeState.lastError = "";
-}
-
-function startRemoteChatBridge() {
-  if (remoteChatBridgeState.running) return;
-  remoteChatBridgeState.running = true;
-  remoteChatBridgeState.primed = false;
-  remoteChatBridgeState.lastInboundId = 0;
-  remoteChatBridgeState.lastError = "";
-  const tick = async () => {
-    if (!remoteChatBridgeState.running) return;
-    if (!isRemoteMode()) {
-      stopRemoteChatBridge();
-      return;
-    }
-    try {
-      await pollRemoteChatOnce();
-    } catch (err) {
-      if (!remoteChatBridgeState.running || !isRemoteMode() || isAbortError(err)) {
-        return;
-      }
-      remoteChatBridgeState.lastError = String(err?.message || err);
-      warnRemoteChatPoll(remoteChatBridgeState.lastError);
-    }
-    remoteChatPollTimer = setTimeout(tick, REMOTE_CHAT_POLL_INTERVAL_MS);
-    if (remoteChatPollTimer?.unref) remoteChatPollTimer.unref();
-  };
-  tick();
 }
 
 async function runRemoteStartupAutoSync(baseUrl) {
@@ -7798,7 +7488,6 @@ function applyRuntimeMode() {
       remoteHealth: buildRemoteHealthSnapshot(),
     });
     startRemoteBridge();
-    startRemoteChatBridge();
   } else {
     const wasRemoteActive =
       Boolean(remoteBridgeState.running) || Boolean(remoteBridgeState.connected);
@@ -7837,7 +7526,6 @@ function applyRuntimeMode() {
       persistGatewayHandoffMeta();
     }
     stopRemoteBridge();
-    stopRemoteChatBridge();
     remoteBridgeState.liveData = {}; // discard stale remote snapshot
     remoteBridgeState.totals = {};
     remoteBridgeState.todayEnergyRows = []; // discard bridge cache; gateway mode uses DB + shadow supplement
@@ -19630,208 +19318,6 @@ app.get("/api/live", (req, res) => {
   return res.json(getRuntimeLiveData());
 });
 
-function resolveGatewayChatIdentity(req) {
-  if (isLoopbackRequest(req)) {
-    return buildLocalChatIdentity();
-  }
-  const fromMachine = normalizeChatMachine(req?.body?.from_machine, "remote");
-  const toMachine = normalizeChatMachine(
-    req?.body?.to_machine,
-    getOppositeChatMachine(fromMachine),
-  );
-  if (toMachine !== getOppositeChatMachine(fromMachine)) {
-    const err = new Error("Invalid chat route.");
-    err.httpStatus = 400;
-    throw err;
-  }
-  const fromName = String(req?.body?.from_name || "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 160);
-  return {
-    from_machine: fromMachine,
-    to_machine: toMachine,
-    from_name:
-      fromName ||
-      buildChatDisplayName(
-        fromMachine,
-        getSetting("operatorName", "OPERATOR"),
-      ),
-  };
-}
-
-app.post("/api/chat/send", async (req, res) => {
-  let message = "";
-  try {
-    message = sanitizeChatMessageText(req?.body?.message);
-    const rateMachine = isRemoteMode() ? "remote" : (readOperationMode() || "gateway");
-    checkChatRateLimit(rateMachine);
-    if (isRemoteMode()) {
-      const identity = buildLocalChatIdentity("remote");
-      const payload = await requestRemoteChat("/api/chat/send", {
-        method: "POST",
-        body: {
-          message,
-          ...identity,
-        },
-        timeout: CHAT_PROXY_TIMEOUT_MS,
-      });
-      const row = normalizeChatRow(payload?.row);
-      if (!row) throw new Error("Gateway returned an invalid chat row.");
-      broadcastUpdate({ type: "chat", row });
-      return res.json({ ok: true, row });
-    }
-
-    const identity = resolveGatewayChatIdentity(req);
-    const row = insertChatMessage(
-      {
-        ts: Date.now(),
-        ...identity,
-        message,
-        read_ts: null,
-      },
-      CHAT_RETENTION_COUNT,
-    );
-    broadcastUpdate({ type: "chat", row });
-    return res.json({ ok: true, row });
-  } catch (err) {
-    const status = Math.max(400, Math.min(599, Number(err?.httpStatus || 502)));
-    const rawMessage = String(err?.message || err || "Message send failed.");
-    const error =
-      isRemoteMode() && /remote gateway|fetch failed|timed out|econnrefused|connect/i.test(rawMessage)
-        ? "Gateway unavailable. Message not sent."
-        : rawMessage;
-    return res.status(status).json({ ok: false, error });
-  }
-});
-
-app.get("/api/chat/messages", async (req, res) => {
-  try {
-    const mode = String(req?.query?.mode || "thread")
-      .trim()
-      .toLowerCase();
-    const limit = Math.max(
-      1,
-      Math.min(
-        mode === "thread" ? CHAT_THREAD_LIMIT : REMOTE_CHAT_POLL_LIMIT,
-        Math.trunc(Number(req?.query?.limit || (mode === "thread" ? CHAT_THREAD_LIMIT : REMOTE_CHAT_POLL_LIMIT))),
-      ),
-    );
-    const afterId = Math.max(0, Math.trunc(Number(req?.query?.afterId || 0)));
-    const machine = normalizeChatMachine(
-      req?.query?.machine,
-      isRemoteMode() ? "remote" : readOperationMode(),
-    );
-
-    if (isRemoteMode()) {
-      const qs = new URLSearchParams({
-        mode: mode === "inbox" ? "inbox" : "thread",
-        limit: String(limit),
-      });
-      if (mode === "inbox") {
-        qs.set("machine", machine);
-        qs.set("afterId", String(afterId));
-      }
-      const payload = await requestRemoteChat(`/api/chat/messages?${qs.toString()}`, {
-        method: "GET",
-        timeout: CHAT_PROXY_TIMEOUT_MS,
-        retry: {
-          attempts: 2,
-          baseDelayMs: REMOTE_LIVE_FETCH_RETRY_BASE_MS,
-        },
-      });
-      const rows = normalizeChatRows(payload?.rows);
-      if (mode === "thread") {
-        updateRemoteChatCursorFromRows(rows, "remote");
-        remoteChatBridgeState.primed = true;
-      } else if (mode === "inbox") {
-        updateRemoteChatCursorFromRows(rows, machine);
-        remoteChatBridgeState.primed = true;
-      }
-      return res.json({ ok: true, rows });
-    }
-
-    if (mode === "inbox") {
-      const rows = getChatInboxAfterId(machine, afterId, limit).map(normalizeChatRow).filter(Boolean);
-      return res.json({ ok: true, rows });
-    }
-    const rows = getChatThread(limit).map(normalizeChatRow).filter(Boolean);
-    return res.json({ ok: true, rows });
-  } catch (err) {
-    const status = Math.max(400, Math.min(599, Number(err?.httpStatus || 502)));
-    return res.status(status).json({
-      ok: false,
-      error: String(err?.message || err || "Chat history request failed."),
-    });
-  }
-});
-
-app.post("/api/chat/read", async (req, res) => {
-  try {
-    const upToId = Math.max(0, Math.trunc(Number(req?.body?.upToId || 0)));
-    if (isRemoteMode()) {
-      const payload = await requestRemoteChat("/api/chat/read", {
-        method: "POST",
-        body: {
-          upToId,
-          machine: "remote",
-        },
-        timeout: CHAT_PROXY_TIMEOUT_MS,
-        retry: {
-          attempts: 2,
-          baseDelayMs: REMOTE_LIVE_FETCH_RETRY_BASE_MS,
-        },
-      });
-      return res.json({
-        ok: true,
-        updated: Math.max(0, Math.trunc(Number(payload?.updated || 0))),
-      });
-    }
-
-    const machine = isLoopbackRequest(req)
-      ? readOperationMode()
-      : normalizeChatMachine(req?.body?.machine, readOperationMode());
-    const updated = markChatReadUpToId(machine, upToId, Date.now());
-    return res.json({ ok: true, updated });
-  } catch (err) {
-    const status = Math.max(400, Math.min(599, Number(err?.httpStatus || 502)));
-    return res.status(status).json({
-      ok: false,
-      error: String(err?.message || err || "Chat read update failed."),
-    });
-  }
-});
-
-app.post("/api/chat/clear", async (req, res) => {
-  try {
-    if (isRemoteMode()) {
-      const payload = await requestRemoteChat("/api/chat/clear", {
-        method: "POST",
-        body: {},
-        timeout: CHAT_PROXY_TIMEOUT_MS,
-        retry: {
-          attempts: 2,
-          baseDelayMs: REMOTE_LIVE_FETCH_RETRY_BASE_MS,
-        },
-      });
-      broadcastUpdate({ type: "chat_clear" });
-      return res.json({
-        ok: true,
-        cleared: Math.max(0, Math.trunc(Number(payload?.cleared || 0))),
-      });
-    }
-
-    const cleared = clearAllChatMessages();
-    broadcastUpdate({ type: "chat_clear" });
-    return res.json({ ok: true, cleared });
-  } catch (err) {
-    const status = Math.max(400, Math.min(599, Number(err?.httpStatus || 502)));
-    return res.status(status).json({
-      ok: false,
-      error: String(err?.message || err || "Chat clear failed."),
-    });
-  }
-});
 
 app.get("/api/replication/manual-scope", (req, res) => {
   res.json({ ok: true, scope: buildManualReplicationScope() });
@@ -26771,7 +26257,6 @@ async function _runShutdownPhases(mode, reason) {
   // driven subsystems. These only flip flags / clear timers / fire
   // AbortControllers — they do NOT await the handles to finish closing.
   try { stopRemoteBridge(); } catch (_) {}
-  try { stopRemoteChatBridge(); } catch (_) {}
   if (plantCapController) {
     try { plantCapController.stop(); } catch (_) {}
   }

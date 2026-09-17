@@ -147,7 +147,6 @@ async function run() {
   const sockets = new Set();
   const stats = {
     wsOpened: 0,
-    chatRequests: 0,
     activeStreams: 0,
     activeKeys: new Set(),
     abortedKeys: new Set(),
@@ -187,12 +186,6 @@ async function run() {
       return;
     }
 
-    if (requestUrl.pathname === "/api/chat/messages") {
-      stats.chatRequests += 1;
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ ok: true, rows: [] }));
-      return;
-    }
 
     if (requestUrl.pathname === "/api/replication/main-db") {
       res.writeHead(200, {
@@ -298,7 +291,7 @@ async function run() {
     });
 
     const remoteReady = await waitFor(
-      () => stats.wsOpened >= 1 && stats.chatRequests >= 1,
+      () => stats.wsOpened >= 1,
       15000,
       100,
     );

@@ -320,18 +320,6 @@ const State = {
     checkedAt: 0,
     error: "",
   },
-  chatOpen: false,
-  chatUnread: 0,
-  chatMessages: [],
-  chatDismissTimer: null,
-  chatLastReadId: 0,
-  chatLastInboundId: 0,
-  chatPendingSend: false,
-  chatPendingClear: false,
-  chatAudioReady: false,
-  chatReadInFlight: false,
-  chatPendingReadUpToId: 0,
-  chatHistoryLoaded: false,
   clockTimer: null,
   alarmBadgeTimer: null,
   replicationHealthTimer: null,
@@ -396,8 +384,6 @@ const TODAY_MWH_WS_NO_ADVANCE_MS = 30000;
 const TODAY_MWH_WS_ADVANCE_MIN_PAC_W = 20000;
 const ACTUAL_MWH_HTTP_SYNC_INTERVAL_MS = 5000;
 const ALARM_SOUND_MIN_ACTIVE_MS = 5000;
-const CHAT_THREAD_LIMIT = 20;
-const CHAT_DISMISS_MS = 30000;
 const SETTINGS_SECTION_IDS = [
   "plantConfigSection",
   "serverControlSection",
@@ -3295,7 +3281,6 @@ function getOrCreateAlarmAudioCtx() {
     const Ctx = window.AudioContext || window.webkitAudioContext;
     if (!Ctx) return null;
     State.alarmAudioCtx = new Ctx();
-    State.chatAudioReady = State.alarmAudioCtx.state === "running";
     return State.alarmAudioCtx;
   } catch (err) {
     console.warn("[app] AudioContext creation failed:", err.message);
@@ -3958,9 +3943,6 @@ async function api(url, method = "GET", body, options = {}) {
         e2.status = r.status;
         e2.body = parsed;
         throw e2;
-      }
-      if (url.includes("/api/chat/")) {
-        detailedMsg = String(rawMsg || detailedMsg);
       }
       throw new Error(String(detailedMsg));
     }
@@ -7248,7 +7230,6 @@ async function loadSettings() {
     if ($("plantNameDisplay"))
       $("plantNameDisplay").textContent = s.plantName || "ADSI Plant";
     if ($("setPlantName")) $("setPlantName").value = s.plantName || "";
-    if ($("chkShowChatBubble")) $("chkShowChatBubble").checked = isChatBubbleVisible();
     if ($("setOperatorName")) {
       $("setOperatorName").value = isClientModeActive()
         ? getOperatorName()
@@ -8448,7 +8429,6 @@ async function handleOperationModeTransition(
     State.remoteHealth = normalizeRemoteHealthClient({
       state: nextMode === "remote" ? "disconnected" : "gateway-local",
     });
-    resetChatState();
     scheduleInverterCardsUpdate(true);
 
     if (nextMode === "remote") {
@@ -8494,9 +8474,6 @@ async function handleOperationModeTransition(
       });
     }
 
-    await loadChatHistory({ silent: true }).catch((err) => {
-      console.warn("[app] mode transition chat refresh failed:", err?.message || err);
-    });
   } finally {
     setModeTransitionState(false);
   }
@@ -13186,546 +13163,6 @@ function initInverterGridDrag() {
 function currentOperator() {
   return getOperatorName();
 }
-
-function currentChatMachine() {
-  return normalizeOperationModeValue(State.settings.operationMode);
-}
-
-function getChatModeLabel(machine = currentChatMachine()) {
-  return normalizeChatMachineClient(machine, "gateway") === "remote"
-    ? "Remote"
-    : "Server";
-}
-
-function buildChatSenderLabel(row) {
-  const machine = normalizeChatMachineClient(row?.from_machine, currentChatMachine());
-  const explicit = String(row?.from_name || "").trim();
-  if (explicit) return explicit;
-  return `${currentOperator()} - ${getChatModeLabel(machine)}`;
-}
-
-function normalizeChatMachineClient(value, def = "gateway") {
-  return String(value || def).trim().toLowerCase() === "remote"
-    ? "remote"
-    : "gateway";
-}
-
-function isChatInboundRow(row, machine = currentChatMachine()) {
-  const ownMachine = normalizeChatMachineClient(machine, currentChatMachine());
-  return (
-    !!row &&
-    normalizeChatMachineClient(row.to_machine, ownMachine) === ownMachine &&
-    normalizeChatMachineClient(row.from_machine, ownMachine) !== ownMachine
-  );
-}
-
-function sanitizeChatRowClient(row) {
-  if (!row || typeof row !== "object") return null;
-  const id = Math.max(0, Math.trunc(Number(row.id || 0)));
-  if (!id) return null;
-  const fromMachine = normalizeChatMachineClient(row.from_machine, "gateway");
-  const toMachine = normalizeChatMachineClient(
-    row.to_machine,
-    fromMachine === "remote" ? "gateway" : "remote",
-  );
-  return {
-    id,
-    ts: Math.max(0, Math.trunc(Number(row.ts || 0))),
-    from_machine: fromMachine,
-    to_machine: toMachine,
-    from_name: String(row.from_name || "").trim().slice(0, 160),
-    message: String(row.message || ""),
-    read_ts:
-      row.read_ts == null || row.read_ts === ""
-        ? null
-        : Math.max(0, Math.trunc(Number(row.read_ts || 0))),
-  };
-}
-
-function syncChatRuntimeFromRows() {
-  const machine = currentChatMachine();
-  let lastInboundId = 0;
-  let lastReadId = 0;
-  let unread = 0;
-  for (const row of State.chatMessages) {
-    if (normalizeChatMachineClient(row.to_machine, machine) !== machine) continue;
-    lastInboundId = Math.max(lastInboundId, Number(row.id || 0));
-    if (row.read_ts) lastReadId = Math.max(lastReadId, Number(row.id || 0));
-    else unread += 1;
-  }
-  State.chatLastInboundId = lastInboundId;
-  State.chatLastReadId = Math.max(Number(State.chatLastReadId || 0), lastReadId);
-  State.chatUnread = State.chatOpen ? 0 : unread;
-}
-
-function mergeChatRows(rows) {
-  const merged = new Map();
-  for (const row of State.chatMessages || []) {
-    const normalized = sanitizeChatRowClient(row);
-    if (normalized) merged.set(normalized.id, normalized);
-  }
-  for (const row of Array.isArray(rows) ? rows : []) {
-    const normalized = sanitizeChatRowClient(row);
-    if (!normalized) continue;
-    const prev = merged.get(normalized.id);
-    if (!prev) {
-      merged.set(normalized.id, normalized);
-      continue;
-    }
-    merged.set(normalized.id, {
-      ...prev,
-      ...normalized,
-      read_ts: normalized.read_ts || prev.read_ts || null,
-    });
-  }
-  State.chatMessages = Array.from(merged.values())
-    .sort((a, b) => Number(a.id || 0) - Number(b.id || 0))
-    .slice(-CHAT_THREAD_LIMIT);
-  syncChatRuntimeFromRows();
-  renderChatSendState();
-  return State.chatMessages;
-}
-
-const CHAT_BUBBLE_VISIBLE_STORAGE_KEY = "adsi_chat_bubble_visible";
-
-function isChatBubbleVisible() {
-  try {
-    const raw = localStorage.getItem(CHAT_BUBBLE_VISIBLE_STORAGE_KEY);
-    if (raw === null || raw === undefined) return true;
-    return raw !== "0" && raw !== "false";
-  } catch (_) {
-    return true;
-  }
-}
-
-function setChatBubbleVisible(visible, { persist = true, notify = false } = {}) {
-  const isVisible = Boolean(visible);
-  if (persist) {
-    try {
-      localStorage.setItem(CHAT_BUBBLE_VISIBLE_STORAGE_KEY, isVisible ? "1" : "0");
-    } catch (_) {}
-  }
-  const wrap = $("chatBubbleWrap");
-  if (wrap) {
-    wrap.classList.toggle("chat-bubble-wrap--hidden", !isVisible);
-    wrap.setAttribute("aria-hidden", isVisible ? "false" : "true");
-  }
-  const chk = $("chkShowChatBubble");
-  if (chk && chk.checked !== isVisible) {
-    chk.checked = isVisible;
-  }
-  const toggleBtn = $("chatHideBubble");
-  if (toggleBtn) {
-    const icon = toggleBtn.querySelector(".mdi");
-    if (icon) {
-      icon.className = isVisible
-        ? "mdi mdi-eye-off-outline"
-        : "mdi mdi-eye-outline";
-    }
-    const tip = isVisible
-      ? "Hide floating chat button (access messages from top header)"
-      : "Show floating chat button (bottom-right)";
-    toggleBtn.setAttribute("title", tip);
-    toggleBtn.setAttribute("aria-label", tip);
-  }
-  if (notify && !isVisible) {
-    showToast(
-      "Floating chat button hidden. You can open messages from the top header or re-enable in Settings.",
-      "info",
-      3500,
-    );
-  }
-}
-
-function renderChatBadge() {
-  const badge = $("chatBadge");
-  const headerBadge = $("chatHeaderBadge");
-  const count = Math.max(0, Math.trunc(Number(State.chatUnread || 0)));
-  const countText = count > 99 ? "99+" : String(count);
-  if (badge) {
-    if (count > 0) {
-      badge.hidden = false;
-      badge.textContent = countText;
-    } else {
-      badge.hidden = true;
-      badge.textContent = "0";
-    }
-  }
-  if (headerBadge) {
-    if (count > 0) {
-      headerBadge.hidden = false;
-      headerBadge.textContent = countText;
-    } else {
-      headerBadge.hidden = true;
-      headerBadge.textContent = "0";
-    }
-  }
-}
-
-function renderChatSendState() {
-  const btn = $("chatSend");
-  const clearBtn = $("chatClear");
-  const input = $("chatInput");
-  const busy = !!State.chatPendingSend || !!State.chatPendingClear;
-  if (btn) {
-    btn.disabled = busy;
-    btn.textContent = State.chatPendingSend ? "Sending..." : "Send";
-  }
-  if (clearBtn) {
-    clearBtn.disabled =
-      busy || !Array.isArray(State.chatMessages) || State.chatMessages.length === 0;
-    clearBtn.textContent = State.chatPendingClear ? "Clearing..." : "Clear";
-  }
-  if (input) input.disabled = busy;
-}
-
-function renderChatThread() {
-  const thread = $("chatThread");
-  if (!thread) return;
-  const rows = Array.isArray(State.chatMessages) ? State.chatMessages : [];
-  const frag = document.createDocumentFragment();
-  if (!rows.length) {
-    const empty = el("div", "chat-empty");
-    empty.textContent = "No recent operator messages.";
-    frag.appendChild(empty);
-  } else {
-    const machine = currentChatMachine();
-    for (const row of rows) {
-      const self = normalizeChatMachineClient(row.from_machine, machine) === machine;
-      const item = el("div", `chat-message${self ? " is-self" : ""}`);
-      const meta = el("div", "chat-message-meta");
-      meta.textContent = `${buildChatSenderLabel(row)} • ${fmtDateTime(row.ts)}`;
-      const body = el("div", "chat-message-body");
-      body.textContent = String(row.message || "");
-      item.appendChild(meta);
-      item.appendChild(body);
-      frag.appendChild(item);
-    }
-  }
-  thread.textContent = "";
-  thread.appendChild(frag);
-  if (State.chatOpen) {
-    requestAnimationFrame(() => {
-      thread.scrollTop = thread.scrollHeight;
-    });
-  }
-}
-
-function clearChatDismissTimer() {
-  if (State.chatDismissTimer) {
-    clearTimeout(State.chatDismissTimer);
-    State.chatDismissTimer = null;
-  }
-}
-
-function chatHasProtectedDraft() {
-  const input = $("chatInput");
-  if (!input) return false;
-  return document.activeElement === input && String(input.value || "").trim().length > 0;
-}
-
-function resetChatDismissTimer() {
-  clearChatDismissTimer();
-  if (!State.chatOpen) return;
-  if (State.chatPendingSend) return;
-  if (State.chatPendingClear) return;
-  if (chatHasProtectedDraft()) return;
-  State.chatDismissTimer = setTimeout(() => {
-    closeChatPanel();
-  }, CHAT_DISMISS_MS);
-}
-
-function openChatPanel() {
-  const panel = $("chatPanel");
-  const bubble = $("chatBubble");
-  const btnToggle = $("btnChatToggle");
-  if (!panel) return;
-  State.chatOpen = true;
-  panel.classList.add("chat-panel--open");
-  panel.setAttribute("aria-hidden", "false");
-  if (bubble) bubble.setAttribute("aria-expanded", "true");
-  if (btnToggle) {
-    btnToggle.classList.add("active");
-    btnToggle.setAttribute("aria-expanded", "true");
-  }
-  State.chatUnread = 0;
-  renderChatBadge();
-  renderChatThread();
-  markChatRead().catch((err) => {
-    console.warn("[chat] mark read failed:", err.message);
-  });
-  resetChatDismissTimer();
-}
-
-function closeChatPanel() {
-  const panel = $("chatPanel");
-  const bubble = $("chatBubble");
-  const btnToggle = $("btnChatToggle");
-  if (!panel) return;
-  State.chatOpen = false;
-  panel.classList.remove("chat-panel--open");
-  panel.setAttribute("aria-hidden", "true");
-  if (bubble) bubble.setAttribute("aria-expanded", "false");
-  if (btnToggle) {
-    btnToggle.classList.remove("active");
-    btnToggle.setAttribute("aria-expanded", "false");
-  }
-  clearChatDismissTimer();
-}
-
-function applyChatClearedState({ preserveDraft = true } = {}) {
-  State.chatMessages = [];
-  State.chatUnread = 0;
-  State.chatLastReadId = 0;
-  State.chatLastInboundId = 0;
-  State.chatReadInFlight = false;
-  State.chatPendingReadUpToId = 0;
-  State.chatHistoryLoaded = true;
-  if (!preserveDraft && $("chatInput")) $("chatInput").value = "";
-  renderChatSendState();
-  renderChatBadge();
-  renderChatThread();
-  if (State.chatOpen) resetChatDismissTimer();
-}
-
-async function loadChatHistory(options = {}) {
-  try {
-    const payload = await api(
-      `/api/chat/messages?mode=thread&limit=${CHAT_THREAD_LIMIT}`,
-      "GET",
-      null,
-      { progress: false },
-    );
-    mergeChatRows(payload?.rows);
-    State.chatHistoryLoaded = true;
-    renderChatBadge();
-    if (State.chatOpen) {
-      renderChatThread();
-      await markChatRead();
-      resetChatDismissTimer();
-    }
-    return State.chatMessages;
-  } catch (err) {
-    State.chatHistoryLoaded = false;
-    if (!options?.silent) {
-      console.warn("[chat] history load failed:", err.message);
-    }
-    return [];
-  }
-}
-
-async function markChatRead(forcedUpToId = 0) {
-  const machine = currentChatMachine();
-  let upToId = Math.max(0, Math.trunc(Number(forcedUpToId || 0)));
-  for (const row of State.chatMessages || []) {
-    if (!isChatInboundRow(row, machine)) continue;
-    upToId = Math.max(upToId, Number(row.id || 0));
-  }
-  if (!upToId || upToId <= Number(State.chatLastReadId || 0)) {
-    State.chatUnread = 0;
-    renderChatBadge();
-    return 0;
-  }
-  if (State.chatReadInFlight) {
-    State.chatPendingReadUpToId = Math.max(
-      Number(State.chatPendingReadUpToId || 0),
-      upToId,
-    );
-    return 0;
-  }
-  State.chatReadInFlight = true;
-  try {
-    const payload = await api(
-      "/api/chat/read",
-      "POST",
-      { upToId },
-      { progress: false },
-    );
-    const readTs = Date.now();
-    State.chatLastReadId = Math.max(Number(State.chatLastReadId || 0), upToId);
-    State.chatMessages = (State.chatMessages || []).map((row) => {
-      if (!isChatInboundRow(row, machine)) return row;
-      if (Number(row.id || 0) > upToId) return row;
-      if (row.read_ts) return row;
-      return {
-        ...row,
-        read_ts: readTs,
-      };
-    });
-    State.chatUnread = 0;
-    renderChatBadge();
-    return Math.max(0, Math.trunc(Number(payload?.updated || 0)));
-  } catch (err) {
-    console.warn("[chat] read sync failed:", err.message);
-    return 0;
-  } finally {
-    State.chatReadInFlight = false;
-    const pending = Math.max(0, Math.trunc(Number(State.chatPendingReadUpToId || 0)));
-    State.chatPendingReadUpToId = 0;
-    if (pending > Number(State.chatLastReadId || 0)) {
-      markChatRead(pending).catch(() => {});
-    }
-  }
-}
-
-function playChatSound() {
-  try {
-    const ctx = getOrCreateAlarmAudioCtx();
-    if (!ctx || ctx.state !== "running") {
-      State.chatAudioReady = false;
-      return;
-    }
-    State.chatAudioReady = true;
-    const gain = ctx.createGain();
-    gain.gain.value = 0.018;
-    gain.connect(ctx.destination);
-    const t0 = ctx.currentTime;
-    [660, 880].forEach((freq, idx) => {
-      const osc = ctx.createOscillator();
-      osc.type = "sine";
-      osc.frequency.value = freq;
-      osc.connect(gain);
-      const startAt = t0 + idx * 0.105;
-      osc.start(startAt);
-      osc.stop(startAt + 0.085);
-    });
-  } catch (err) {
-    console.warn("[chat] sound failed:", err.message);
-  }
-}
-
-function handleIncomingChatMessage(row) {
-  const normalized = sanitizeChatRowClient(row);
-  if (!normalized) return;
-  const hadRow = (State.chatMessages || []).some(
-    (item) => Number(item?.id || 0) === normalized.id,
-  );
-  const inbound = isChatInboundRow(normalized);
-  mergeChatRows([normalized]);
-  renderChatBadge();
-  if (!hadRow && inbound) {
-    openChatPanel();
-    playChatSound();
-    return;
-  }
-  if (State.chatOpen) {
-    renderChatThread();
-    if (inbound) {
-      markChatRead(normalized.id).catch((err) => {
-        console.warn("[chat] mark read failed:", err.message);
-      });
-    }
-  }
-  resetChatDismissTimer();
-}
-
-function handleChatCleared() {
-  applyChatClearedState({ preserveDraft: true });
-}
-
-async function sendChatMessage() {
-  const input = $("chatInput");
-  if (!input || State.chatPendingSend || State.chatPendingClear) return;
-  const draft = String(input.value || "").replace(/\r\n?/g, "\n");
-  const message = draft.trim();
-  if (!message) {
-    input.value = message;
-    resetChatDismissTimer();
-    return;
-  }
-  if (message.length > 500) {
-    showToast("Message must be 500 characters or fewer.", "warning", 3200);
-    return;
-  }
-  State.chatPendingSend = true;
-  renderChatSendState();
-  try {
-    const payload = await api(
-      "/api/chat/send",
-      "POST",
-      { message },
-      { progress: false },
-    );
-    const row = sanitizeChatRowClient(payload?.row);
-    if (!row) throw new Error("Chat send completed without a message row.");
-    mergeChatRows([row]);
-    input.value = "";
-    if (State.chatOpen) renderChatThread();
-    renderChatBadge();
-    resetChatDismissTimer();
-  } catch (err) {
-    showToast(String(err?.message || "Gateway unavailable. Message not sent."), "warning", 3600);
-  } finally {
-    State.chatPendingSend = false;
-    renderChatSendState();
-    if (State.chatOpen) resetChatDismissTimer();
-  }
-}
-
-async function clearChatMessages() {
-  if (State.chatPendingSend || State.chatPendingClear) return;
-  if (!Array.isArray(State.chatMessages) || State.chatMessages.length === 0) {
-    renderChatSendState();
-    return;
-  }
-  const ok = await appConfirm(
-    "Clear Operator Messages",
-    "Clear the current operator message thread?\n\nThis removes the shared message history for both Server and Remote panels.",
-    { ok: "Clear Messages", cancel: "Keep Messages" },
-  );
-  if (!ok) {
-    resetChatDismissTimer();
-    return;
-  }
-  State.chatPendingClear = true;
-  renderChatSendState();
-  try {
-    await api("/api/chat/clear", "POST", {}, { progress: false });
-    applyChatClearedState({ preserveDraft: true });
-    showToast("Operator message history cleared.", "success", 2600);
-  } catch (err) {
-    showToast(
-      String(err?.message || "Unable to clear operator messages."),
-      "warning",
-      3600,
-    );
-  } finally {
-    State.chatPendingClear = false;
-    renderChatSendState();
-    if (State.chatOpen) resetChatDismissTimer();
-  }
-}
-
-function toggleChatPanel() {
-  if (State.chatOpen) {
-    closeChatPanel();
-    return;
-  }
-  openChatPanel();
-  if (!State.chatHistoryLoaded) {
-    loadChatHistory({ silent: true }).catch(() => {});
-  }
-}
-
-function resetChatState() {
-  clearChatDismissTimer();
-  State.chatOpen = false;
-  State.chatUnread = 0;
-  State.chatMessages = [];
-  State.chatLastReadId = 0;
-  State.chatLastInboundId = 0;
-  State.chatPendingSend = false;
-  State.chatPendingClear = false;
-  State.chatReadInFlight = false;
-  State.chatPendingReadUpToId = 0;
-  State.chatHistoryLoaded = false;
-  if ($("chatInput")) $("chatInput").value = "";
-  renderChatSendState();
-  renderChatBadge();
-  renderChatThread();
-  closeChatPanel();
-}
-
 
 function buildBulkControlPanel() {
   const wrap = el("div", "bulk-control-bar");
@@ -18644,12 +18081,6 @@ function handleWS(msg) {
   }
   if (msg.type === "replication_job") {
     handleReplicationJobUpdate(msg.job || null);
-  }
-  if (msg.type === "chat") {
-    handleIncomingChatMessage(msg.row);
-  }
-  if (msg.type === "chat_clear") {
-    handleChatCleared();
   }
   if (msg.type === "clockSyncCompleted") {
     handleClockSyncCompleted(msg);
@@ -29714,54 +29145,6 @@ function bindEventHandlers() {
   // _renderToastSummary); only the close button is wired here.
   $("btnCloseNotif")?.addEventListener("click", closeNotif);
 
-  // Operator chat
-  $("btnChatToggle")?.addEventListener("click", toggleChatPanel);
-  $("chatBubble")?.addEventListener("click", toggleChatPanel);
-  $("chatBubble")?.addEventListener("contextmenu", (e) => {
-    e.preventDefault();
-    setChatBubbleVisible(false, { persist: true, notify: true });
-  });
-  $("chatBubbleHideBtn")?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    setChatBubbleVisible(false, { persist: true, notify: true });
-  });
-  $("chatHideBubble")?.addEventListener("click", () => {
-    const next = !isChatBubbleVisible();
-    setChatBubbleVisible(next, { persist: true, notify: true });
-  });
-  $("chkShowChatBubble")?.addEventListener("change", (e) => {
-    setChatBubbleVisible(e.target.checked, { persist: true, notify: false });
-  });
-  $("chatClose")?.addEventListener("click", closeChatPanel);
-  $("chatSend")?.addEventListener("click", sendChatMessage);
-  $("chatClear")?.addEventListener("click", () => {
-    clearChatMessages().catch((err) => {
-      console.warn("[chat] clear failed:", err.message);
-    });
-  });
-  $("chatPanel")?.addEventListener("pointerdown", () => {
-    if (State.chatOpen) resetChatDismissTimer();
-  });
-  $("chatThread")?.addEventListener("scroll", () => {
-    if (State.chatOpen) resetChatDismissTimer();
-  });
-  $("chatInput")?.addEventListener("focus", () => {
-    if (!State.chatOpen) openChatPanel();
-    resetChatDismissTimer();
-  });
-  $("chatInput")?.addEventListener("blur", () => {
-    setTimeout(() => resetChatDismissTimer(), 0);
-  });
-  $("chatInput")?.addEventListener("input", () => {
-    resetChatDismissTimer();
-  });
-  $("chatInput")?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendChatMessage();
-    }
-  });
-
   // Guide modal
   $("btnCloseGuide")?.addEventListener("click", closeGuideModal);
 
@@ -29770,7 +29153,6 @@ function bindEventHandlers() {
     if (cameraPlayer) cameraPlayer.stop();
     clearInterval(State.clockTimer);
     clearInterval(State.alarmBadgeTimer);
-    clearChatDismissTimer();
     if (State.netIO.monitorTimer) { clearInterval(State.netIO.monitorTimer); State.netIO.monitorTimer = null; }
     const slots = State.xfer?.slots || {};
     for (const key of Object.keys(slots)) {
@@ -29958,7 +29340,6 @@ async function init() {
 
   try {
     initThemeToggle();
-    setChatBubbleVisible(isChatBubbleVisible(), { persist: false, notify: false });
     State.plantCapPanelCollapsed = getStoredPlantCapPanelCollapsed();
     await initLicenseBridge();
     initUpdateModal();
@@ -29996,10 +29377,8 @@ async function init() {
         if (!ctx) return;
         if (ctx.state === "suspended") {
           ctx.resume().then(() => {
-            State.chatAudioReady = ctx.state === "running";
           }).catch(() => {});
         } else {
-          State.chatAudioReady = ctx.state === "running";
         }
       } catch (err) {
         console.warn("[app] audio resume failed:", err.message);
@@ -30011,9 +29390,6 @@ async function init() {
     bindEventHandlers();
     initSubstationMeterModal();
     syncPlantCapPanelCollapsedUi();
-    renderChatSendState();
-    renderChatBadge();
-    renderChatThread();
     setManualArchiveSyncSelected(loadReplicationArchiveSelectionPreference(), {
       persist: false,
     });
@@ -30070,10 +29446,9 @@ async function init() {
     reportStartupProgress({
       step: 4,
       progress: 74,
-      text: "Loading alarm and chat state...",
+      text: "Loading alarm state...",
     });
     await Promise.allSettled([
-      loadChatHistory({ silent: true }),
       refreshAlarmBadge(),
     ]);
 

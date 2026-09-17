@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inverter Dashboard - Migration</title>
+    <style>
+      :root {
+        --bg: #050c17;
+        --surface: #0c1526;
+        --border: #182a48;
+        --text: #dce8fa;
+        --text2: #8aa3cc;
+        --text3: #526a92;
+        --accent: #2d7ef7;
+        --accent-glow: rgba(45, 126, 247, 0.25);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        user-select: none;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        color: var(--text);
+        background: var(--bg);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: 24px 32px;
+        border: 1px solid var(--border);
+        -webkit-app-region: drag;
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(45, 126, 247, 0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(45, 126, 247, 0.04) 1px, transparent 1px);
+        background-size: 24px 24px;
+      }
+
+      .container {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 14px;
+      }
+
+      .icon-box {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 16px var(--accent-glow);
+      }
+
+      .icon-box svg {
+        width: 24px;
+        height: 24px;
+        color: var(--accent);
+      }
+
+      .title {
+        font-size: 17px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--text);
+      }
+
+      .subtitle {
+        font-size: 13px;
+        color: var(--text2);
+        line-height: 1.4;
+        max-width: 380px;
+      }
+
+      .progress-track {
+        width: 100%;
+        height: 4px;
+        background: var(--surface);
+        border-radius: 999px;
+        overflow: hidden;
+        position: relative;
+        margin-top: 4px;
+      }
+
+      .progress-bar {
+        position: absolute;
+        height: 100%;
+        width: 40%;
+        background: linear-gradient(90deg, transparent, var(--accent), #60a5fa, transparent);
+        border-radius: 999px;
+        animation: progress-indeterminate 1.5s infinite ease-in-out;
+      }
+
+      @keyframes progress-indeterminate {
+        0% {
+          left: -40%;
+        }
+        100% {
+          left: 100%;
+        }
+      }
+
+      .hint {
+        font-size: 11px;
+        color: var(--text3);
+        margin-top: -2px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="icon-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+          <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+          <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+        </svg>
+      </div>
+      <div>
+        <div class="title">Migrating Legacy Data</div>
+        <div class="subtitle" id="migration-status">Validating databases and importing historical records...</div>
+      </div>
+      <div class="progress-track">
+        <div class="progress-bar"></div>
+      </div>
+      <div class="hint">Please wait, this will only take a moment.</div>
+    </div>
+  </body>
+</html>
+

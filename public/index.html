@@ -65,17 +65,6 @@
 
         <div class="tb-right">
           <button
-            id="btnChatToggle"
-            class="tb-nav-toggle tb-chat-toggle"
-            type="button"
-            aria-label="Operator messages"
-            aria-expanded="false"
-            title="Operator messages (chat)"
-          >
-            <span class="mdi mdi-message-text-outline"></span>
-            <span id="chatHeaderBadge" class="tb-chat-badge" hidden>0</span>
-          </button>
-          <button
             id="btnAlarmSound"
             class="tb-nav-toggle"
             type="button"
@@ -2092,16 +2081,6 @@
                   title="Geographic longitude of the plant site, used for weather lookups and solar forecast alignment."
               /></label>
             </div>
-            <div class="srow">
-              <label class="chk-inline" title="Show or hide the floating operator chat button at the bottom-right of the dashboard.">
-                <input
-                  type="checkbox"
-                  id="chkShowChatBubble"
-                  checked
-                />
-                <span>Show floating chat button (bottom-right)</span>
-              </label>
-            </div>
           </div>
 
           <!-- SERVER LIFECYCLE (devClard only) -->
@@ -3624,95 +3603,6 @@ Hover any pill in the column for the row-specific explanation.">Anchor</th>
       </div>
       <div id="notifList" class="notif-list"></div>
     </div>
-
-    <div id="chatBubbleWrap" class="chat-bubble-wrap" role="region" aria-label="Operator chat launcher">
-      <button
-        id="chatBubble"
-        class="chat-bubble"
-        type="button"
-        aria-label="Open operator messages"
-        aria-expanded="false"
-        title="Operator messages (Click to open, right-click to hide)"
-      >
-        <span class="mdi mdi-message-text-outline" aria-hidden="true"></span>
-        <span id="chatBadge" class="chat-badge" hidden>0</span>
-      </button>
-      <button
-        id="chatBubbleHideBtn"
-        class="chat-bubble-hide-btn"
-        type="button"
-        aria-label="Hide floating chat button"
-        title="Hide chat button (restore from header or Settings)"
-      >
-        <span class="mdi mdi-close" aria-hidden="true"></span>
-      </button>
-    </div>
-
-    <section
-      id="chatPanel"
-      class="chat-panel"
-      aria-label="Operator messages"
-      aria-hidden="true"
-    >
-      <div class="chat-panel-header">
-        <div>
-          <div class="chat-panel-title">Operator Messages</div>
-          <div class="chat-panel-subtitle">Gateway and remote operator notes</div>
-        </div>
-        <div class="chat-panel-actions">
-          <button
-            id="chatClear"
-            class="chat-clear-btn"
-            type="button"
-            aria-label="Clear operator messages"
-            title="Clear the message thread for all connected workstations."
-          >
-            Clear
-          </button>
-          <button
-            id="chatHideBubble"
-            class="chat-hide-bubble-btn"
-            type="button"
-            aria-label="Hide floating chat button"
-            title="Hide floating chat button (access messages from top header)"
-          >
-            <span class="mdi mdi-eye-off-outline" aria-hidden="true"></span>
-          </button>
-          <button
-            id="chatClose"
-            class="chat-close-btn"
-            type="button"
-            aria-label="Close operator messages"
-            title="Close the operator messages panel."
-          >
-            <span class="mdi mdi-close" aria-hidden="true"></span>
-          </button>
-        </div>
-      </div>
-
-      <div id="chatThread" class="chat-thread">
-        <div class="chat-empty">No recent operator messages.</div>
-      </div>
-
-      <div class="chat-input-row">
-        <input
-          id="chatInput"
-          class="chat-input inp"
-          type="text"
-          maxlength="500"
-          autocomplete="off"
-          placeholder="Write a short operator note..."
-          title="Type a short operator note to send to connected workstations (max 500 characters)."
-        />
-        <button id="chatSend" class="btn btn-accent chat-send-btn" type="button" title="Send this operator note to the gateway message thread.">
-          Send
-        </button>
-      </div>
-
-      <div class="chat-autodismiss-bar">
-        <span class="chat-dismiss-hint">Closes automatically after inactivity</span>
-      </div>
-    </section>
 
     <div id="guideModal" class="guide-modal hidden" role="dialog" aria-modal="true">
       <div class="guide-modal-card">

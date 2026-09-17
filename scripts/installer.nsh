@@ -44,13 +44,13 @@ legacyFound:
 
 promptExisting:
   MessageBox MB_YESNO|MB_ICONQUESTION \
-    "Legacy Inverter Dashboard data was detected at:$\r$\n$0\InverterDashboard$\r$\n$\r$\nInverter-Dashboard already contains data. Import verified missing database rows and files?$\r$\n$\r$\nCurrent settings remain authoritative. Differing files are retained as conflicts, and a rollback backup plus audit manifest will be created." \
+    "Legacy Inverter Dashboard data was detected at:$\r$\n$0\InverterDashboard$\r$\n$\r$\nInverter-Dashboard already contains data. Import verified missing database rows and files now during installation?$\r$\n$\r$\nCurrent settings remain authoritative. Differing files are retained as conflicts, and a rollback backup plus audit manifest will be created." \
     IDNO skipLegacyMigration
   Goto queueLegacyMigration
 
 promptFresh:
   MessageBox MB_YESNO|MB_ICONQUESTION \
-    "Legacy Inverter Dashboard data was detected at:$\r$\n$0\InverterDashboard$\r$\n$\r$\nImport its validated databases, inverter topology, archive shards, forecast state, weather history, licensing, authentication state, and service configuration on first launch?$\r$\n$\r$\nThe source files will remain untouched and an audit manifest will be created." \
+    "Legacy Inverter Dashboard data was detected at:$\r$\n$0\InverterDashboard$\r$\n$\r$\nImport its validated databases, inverter topology, archive shards, forecast state, weather history, licensing, authentication state, and service configuration now during installation?$\r$\n$\r$\nThe source files will remain untouched and an audit manifest will be created." \
     IDNO skipLegacyMigration
 
 queueLegacyMigration:
@@ -60,7 +60,10 @@ queueLegacyMigration:
   IfErrors migrationRequestFailed
   FileWrite $1 "requested-by-nsis-v1$\r$\n"
   FileClose $1
-  DetailPrint "Queued verified legacy-data migration for the first application launch."
+  DetailPrint "Migrating legacy data from $0\InverterDashboard..."
+  DetailPrint "Validating databases and importing historical records..."
+  ExecWait '"$INSTDIR\Inverter Dashboard.exe" --migrate-now' $2
+  DetailPrint "Legacy data migration finished (exit code $2)."
   Goto skipLegacyMigration
 
 migrationRequestFailed:

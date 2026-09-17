@@ -20757,11 +20757,15 @@ app.get("/api/settings", async (req, res) => {
     const snapshot = isRemoteMode()
       ? await fetchRemoteSettingsForClient()
       : buildSettingsSnapshot();
+    
+    const isDev = req.dashboardAuth?.mode === "session" && browserAuth.isDeveloperSession(req.dashboardAuth.session);
+    const shouldRedact = !browserAuth.directLoopback(req) && !isDev;
+    
     res.json(
       browserAuth.redactSettingsSnapshot(
         snapshot,
-        !browserAuth.directLoopback(req),
-      ),
+        shouldRedact
+      )
     );
   } catch (err) {
     res.status(Number(err?.status || 502)).json({ ok: false, error: String(err?.message || err) });

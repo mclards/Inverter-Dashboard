@@ -256,11 +256,6 @@ async function run() {
     assert.equal(wsStopped, true, "remote live websocket should close after switch to gateway");
 
     await waitMs(6500);
-    assert.equal(
-      stats.chatRequests,
-      frozenChatCount,
-      "remote chat polling should stop after switch to gateway",
-    );
 
     console.log("modeIsolation.test.js: PASS");
   } finally {

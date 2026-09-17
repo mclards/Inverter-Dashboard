@@ -10,7 +10,7 @@ const ROOT = path.join(__dirname, "..", "..");
 const read = (relativePath) => fs.readFileSync(path.join(ROOT, relativePath), "utf8");
 
 try {
-  const app = read("public/js/app.js");
+  const app = read("public/js/app.js").replace(/\r/g, "");
   const html = read("public/index.html");
   const main = read("electron/main.js");
   const nativeSource = read("electron/hikvisionNativePlayer.js");

@@ -298,14 +298,15 @@ ok "Required firewall rules are present."
 
 log "[16/18] Applying optional 24/7 appliance power hardening..."
 if [ "${INVERTER_HARDEN_SLEEP:-1}" = "1" ]; then
-    if ! grep -q '^HandleLidSwitch=ignore$' /etc/systemd/logind.conf; then
-        echo 'HandleLidSwitch=ignore' >> /etc/systemd/logind.conf
-    fi
-    if ! grep -q '^HandleLidSwitchExternalPower=ignore$' /etc/systemd/logind.conf; then
-        echo 'HandleLidSwitchExternalPower=ignore' >> /etc/systemd/logind.conf
-    fi
+    sed -i 's/^#*HandlePowerKey=.*/HandlePowerKey=ignore/' /etc/systemd/logind.conf
+    grep -q '^HandlePowerKey=' /etc/systemd/logind.conf || echo 'HandlePowerKey=ignore' >> /etc/systemd/logind.conf
+    sed -i 's/^#*HandleLidSwitch=.*/HandleLidSwitch=ignore/' /etc/systemd/logind.conf
+    grep -q '^HandleLidSwitch=' /etc/systemd/logind.conf || echo 'HandleLidSwitch=ignore' >> /etc/systemd/logind.conf
+    sed -i 's/^#*HandleLidSwitchExternalPower=.*/HandleLidSwitchExternalPower=ignore/' /etc/systemd/logind.conf
+    grep -q '^HandleLidSwitchExternalPower=' /etc/systemd/logind.conf || echo 'HandleLidSwitchExternalPower=ignore' >> /etc/systemd/logind.conf
+    systemctl restart systemd-logind || true
     systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target >/dev/null
-    warn "Sleep targets are masked; logind settings take full effect after reboot."
+    warn "Sleep and power buttons are masked and ignored."
 else
     ok "Sleep hardening skipped by operator override."
 fi

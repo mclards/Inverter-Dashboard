@@ -20132,11 +20132,13 @@ app.get("/api/credentials-reference", (req, res) => {
 });
 
 app.get("/api/settings", (req, res) => {
+  const isDev = req.dashboardAuth?.mode === "session" && browserAuth.isDeveloperSession(req.dashboardAuth.session);
+  const shouldRedact = !browserAuth.directLoopback(req) && !isDev;
   res.json(
     browserAuth.redactSettingsSnapshot(
       buildSettingsSnapshot(),
-      !browserAuth.directLoopback(req),
-    ),
+      shouldRedact
+    )
   );
 });
 

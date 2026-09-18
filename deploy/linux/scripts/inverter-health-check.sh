@@ -28,9 +28,9 @@ services_active() {
 }
 
 http_reachable() {
-    curl -fsS --max-time 3 -o /dev/null http://127.0.0.1:3500/api/health \
-        && curl -fsS --max-time 3 -o /dev/null http://127.0.0.1:9100/health \
-        && curl -fsS --max-time 3 -o /dev/null http://127.0.0.1:1984/api
+    curl -fsS --max-time 8 -o /dev/null http://127.0.0.1:3500/api/health \
+        && curl -fsS --max-time 8 -o /dev/null http://127.0.0.1:9100/health \
+        && curl -fsS --max-time 8 -o /dev/null http://127.0.0.1:1984/api
 }
 
 DEADLINE=$((SECONDS + WAIT_SECONDS))
@@ -60,7 +60,7 @@ for probe in \
     'go2rtc|http://127.0.0.1:1984/api'; do
     name="${probe%%|*}"
     url="${probe#*|}"
-    if curl -fsS --max-time 3 -o /dev/null "${url}"; then
+    if curl -fsS --max-time 8 -o /dev/null "${url}"; then
         printf '%-34s %s\n' "${name} HTTP" "reachable"
     else
         printf '%-34s %s\n' "${name} HTTP" "unreachable"

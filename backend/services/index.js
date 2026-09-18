@@ -25737,7 +25737,13 @@ async function runPeriodicBackup() {
   }
 }
 setInterval(runPeriodicBackup, 2 * 60 * 60 * 1000).unref();
-setTimeout(runPeriodicBackup, 60 * 1000).unref(); // startup backup after 60 s
+// Defer first periodic backup after startup if a backup already exists,
+// preventing a heavy 2.8GB disk copy during appliance boot-up.
+const _hasStartupBackup = [0, 1].some((slot) => {
+  try { return fs.existsSync(path.join(BACKUP_DIR, `adsi_backup_${slot}.db`)); }
+  catch (_) { return false; }
+});
+setTimeout(runPeriodicBackup, _hasStartupBackup ? 15 * 60 * 1000 : 2 * 60 * 1000).unref();
 // Tier 1 fires every 2h. Surface the next-scheduled time in the health snapshot
 // so the admin panel can show "Next at HH:mm". In remote mode runPeriodicBackup
 // returns early, so clear the next-scheduled timestamp instead of advertising
@@ -25747,9 +25753,9 @@ function _refreshTier1NextScheduled() {
     _backupHealth.setNextScheduled("tier1", null);
     return;
   }
-  _backupHealth.setNextScheduled("tier1", Date.now() + 2 * 60 * 60 * 1000);
+  _backupHealth.setNextScheduled("tier1", Date.now() + (_hasStartupBackup ? 15 * 60 * 1000 : 2 * 60 * 1000));
 }
-setTimeout(_refreshTier1NextScheduled, 60 * 1000 + 500).unref();
+setTimeout(_refreshTier1NextScheduled, 1000).unref();
 setInterval(_refreshTier1NextScheduled, 2 * 60 * 60 * 1000).unref();
 
 // v2.10.0 Slice B — periodic retention pruner for the Stop Reason tables.

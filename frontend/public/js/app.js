@@ -6049,13 +6049,8 @@ function mountForecastSection() {
 
   // Only configuration fields belong in Settings. Forecast preview and refresh
   // remain on the Forecast page; connection verification stays with Settings.
-  const forecastOperations = $("forecastOperationsSection");
-  const operationsInfo = forecastOperations?.querySelector(".sinfo");
   const previewHost = $("forecastPreviewHost");
   const previewPanel = $("solcastPreviewPanel");
-  if (operationsInfo) {
-    operationsInfo.textContent = "Configure forecast source, tuning, and Solcast connection in Settings > Forecast Configuration. Preview and refresh forecast data here.";
-  }
   if (previewHost && previewPanel && previewPanel.parentElement !== previewHost) {
     previewHost.appendChild(previewPanel);
   }
@@ -7171,17 +7166,8 @@ function updateForecastSidebarSummary() {
 }
 
 function initForecastPage() {
-  // Forecast configuration lives in Settings. This page keeps a single,
-  // explicit route back to the authorized configuration panel.
+  // Forecast configuration lives in Settings. Preview and refresh remain on Forecast page.
   mountForecastSection();
-  const btn = $("btnOpenForecastSettings");
-  if (btn && btn.dataset.bound !== "1") {
-    btn.dataset.bound = "1";
-    btn.addEventListener("click", () => {
-      switchPage("settings");
-      setActiveSettingsSection("forecastSection", true);
-    });
-  }
   
   // Automatically load the preview data when entering the page
   loadSolcastPreview({ silent: true }).catch(() => {});

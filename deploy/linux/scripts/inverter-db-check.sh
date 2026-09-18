@@ -16,7 +16,7 @@ log_line() {
 
 [ -f "${DB_PATH}" ] || exit 0
 
-CHECK_OUTPUT="$(sqlite3 "${DB_PATH}" 'PRAGMA schema_version;' 2>&1 || true)"
+CHECK_OUTPUT="$(sqlite3 -cmd '.timeout 5000' "${DB_PATH}" 'PRAGMA schema_version;' 2>&1 || true)"
 if [ -n "${CHECK_OUTPUT}" ] && [ "${CHECK_OUTPUT}" -ge 0 ] 2>/dev/null; then
     exit 0
 fi

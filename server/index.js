@@ -9232,49 +9232,49 @@ function buildSolcastConfigFromInput(input = null) {
     browserAuth.isMaskedSecret(value) ? undefined : value;
   const cfg = {
     baseUrl: String(
-      src.solcastBaseUrl ?? src.baseUrl ?? base.baseUrl ?? "",
+      src.solcastBaseUrl || src.baseUrl || base.baseUrl || "",
     ).trim() || "https://api.solcast.com.au",
     accessMode: String(
-      src.solcastAccessMode ?? src.accessMode ?? base.accessMode ?? "",
+      src.solcastAccessMode || src.accessMode || base.accessMode || "",
     ).trim(),
     apiKey: String(
-      resolveMasked(src.solcastApiKey) ??
-        resolveMasked(src.apiKey) ??
-        base.apiKey ??
+      resolveMasked(src.solcastApiKey) ||
+        resolveMasked(src.apiKey) ||
+        base.apiKey ||
         "",
     ).trim(),
     resourceId: String(
-      src.solcastResourceId ?? src.resourceId ?? base.resourceId ?? "",
+      src.solcastResourceId || src.resourceId || base.resourceId || "",
     ).trim(),
     toolkitEmail: String(
-      src.solcastToolkitEmail ?? src.toolkitEmail ?? base.toolkitEmail ?? "",
+      src.solcastToolkitEmail || src.toolkitEmail || base.toolkitEmail || "",
     ).trim(),
     toolkitPassword: String(
-      resolveMasked(src.solcastToolkitPassword) ??
-        resolveMasked(src.toolkitPassword) ??
-        base.toolkitPassword ??
+      resolveMasked(src.solcastToolkitPassword) ||
+        resolveMasked(src.toolkitPassword) ||
+        base.toolkitPassword ||
         "",
     ).trim(),
     toolkitTotpSecret: String(
-      resolveMasked(src.solcastToolkitTotpSecret) ??
-        resolveMasked(src.toolkitTotpSecret) ??
-        base.toolkitTotpSecret ??
+      resolveMasked(src.solcastToolkitTotpSecret) ||
+        resolveMasked(src.toolkitTotpSecret) ||
+        base.toolkitTotpSecret ||
         "",
     ).trim(),
     toolkitSiteRef: String(
-      src.solcastToolkitSiteRef ??
-        src.toolkitSiteRef ??
-        base.toolkitSiteRef ??
+      src.solcastToolkitSiteRef ||
+        src.toolkitSiteRef ||
+        base.toolkitSiteRef ||
         "",
     ).trim(),
     toolkitDays: Math.max(1, Math.min(SOLCAST_TOOLKIT_PREVIEW_MAX_DAYS, Math.trunc(
       Number(src.solcastToolkitDays ?? src.toolkitDays ?? base.toolkitDays ?? 2) || 2,
     ))),
     toolkitPeriod: String(
-      src.solcastToolkitPeriod ?? src.toolkitPeriod ?? base.toolkitPeriod ?? SOLCAST_TOOLKIT_PERIOD,
+      src.solcastToolkitPeriod || src.toolkitPeriod || base.toolkitPeriod || SOLCAST_TOOLKIT_PERIOD,
     ).trim() || SOLCAST_TOOLKIT_PERIOD,
     timeZone: String(
-      src.solcastTimezone ?? src.timeZone ?? base.timeZone ?? "",
+      src.solcastTimezone || src.timeZone || base.timeZone || "",
     ).trim() || WEATHER_TZ,
   };
   cfg.accessMode = resolveSolcastAccessMode(cfg.accessMode, cfg);

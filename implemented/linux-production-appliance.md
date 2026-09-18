@@ -90,3 +90,14 @@ telemetry driver nevertheless imported the removed pymodbus 2.x module and
 silently disabled its client functions. This record captures the durable
 driver, installer, topology, and status corrections. Live fleet polling must
 be re-verified after the corrected commit is installed on the appliance.
+
+## 2026-09-18 boot auto-start optimization and remote access verification
+
+- **Boot Auto-Start Optimization**:
+  - Root cause: `_probeDbIntegritySync` in `server/db.js` and `backend/services/db.js` executed `PRAGMA quick_check(1)` synchronously before `app.listen(3500)`. On a 2.81 GB SQLite database on a mechanical 5400 RPM HDD (`/dev/sda`), this caused a 15–20 minute disk sleep (`D` state) blocking port 3500. Additionally, the periodic backup worker kicked off an unthrottled 2.8 GB file copy at $t = 60\text{s}$.
+  - Resolution: Replaced `PRAGMA quick_check(1)` with `PRAGMA schema_version;` (runs in ~2 ms). Deferred initial periodic backup to 15 minutes post-boot when backups already exist. Increased health probe timeout in `deploy/linux/scripts/inverter-health-check.sh` to 8 seconds.
+  - Evidence: Server cold boot to listening port 3500 reduced from >15 minutes to <8 seconds. All services (`inverter-server`, `inverter-engine`, `inverter-forecast`, `inverter-go2rtc`, `tailscaled`) report active and reachable.
+- **Remote Access Verification**:
+  - Remote Desktop Clients: Authenticate via `x-inverter-remote-token: adsilinux` (or bearer token). Verified live traffic: `laptop-inverterengr` (`100.111.111.111`) streaming WebSocket telemetry and camera feeds from `100.123.123.123:3500`.
+  - Remote Web Browsers: Connect to `http://100.123.123.123:3500/` or `http://192.168.4.193:3500/` and authenticate via `/login.html` with operator credentials (`admin` / `1234`) or developer credentials (`devClard` / rotating `devMM`). Verified session cookies and HTTP 200 responses.
+

@@ -8620,7 +8620,7 @@ select.cam-field-input { appearance: auto; }
   min-width: 0;
 }
 
-.srow label {
+.srow label:not(.chk-inline) {
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -14324,7 +14324,7 @@ body.mode-transition-active {
   align-items: flex-start;
 }
 
-#page-forecast .forecast-page-sections .srow label {
+#page-forecast .forecast-page-sections .srow label:not(.chk-inline) {
   grid-column: span 6;
   min-width: 0;
 }
@@ -14930,7 +14930,7 @@ body.mode-transition-active {
   align-items: flex-start;
 }
 
-#page-settings .settings-sections .srow label {
+#page-settings .settings-sections .srow label:not(.chk-inline) {
   grid-column: span 6;
   min-width: 0;
 }
@@ -14989,7 +14989,7 @@ body.mode-transition-active {
   border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
 }
 
-#page-settings #plantConfigSection .srow label {
+#page-settings #plantConfigSection .srow label:not(.chk-inline) {
   grid-column: 1;
 }
 
@@ -15029,9 +15029,9 @@ body.mode-transition-active {
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
-#page-settings #opsCompactSection .settings-subsection .srow label,
-#page-settings #connectivitySection .settings-subsection .srow label,
-#page-settings #cloudBackupSection .cb-subsection .srow label {
+#page-settings #opsCompactSection .settings-subsection .srow label:not(.chk-inline),
+#page-settings #connectivitySection .settings-subsection .srow label:not(.chk-inline),
+#page-settings #cloudBackupSection .cb-subsection .srow label:not(.chk-inline) {
   grid-column: span 6;
 }
 
@@ -15084,8 +15084,7 @@ body.mode-transition-active {
 :is(#page-settings, #page-forecast)
   #forecastSection
   .forecast-tuning-panel
-  .srow
-  label {
+  .srow label:not(.chk-inline) {
   grid-column: 1 / -1;
 }
 
@@ -15096,29 +15095,25 @@ body.mode-transition-active {
 :is(#page-settings, #page-forecast)
   #forecastSection
   .forecast-access-panel
-  .srow
-  label,
+  .srow label:not(.chk-inline),
 :is(#page-settings, #page-forecast)
   #forecastSection
   .forecast-api-panel
-  .srow
-  label {
+  .srow label:not(.chk-inline) {
   grid-column: span 6;
 }
 
 :is(#page-settings, #page-forecast)
   #forecastSection
   .forecast-provider-panel
-  .srow
-  label {
+  .srow label:not(.chk-inline) {
   grid-column: 1 / -1;
 }
 
 :is(#page-settings, #page-forecast)
   #forecastSection
   .forecast-toolkit-panel
-  .srow
-  label {
+  .srow label:not(.chk-inline) {
   grid-column: span 4;
 }
 
@@ -15547,8 +15542,7 @@ body.mode-transition-active {
   :is(#page-settings, #page-forecast)
     #forecastSection
     .forecast-toolkit-panel
-    .srow
-    label {
+    .srow label:not(.chk-inline) {
     grid-column: span 6;
   }
 
@@ -15616,7 +15610,7 @@ body.mode-transition-active {
     grid-template-columns: 1fr;
   }
 
-  #page-settings .settings-sections .srow label,
+  #page-settings .settings-sections .srow label:not(.chk-inline),
   #page-settings .settings-sections .srow > small,
   #page-settings
     .settings-sections
@@ -15636,7 +15630,7 @@ body.mode-transition-active {
     grid-template-columns: 1fr;
   }
 
-  #page-forecast .forecast-page-sections .srow label,
+  #page-forecast .forecast-page-sections .srow label:not(.chk-inline),
   #page-forecast .forecast-page-sections .srow > small,
   #page-forecast
     .forecast-page-sections
@@ -26009,7 +26003,7 @@ table.fcal-settings-table .fcal-set-readonly {
   #page-settings .settings-sections #opsPanelPolling .srow {
     display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; flex-direction: row !important; gap: 8px !important;
   }
-  #page-settings .settings-sections #opsCompactSection .srow label {
+  #page-settings .settings-sections #opsCompactSection .srow label:not(.chk-inline) {
     grid-column: span 1 !important; width: 100% !important;
   }
 
@@ -26152,7 +26146,7 @@ table.fcal-settings-table .fcal-set-readonly {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 8px !important;
   }
-  #page-settings .settings-sections #connPanelAccess .srow label {
+  #page-settings .settings-sections #connPanelAccess .srow label:not(.chk-inline) {
     grid-column: span 1 !important;
     width: 100% !important;
     min-width: 0 !important;
@@ -26161,8 +26155,8 @@ table.fcal-settings-table .fcal-set-readonly {
     align-items: flex-start !important;
     gap: 4px !important;
   }
-  #page-settings .settings-sections #connPanelAccess .srow label input,
-  #page-settings .settings-sections #connPanelAccess .srow label select {
+  #page-settings .settings-sections #connPanelAccess .srow label:not(.chk-inline) input,
+  #page-settings .settings-sections #connPanelAccess .srow label:not(.chk-inline) select {
     width: 100% !important;
     min-width: 0 !important;
     box-sizing: border-box !important;

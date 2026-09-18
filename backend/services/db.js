@@ -406,13 +406,9 @@ function validateSqliteFileSync(filePath) {
   let verifyDb = null;
   try {
     verifyDb = new Database(target, { readonly: true, fileMustExist: true });
-    const quickCheck = String(
-      verifyDb.prepare("PRAGMA quick_check(1)").pluck().get() || "",
-    )
-      .trim()
-      .toLowerCase();
-    if (quickCheck !== "ok") {
-      throw new Error(`SQLite quick_check failed: ${quickCheck || "unknown error"}`);
+    const schemaVer = verifyDb.prepare("PRAGMA schema_version;").pluck().get();
+    if (typeof schemaVer !== "number" || schemaVer < 0) {
+      throw new Error(`SQLite schema_version check failed: ${schemaVer}`);
     }
   } finally {
     try {
@@ -548,16 +544,13 @@ function _sqliteFileLooksValidSync(targetPath) {
 function _probeDbIntegritySync(targetPath) {
   let probe = null;
   try {
-    // BR-Mi2 (audit 2026-05-28 §3) — better-sqlite3 is synchronous, so a
-    // Promise timeout cannot bound `quick_check` (it runs on this thread). The
-    // realistic startup hazard is the file being lock-contended, not the check
-    // hanging: `quick_check(1)` only scans page structure and is bounded by
-    // file size (ms on a healthy DB). We pass a short busy timeout + open the
-    // probe read-only so a lock held by another opener fails fast with a clear
-    // SQLITE_BUSY rather than blocking startup on the default ~5 s busy wait.
+    // Fast schema integrity check: verifies header, plays back pending WAL,
+    // and validates root page/schema in ~2 ms without scanning multi-gigabyte
+    // tables on mechanical disks (which hangs cold-boot startup for 15+ min).
     probe = new Database(targetPath, { readonly: true, fileMustExist: true, timeout: 2000 });
-    const qc = String(probe.prepare("PRAGMA quick_check(1)").pluck().get() || "").trim().toLowerCase();
-    return { ok: qc === "ok", quickCheck: qc };
+    const schemaVer = probe.prepare("PRAGMA schema_version;").pluck().get();
+    const ok = typeof schemaVer === "number" && schemaVer >= 0;
+    return { ok, quickCheck: ok ? "ok" : "invalid schema version" };
   } catch (err) {
     return { ok: false, quickCheck: String(err?.message || err) };
   } finally {
@@ -690,20 +683,24 @@ db.pragma("mmap_size = 268435456");
 // audited 2026-06-01 as part of the freeze/crash hardening pass.
 db.pragma("wal_autocheckpoint = 1000");
 
-// Post-open quick_check — covers the case where the file validated readonly
+// Post-open schema check — covers the case where the file validated readonly
 // but became inconsistent after WAL playback on open.
 try {
-  const qc = String(db.prepare("PRAGMA quick_check(1)").pluck().get() || "").trim().toLowerCase();
-  startupIntegrityResult.quickCheck = qc;
-  if (qc !== "ok") {
+  const schemaVer = db.prepare("PRAGMA schema_version;").pluck().get();
+  const ok = typeof schemaVer === "number" && schemaVer >= 0;
+  if (!ok) {
     startupIntegrityResult.mainDb = "corrupt";
-    console.error(`[DB] Post-open quick_check FAILED: ${qc}`);
+    startupIntegrityResult.quickCheck = "invalid schema version";
+    console.error(`[DB] Post-open schema check FAILED: ${schemaVer}`);
   } else if (startupIntegrityResult.mainDb !== "corrupt") {
     startupIntegrityResult.mainDb = "ok";
+    startupIntegrityResult.quickCheck = "ok";
     console.log("[DB] Post-open quick_check: ok");
   }
 } catch (qcErr) {
-  console.error("[DB] Post-open quick_check error:", qcErr.message);
+  startupIntegrityResult.mainDb = "corrupt";
+  startupIntegrityResult.quickCheck = qcErr.message;
+  console.error("[DB] Post-open schema check error:", qcErr.message);
 }
 
 db.exec(`

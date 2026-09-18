@@ -1014,12 +1014,12 @@
 
       <!-- --- PAGE: FORECAST ------------------------------------------------------- -->
       <section id="page-forecast" class="page">
-        <!-- Pop-out button overlay — forecast has no page-toolbar, so float it
-             in the top-right corner of the forecast-shell wrapper. -->
-        <div class="forecast-popout-bar">
+        <div class="page-toolbar">
+          <h2 class="page-title"><span class="mdi mdi-chart-line icon-inline" aria-hidden="true"></span> Forecast Preview &amp; Validation</h2>
           <button id="popout-btn-forecast" class="btn-popout" type="button"
                   title="Open Forecast in a new window">
             <span class="mdi mdi-open-in-new" aria-hidden="true"></span>
+            <span class="btn-popout-label">New Window</span>
           </button>
         </div>
         <div class="forecast-shell">
@@ -1027,7 +1027,6 @@
             <span class="smsg" id="forecastPageMsg"></span>
             <div class="forecast-page-sections" id="forecastPageSections">
               <div class="sgroup settings-card forecast-section-context" id="forecastOperationsSection">
-                <div class="sgroup-title"><span class="mdi mdi-chart-line icon-inline" aria-hidden="true"></span> Forecast Preview &amp; Validation</div>
                   <div class="sinfo">Forecast configuration, Solcast credentials, and model tuning are centralized under <strong>Settings → Forecast Configuration</strong>. Review forecast performance in Analytics and retrieve forecast data from Export.</div>
                   <div class="sgroup-actions" style="margin-top:12px;">
                     <button id="btnOpenForecastSettings" class="btn btn-outline" type="button" data-role-min="devClard" title="Open the centralized Forecast Configuration settings.">

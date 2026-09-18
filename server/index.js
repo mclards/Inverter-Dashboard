@@ -13252,6 +13252,48 @@ app.ws("/ws", (ws, req) => {
 /* ── Camera RTSP → MPEG1/TS WebSocket ─────────────────────────────── */
 app.ws("/ws/camera", (ws, req) => {
   if (!authorizeDashboardWebSocket(ws, req)) return;
+
+  if (isRemoteMode()) {
+    const base = getRemoteGatewayBaseUrl();
+    if (!base) {
+      ws.close(1011, "Remote gateway URL not configured");
+      return;
+    }
+    const qUrl = req.query && req.query.url;
+    let targetWsUrl = buildRemoteBridgeWsUrl(base, "/ws/camera");
+    if (qUrl) {
+      targetWsUrl += `?url=${encodeURIComponent(qUrl)}`;
+    }
+    const upstream = new WebSocket(targetWsUrl, {
+      headers: buildRemoteProxyHeaders(),
+      handshakeTimeout: REMOTE_FETCH_TIMEOUT_MS,
+    });
+    
+    ws.on("message", (msg) => {
+      if (upstream.readyState === WebSocket.OPEN) {
+        upstream.send(msg);
+      }
+    });
+    upstream.on("message", (msg) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(msg);
+      }
+    });
+    ws.on("close", () => {
+      try { upstream.close(); } catch (_) {}
+    });
+    upstream.on("close", () => {
+      try { ws.close(); } catch (_) {}
+    });
+    ws.on("error", () => {
+      try { upstream.close(); } catch (_) {}
+    });
+    upstream.on("error", () => {
+      try { ws.close(); } catch (_) {}
+    });
+    return;
+  }
+
   let registered = false;
 
   function tryStart(rtspUrl) {

@@ -7182,6 +7182,9 @@ function initForecastPage() {
       setActiveSettingsSection("forecastSection", true);
     });
   }
+  
+  // Automatically load the preview data when entering the page
+  loadSolcastPreview({ silent: true }).catch(() => {});
 }
 
 // ─── Clock ────────────────────────────────────────────────────────────────────

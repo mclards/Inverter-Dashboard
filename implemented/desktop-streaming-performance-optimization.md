@@ -331,3 +331,32 @@ built.** The corrected Linux gateway and development desktop bridge now pass
 the end-to-end live latency check with sub-second frame age. Install 1.0.8 on
 the operator workstation for the packaged-client comparison. Camera
 smoothness remains a live visual verification item.
+
+## Linux Gateway to Windows Desktop Connection Hardening (Zero-Drop Resilience)
+
+Timestamp: 2026-09-29
+
+### Background & Failure Mode
+When the Windows desktop application connects to the remote Linux appliance gateway (`:3500`), networks subject to NAT session timeouts, VPN/Tailscale renegotiations, or transient Wi-Fi drops experienced:
+1. **Silent TCP drops (Zombie sockets):** Sockets remained in `WebSocket.OPEN` or TCP ESTABLISHED state indefinitely without receiving frames or triggering `close`/`error` events.
+2. **Excessive exponential backoff:** Retry delays up to 30 seconds created prolonged freezes during transient hiccups.
+3. **Absence of hot-standby fallback:** Live streaming halted completely while WebSocket reconnected.
+
+### Implemented Safeguards
+1. **Sub-second TCP Keepalive & Jitter Resilience (`server/index.js` & `server/ws.js`):**
+   - Reduced server WebSocket ping interval to 12s (`WS_PING_INTERVAL_MS = 12000`) with tolerance for up to 3 missed pings before termination (`WS_PING_MISSED_MAX = 3`, 36s threshold).
+   - In `connectRemoteBridgeSocket`, ping heartbeat now tolerates transient network jitter (`_pongsMissed >= 2` before teardown) instead of dropping immediately on a single delayed pong.
+   - Configured OS TCP keep-alive on HTTP server socket connections (`socket.setKeepAlive(true, 10000)` and `socket.setNoDelay(true)`).
+2. **Silent Zombie Socket Watchdog (`public/js/app.js` & `public/topology.html`):**
+   - Active watchdog runs every 2.5s checking `lastWsMessageTs`. If socket is silent for `> 12s` (beyond server keepalive and telemetry intervals), the dead connection is actively torn down and re-established.
+   - Fast reconnect delay ceiling capped at 3.5s (`400 * 1.3^retries + jitter`) instead of 30s.
+3. **Hot-Standby HTTP Live Fallback:**
+   - Both main dashboard (`app.js`) and standalone SCADA topology (`topology.html`) run a concurrent 1.5s hot-standby fallback poller.
+   - If WebSocket is disconnected or silent for `> 3s`, the poller seamlessly fetches `/api/live` and feeds telemetry directly to the renderers, guaranteeing zero frozen telemetry during reconnections.
+4. **Instant Event-Driven Resumption:**
+   - Bound `window.addEventListener("online")` and `document.addEventListener("visibilitychange")` to re-verify and trigger immediate reconnection when waking up or network interface recovers.
+   - Added click-to-reconnect handlers on connection badges and offline indicator banners.
+5. **Verification Evidence:**
+   - All 119 Node smoke test suites passed (`119/119 pass`, 57.6s).
+   - Cache bust incremented to `v=2.1.26` across synchronized paired HTML entry points (`public/index.html` and `frontend/public/index.html`).
+

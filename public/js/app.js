@@ -156,6 +156,7 @@ const State = {
   charts: {},
   currentPage: "inverters",
   wsRetries: 0,
+  lastWsMessageTs: 0,
   startupLiveReady: false,
   startupLiveWaiters: [],
   invLastFresh: {}, // key: inverter -> last fresh timestamp
@@ -5174,6 +5175,16 @@ function initInverterTopologyController() {
   $("btnScanTopologyStatus")?.addEventListener("click", () => {
     showMsg("topolSaveMsg", "Scanning inverter network reachability...", "");
   });
+  $("btnOpenTopologyMapTop")?.addEventListener("click", openTopologyWindow);
+  $("btnOpenTopologyMap")?.addEventListener("click", openTopologyWindow);
+}
+
+function openTopologyWindow() {
+  if (window.electronAPI?.openTopologyWindow) {
+    window.electronAPI.openTopologyWindow();
+  } else {
+    window.open("/topology.html", "_blank");
+  }
 }
 
 function openIpConfigSettings() {
@@ -15835,6 +15846,7 @@ function scheduleLatestLiveWs(msg, source) {
 }
 
 function connectWS() {
+  startWsWatchdog();
   if (State.wsConnecting) return;
   const current = State.ws;
   if (
@@ -15855,6 +15867,7 @@ function connectWS() {
 
   ws.onopen = () => {
     State.wsConnecting = false;
+    State.lastWsMessageTs = Date.now();
     resetTodayMwhAuthority();
     setWsState(true, "ONLINE");
     State.wsRetries = 0;
@@ -15868,6 +15881,7 @@ function connectWS() {
   };
 
   ws.onmessage = ({ data }) => {
+    State.lastWsMessageTs = Date.now();
     netIOTrackRx(typeof data === "string" ? data.length : (data.byteLength || 0));
     try {
       const msg = JSON.parse(data);
@@ -15902,8 +15916,10 @@ function connectWS() {
     resetTodayMwhAuthority();
     setWsState(false, "RECONNECT");
     const retries = ++State.wsRetries;
-    const delay = Math.min(30000, Math.floor(500 * Math.pow(1.5, retries) + Math.random() * 500 * retries));
-    const delaySeconds = Math.ceil(delay / 1000);
+    // Resilient low-latency reconnect: retry quickly (500ms..3.5s max) so transient network
+    // drops or server reboots re-establish immediately instead of waiting up to 30s.
+    const delay = Math.min(3500, Math.floor(400 * Math.pow(1.3, retries) + Math.random() * 300));
+    const delaySeconds = Math.max(1, Math.round(delay / 1000));
     showOfflineIndicator(true, `Reconnecting in ${delaySeconds}s...`);
     _clearWsReconnectTimer();
     State.wsReconnectTimer = setTimeout(() => {
@@ -15916,10 +15932,95 @@ function connectWS() {
     State.wsConnecting = false;
     resetTodayMwhAuthority();
     showOfflineIndicator(true, "Connection lost. Retrying...");
-    if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+    try {
       ws.close();
-    }
+    } catch (_) {}
   };
+}
+
+// ── Persistent Connection Watchdog & Hot-Standby HTTP Live Fallback ──
+let wsWatchdogStarted = false;
+let fallbackLiveInFlight = false;
+
+function startWsWatchdog() {
+  if (wsWatchdogStarted) return;
+  wsWatchdogStarted = true;
+
+  // 1. Silent TCP Drop Watchdog: Kills zombie sockets where connection died without TCP RST
+  setInterval(() => {
+    const now = Date.now();
+    if (State.ws && State.ws.readyState === WebSocket.OPEN) {
+      const silenceMs = now - Number(State.lastWsMessageTs || 0);
+      // Telemetry broadcasts every 500-1500ms and server keepalives every 12s.
+      // If silent > 12s, the TCP socket is dead (router drop, WiFi glitch, or VPN sleep).
+      if (State.lastWsMessageTs > 0 && silenceMs > 12000) {
+        console.warn(`[ws] Watchdog: silent TCP drop detected (${Math.round(silenceMs / 1000)}s silence). Forcing reconnect...`);
+        try { State.ws.close(); } catch (_) {}
+      }
+    } else if (!State.wsConnecting && !State.wsReconnectTimer) {
+      connectWS();
+    }
+  }, 2500);
+
+  // 2. Hot-Standby HTTP Fallback Poller: keeps live plant data streaming even if WS drops/reconnects
+  setInterval(() => {
+    const now = Date.now();
+    const wsStale = !State.ws || State.ws.readyState !== WebSocket.OPEN || (now - Number(State.lastWsMessageTs || 0) > 3000);
+    if (!wsStale || fallbackLiveInFlight) return;
+    fallbackLiveInFlight = true;
+    fetch("/api/live", { cache: "no-store" })
+      .then(async (r) => {
+        if (r.ok) {
+          const json = await r.json();
+          if (json && json.data) {
+            State.lastWsMessageTs = Date.now();
+            handleWS({
+              type: "live",
+              data: json.data,
+              totals: json.totals,
+              todayEnergy: json.todayEnergy,
+              todaySummary: json.todaySummary,
+              remoteHealth: json.remoteHealth,
+            });
+            if (!State.ws || State.ws.readyState !== WebSocket.OPEN) {
+              setWsState(true, "HTTP-LIVE");
+              showOfflineIndicator(false);
+            }
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        fallbackLiveInFlight = false;
+      });
+  }, 1500);
+
+  // 3. Instant Reconnection on Network Restore or Window Focus
+  window.addEventListener("online", () => {
+    console.log("[ws] Network online event received. Reconnecting WebSocket immediately...");
+    _clearWsReconnectTimer();
+    if (State.ws && State.ws.readyState !== WebSocket.OPEN) {
+      try { State.ws.close(); } catch (_) {}
+    }
+    connectWS();
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      const now = Date.now();
+      if (!State.ws || State.ws.readyState !== WebSocket.OPEN || (now - Number(State.lastWsMessageTs || 0) > 5000)) {
+        _clearWsReconnectTimer();
+        connectWS();
+      }
+    }
+  });
+
+  // 4. Click-to-reconnect on offline indicator banner
+  document.addEventListener("click", (e) => {
+    if (e.target?.closest?.("#offlineBanner") || e.target?.closest?.("#wsBadge")) {
+      _clearWsReconnectTimer();
+      connectWS();
+    }
+  });
 }
 
 /* ── Camera Streaming ──────────────────────────────────────────────── */
@@ -31375,6 +31476,12 @@ function _fcalSyncTransportPanes() {
     .forEach((pane) => {
       pane.hidden = pane.getAttribute("data-fcal-transport") !== mode;
     });
+  document.querySelectorAll(".fcal-transport-mode").forEach((label) => {
+    const radio = label.querySelector('input[type="radio"]');
+    if (radio) {
+      label.classList.toggle("is-active", radio.checked);
+    }
+  });
 }
 
 async function _fcalRefreshSerialPorts() {

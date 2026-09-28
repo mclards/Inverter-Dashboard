@@ -1,0 +1,1 @@
+{ "firmwares": [ { "name": "AAV1003", "version": "BD", "date": "2024-05-14 21:29:10", "protocols": [ { "description": "INGECON SUN Power Max X", "protocol": "ModbusAA", "serial": "^[0-9][0-9][0-9]......[B-HRJ]", "dvver": 0, "dvsubver": 0, "boots": [ { "allow": "XXX1000" } ] } ] } ] }

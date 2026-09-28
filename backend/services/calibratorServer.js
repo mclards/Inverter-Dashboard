@@ -281,6 +281,7 @@ function startCalibratorServer({
       process.env.ALLUSERSPROFILE ||
       "C:\\ProgramData";
     const candidates = [
+      path.join(pd, "Inverter-Dashboard", "db", "ipconfig.json"),
       path.join(pd, "Inverter-Dashboard", "ipconfig.json"),
       path.join(pd, "Inverter-Dashboard", "config", "ipconfig.json"),
     ];
@@ -456,6 +457,7 @@ function startCalibratorServer({
       process.env.ALLUSERSPROFILE ||
       "C:\\ProgramData";
     const candidates = [
+      path.join(pd, "Inverter-Dashboard", "db", "ipconfig.json"),
       path.join(pd, "Inverter-Dashboard", "ipconfig.json"),
       path.join(pd, "Inverter-Dashboard", "config", "ipconfig.json"),
     ];

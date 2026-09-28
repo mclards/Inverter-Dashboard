@@ -5097,10 +5097,10 @@ function openTopologyWindow() {
     return;
   }
   topologyWin = new BrowserWindow({
-    width: 1500,
-    height: 900,
-    minWidth: 980,
-    minHeight: 620,
+    width: 1600,
+    height: 960,
+    minWidth: 1080,
+    minHeight: 700,
     icon: APP_ICON,
     frame: true,
     autoHideMenuBar: true,
@@ -5729,9 +5729,9 @@ async function ensureGatewayModeForWindow(featureLabel, ownerWin) {
   return false;
 }
 
-async function openTopologyWindowGuarded(ownerWin) {
-  const allowed = await ensureGatewayModeForWindow("Topology", ownerWin);
-  if (!allowed) return false;
+async function openTopologyWindowGuarded(_ownerWin) {
+  // Topology is accessible in BOTH gateway and remote (client) mode,
+  // streaming plant-wide realtime telemetry and SLD mimic states from the server.
   openTopologyWindow();
   return true;
 }

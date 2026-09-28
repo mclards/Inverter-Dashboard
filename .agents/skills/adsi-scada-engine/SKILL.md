@@ -1,4 +1,4 @@
-﻿---
+---
 name: adsi-scada-engine
 description: SCADA engine architecture, Modbus polling, APC control loops, compliance sequencers, IGBT degradation modeling, SQLite WAL storage, and security.
 ---
@@ -91,3 +91,87 @@ This skill documents the technical specifications, mathematical models, timing l
 - **Role-Based Access Control (RBAC):**
   - Strict hierarchical permissions: `viewer` $\to$ `operator` $\to$ `engineer` $\to$ `admin` $\to$ `devClard`.
   - Node-locked hardware licensing validated on launch.
+
+---
+
+## 8. Ingeteam Inverter Commboard Hardware Ecosystem & Topologies
+
+- **Dual-Generation Commboard Fleet (27 Plant Inverters):**
+  - **Modern Embedded Linux Generation (`AAX1031CN` / `AAX0057`):**
+    - Installed on Inverters: 2, 8, 9, 10, 11, 13, 14, 16, 17, 18, 24, 25, 26.
+    - Operating System: Embedded Linux (`rootfs.squashfs`, Barebox bootloader, Linux kernel `zImage`).
+    - Internal Services: Lighttpd Web Gateway (port 80), `opkg` package manager, `firmwarizer` DSP management daemon, `ingeteam.upgrader`.
+    - Internal Inter-Process / CAN Bridge: Internal port `7128` connects the commboard directly to the Freescale DSP56807 power units.
+    - REST & Authentication: HTTP Basic Auth (`adsi2025:adsi2025`), endpoints for network (`/network/config/interface/ethprimary`), package manager (`/system/package-manager/*`), firmware storage (`/firmwarizer/*`), and hardware inventory (`/plant/devices`).
+  - **Legacy Boa / RTOS Generation (2014):**
+    - Installed on Inverters: 1, 3, 4, 5, 6, 7, 12, 15, 20, 21, 22, 23, 27.
+    - Architecture: Legacy Boa Webserver / eCos RTOS board.
+    - Fixed firmware, non-upgradable via modern `.ipk` packages; requires direct RS-485 / Modbus flashing via Ingecon Sun Manager (ISM).
+
+---
+
+## 9. Ingeteam Cloud Update Architecture & Repository Protocol
+
+- **Upstream Repository Structure:**
+  - Base Repository URL: `https://www.ingeras.es/inverters/repos/`
+  - Master Package Catalog: `https://www.ingeras.es/inverters/repos/Packages.gz`
+- **Dynamic Timestamp Naming Scheme (Resolving the 404 Mystery):**
+  - Ingeteam's HTTP server does **not** host packages with static filenames (e.g. requesting `AAV1003BD.ipk` directly returns HTTP 404).
+  - All package files are prefixed with automated build timestamps:
+    $$\text{Build Timestamp} + \text{Package Name} \longrightarrow \mathbf{20260924021003\_AAV1003BD.ipk}$$
+  - The commboard's package manager queries `Packages.gz`, which contains the authoritative manifest mapping package identifiers (`Package: aav1003`, `Version: 1.30500.0.0`) to their exact timestamped filename, MD5 checksum (`789a646fb8449c858c5658fb4e4c4b76`), and file size (`73,302 bytes`).
+- **Telemetry & Cloud Broker Tunnels:**
+  - Commboards attempt mutual TLS (mTLS) outbound to Ingeteam broker `194.30.98.71:8883` using factory x509 client certificates (e.g. `03M132519A13`).
+  - Secondary fallback: OpenVPN tunnel to `vpn.ingeconsunmonitor.com` (`194.30.98.70`).
+- **Offline Air-Gap Deployment Strategy:**
+  - Inverters on isolated plant LANs do not need internet access. The captured `.ipk` can be pushed directly to modern commboards via their web interface (`http://192.168.1.x/#/main/firmware`) or via HTTP POST to `/firmwarizer/upload`.
+
+---
+
+## 10. Inverter Firmware Binary Encodings: `.ipk`, `.afd`, and `.S`
+
+- **Debian IPK Container (`.ipk`):**
+  - Format: Standard `ar` archive (`debian-binary`, `control.tar.gz`, `data.tar.gz`).
+  - Target Payload:
+    - `/var/lib/ingeteam/rmaps/AAV1003BD.json`: Complete Modbus register holding and input map.
+    - `/var/lib/ingeteam/firmwares/AAV1003BD.DSP807.afd`: Compiled Freescale DSP56807 binary image.
+- **Advanced Firmware Data (`.afd`) Container Structure:**
+  - **Header (Bytes 0x000–0x1B0):**
+    - Architecture ID: `iarch-AAA0060IKF03`
+    - Hardware Family: `INGECON SUN Power Max X`
+    - Serial Regex Match: `^[0-9][0-9][0-9]......[B-HRJ]`
+    - Protocol & Target DSP: `ModbusAA`, `DSP807`
+    - Firmware Revision: `AAV1003BD`
+    - Bootloader Compatibility Requirement: `XXX1000`
+  - **Internal Flashing Sequence Frames (Modbus / Port 7128):**
+    - Command `0x90`: Flash prepare / block erase.
+    - Command `0x91`: Flash block write (`0x0191 [addr:2] [nwords:2] [data: nwords*2]`). Words stored as 16-bit little-endian.
+    - Command `0x92`: Flash verify / end-of-programming trailer.
+- **Memory Map Partitioning (DSP56807):**
+  - **Program Flash (PFlash):** Word addresses `0x00000004 .. 0x0000DFCF` (57,291 words = 114,582 bytes in BD).
+  - **Secondary Bootloader (PFlash2):** Word addresses `0x0000F800 .. 0x0000FDFC` (1,532 words = 3,064 bytes).
+  - **RAM Execution Buffer:** Word addresses `0x00200040 .. 0x00200169` (297 words).
+  - **Data Flash (XFlash):** Word addresses `0x00202000 .. 0x002029A6` (2,470 words = 4,940 bytes in BD).
+    - Contains ASCII firmware identity banner at `0x00202000` (`"AAV1003 BD"`).
+
+---
+
+## 11. Ingecon Sun Manager (ISM) Node Flashing & Motorola S-Record Reconstruction
+
+- **Ingecon Sun Manager (ISM) Protocol Requirements:**
+  - ISM desktop utility flashes individual inverter power nodes (N1–N4) via direct RS-485 / Modbus.
+  - ISM rejects raw `.afd` or `.ipk` files; it strictly requires Motorola S-record files (`.S` / `.s`).
+  - ISM's `ValidaFicheroS` engine validates that the `.S` file contains:
+    - Standard S0 Header: `S0110000000050524F4752414D264441544196` ("PROGRAM&DATA").
+    - Continuous Program Flash (`NumTramasPFlash`).
+    - Bootloader Flash (`NumTramasPFlash2`).
+    - Application Data Flash (`NumTramasXFlash`).
+    - Termination Record S7 with valid execution entry point (`S7050000B153F6`).
+- **Conversion Pipeline (`scripts/convert_afd_to_s.py`):**
+  - Transforms native 16-bit little-endian `.afd` machine code words to big-endian Motorola format.
+  - Slices memory streams into 38-word (76-byte) records (`S351...`).
+  - Synthesizes 100% mathematically valid one's complement checksums.
+  - Verified outputs:
+    - `D:\INVERTER\FIRMWARE\AAV1003IJK01BD.S` (272,384 bytes, 1,625 lines, 0 checksum errors).
+    - `D:\Inverter-Dashboard\firmware\AAV1003BD.s` (272,384 bytes).
+

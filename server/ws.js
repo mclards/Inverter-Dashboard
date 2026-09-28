@@ -24,8 +24,8 @@ const wsStats = {
 // WS-level ping/pong keepalive: detects silent TCP drops (NAT timeouts, dead peers)
 // that don't produce a clean close event. Browsers handle pongs automatically at the
 // protocol level — no client JS needed to respond to pings.
-const WS_PING_INTERVAL_MS = 25000; // ping every 25 s
-const WS_PING_MISSED_MAX = 2;      // terminate after 2 consecutive missed pongs (~50 s)
+const WS_PING_INTERVAL_MS = 12000; // ping every 12 s (prevents idle timeouts across NAT, VPN, & Tailscale)
+const WS_PING_MISSED_MAX = 3;      // terminate after 3 consecutive missed pongs (~36 s)
 let _keepAliveInterval = null;
 
 function registerClient(ws) {

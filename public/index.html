@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-title" content="ADSI Dashboard" />
     <link rel="apple-touch-icon" href="/assets/icon-256.png" />
-    <link rel="stylesheet" href="css/style.css?v=2.1.8" />
+    <link rel="stylesheet" href="css/style.css?v=2.2.1" />
     <script>
       // Pre-paint calibrator-mode gate. Runs during <head> parsing — before
       // <body> exists — so the fleet dashboard chrome is hidden on the very
@@ -1359,19 +1359,19 @@
                aria-label="Utility Tool views">
             <button class="fcal-view-tab fcal-view-tab-active" type="button"
                     data-fcal-view="calibration" role="tab" aria-selected="true"
-                    title="Inverter scale-factor calibration (read / write / consign).">Calibration</button>
+                    title="Inverter scale-factor calibration (read / write / consign);"><span class="mdi mdi-tune-variant icon-inline" aria-hidden="true"></span><span>Calibration</span></button>
             <button class="fcal-view-tab" type="button" data-fcal-view="B"
                     role="tab" aria-selected="false"
-                    title="Read-only: node addressing (CAN / Modbus) and startup thresholds.">Node &amp; Startup</button>
+                    title="Read-only: node addressing (CAN / Modbus) and startup thresholds."><span class="mdi mdi-chip icon-inline" aria-hidden="true"></span><span>Node &amp; Startup</span></button>
             <button class="fcal-view-tab" type="button" data-fcal-view="C"
                     role="tab" aria-selected="false"
-                    title="Read-only: AC voltage / frequency protection envelope.">Grid Protection</button>
+                    title="Read-only: AC voltage / frequency protection envelope."><span class="mdi mdi-shield-check-outline icon-inline" aria-hidden="true"></span><span>Grid Protection</span></button>
             <button class="fcal-view-tab" type="button" data-fcal-view="D"
                     role="tab" aria-selected="false"
-                    title="Read-only: nominal / limit power and reactive curve.">Power &amp; Reactive</button>
+                    title="Read-only: nominal / limit power and reactive curve."><span class="mdi mdi-lightning-bolt-outline icon-inline" aria-hidden="true"></span><span>Power &amp; Reactive</span></button>
             <button class="fcal-view-tab" type="button" data-fcal-view="I"
                     role="tab" aria-selected="false"
-                    title="Read-only: isolation thresholds and temperature derating.">Isolation &amp; Temp</button>
+                    title="Read-only: isolation thresholds and temperature derating."><span class="mdi mdi-thermometer-alert icon-inline" aria-hidden="true"></span><span>Isolation &amp; Temp</span></button>
           </div>
           <div id="fcalSettingsView" class="fcal-settings-view" hidden
                role="region" aria-label="Inverter settings (read-only)">
@@ -1415,14 +1415,16 @@
                    Hidden in every other context via CSS. -->
               <div class="fcal-transport" id="fcalTransportBar" role="group" aria-label="Calibration transport">
                 <div class="fcal-transport-row fcal-transport-row-top">
-                  <span class="fcal-transport-label">Transport</span>
+                  <span class="fcal-transport-label"><span class="mdi mdi-swap-horizontal icon-inline" aria-hidden="true"></span><span>Transport</span></span>
                   <div class="fcal-transport-modes" role="radiogroup" aria-label="Transport mode">
-                    <label class="fcal-transport-mode" title="Modbus TCP over the inverter's Ethernet IP (resolved from the selected inverter below).">
+                    <label class="fcal-transport-mode is-active" title="Modbus TCP over the inverter's Ethernet IP (resolved from the selected inverter below).">
                       <input type="radio" name="fcalTransportMode" value="tcp" checked />
+                      <span class="mdi mdi-ethernet icon-inline" aria-hidden="true"></span>
                       <span>Ethernet</span>
                     </label>
                     <label class="fcal-transport-mode" title="Modbus RTU over a direct RS485-USB / COM-port link to one inverter.">
                       <input type="radio" name="fcalTransportMode" value="serial" />
+                      <span class="mdi mdi-serial-port icon-inline" aria-hidden="true"></span>
                       <span>COM Port (RS485-USB)</span>
                     </label>
                   </div>
@@ -2131,7 +2133,12 @@
           <div class="sgroup settings-card" id="inverterTopologySection" data-role-min="devClard" hidden>
             <div class="sgroup-title" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;" title="Inverter IP addressing, subnet mapping, and power node units.">
               <div><span class="mdi mdi-lan-connect icon-inline" aria-hidden="true"></span> Inverter Topology &amp; IP Addressing</div>
-              <div id="invTopologyReachBadge" class="reach-badge" style="font-size:11px; padding:3px 8px; border-radius:6px; background:var(--surface2); border:1px solid var(--border);">Online: — / 27</div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <button id="btnOpenTopologyMapTop" class="btn btn-primary btn-sm" type="button" style="height:28px; padding:0 12px; font-size:11px;" title="Launch the full-screen interactive SCADA plant topology &amp; realtime power mimic.">
+                  <span class="mdi mdi-monitor-dashboard" aria-hidden="true"></span><span>Fullscreen SCADA Topology</span>
+                </button>
+                <div id="invTopologyReachBadge" class="reach-badge" style="font-size:11px; padding:3px 8px; border-radius:6px; background:var(--surface2); border:1px solid var(--border);">Online: — / 27</div>
+              </div>
             </div>
 
             <div class="settings-subsection">
@@ -2183,6 +2190,9 @@
                 </button>
                 <button id="btnScanTopologyStatus" class="btn btn-outline" type="button" title="Test IP reachability for all configured inverters.">
                   <span class="mdi mdi-radar" aria-hidden="true"></span><span>Check Inverter Reachability</span>
+                </button>
+                <button id="btnOpenTopologyMap" class="btn btn-outline" type="button" title="Launch the full-screen interactive SCADA plant topology &amp; realtime active power mimic.">
+                  <span class="mdi mdi-monitor-dashboard" aria-hidden="true"></span><span>Launch SCADA Topology</span>
                 </button>
                 <span class="smsg" id="topolSaveMsg"></span>
               </div>
@@ -3692,7 +3702,7 @@ Hover any pill in the column for the row-specific explanation.">Anchor</th>
 
     <script src="js/jsmpeg.min.js"></script>
     <script src="/vendor/hls.min.js"></script>
-    <script src="js/app.js?v=2.1.22"></script>
+    <script src="js/app.js?v=2.1.26"></script>
 
     <!-- Cap Schedule Form Modal -->
     <div id="capScheduleModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="capScheduleFormTitle">

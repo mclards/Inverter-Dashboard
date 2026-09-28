@@ -6963,18 +6963,25 @@ function connectRemoteBridgeSocket() {
   remoteBridgeSocket = ws;
 
   ws._isAlive = true;
+  ws._pongsMissed = 0;
   ws._keepAliveTimer = setInterval(() => {
     if (ws.readyState !== 1) return;
     if (!ws._isAlive) {
-      failOnce(new Error("WebSocket keep-alive timeout: gateway failed to respond to ping"));
-      return;
+      ws._pongsMissed = (ws._pongsMissed || 0) + 1;
+      if (ws._pongsMissed >= 2) {
+        failOnce(new Error("WebSocket keep-alive timeout: gateway failed to respond to ping"));
+        return;
+      }
+    } else {
+      ws._pongsMissed = 0;
     }
     ws._isAlive = false;
     try { ws.ping(); } catch (_) {}
-  }, 15000);
+  }, 12000);
 
   ws.on("pong", () => {
     ws._isAlive = true;
+    ws._pongsMissed = 0;
   });
 
   const failOnce = (err) => {
@@ -25735,6 +25742,12 @@ const httpServer = app.listen(PORT, () => {
   // shorter than the client's keepAliveMsecs (15 s), causing spurious ECONNRESET.
   httpServer.keepAliveTimeout = 30000;   // 30 s — well above client keepAlive
   httpServer.headersTimeout = 35000;     // must be > keepAliveTimeout per Node docs
+  httpServer.on("connection", (socket) => {
+    try {
+      socket.setKeepAlive(true, 10000); // Send TCP keepalive probes every 10s to keep NAT/VPN routes alive
+      socket.setNoDelay(true); // Disable Nagle algorithm for real-time telemetry dispatch
+    } catch (_) {}
+  });
   console.log(`[Inverter] Server on http://localhost:${PORT}`);
   // MD-007 — warn if the server's local timezone is not consistent with the
   // plant's timezone (Asia/Manila → UTC+8 = -480 minutes).  Day-rollover,

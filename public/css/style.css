@@ -23724,6 +23724,13 @@ body.camera-popout-mode > :not(#main) {
   cursor: pointer;
   white-space: nowrap;
 }
+.calibrator-mode .fcal-transport-mode.is-active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  box-shadow: 0 2px 6px rgba(45, 126, 247, 0.25);
+}
+
 
 /* Push Connect to the far right of the top row. */
 .calibrator-mode .fcal-transport-connect {
@@ -27933,6 +27940,52 @@ table.fcal-settings-table .fcal-set-readonly {
     justify-content: center !important;
     height: 36px !important;
     min-height: 36px !important;
+  }
+
+
+  /* ==========================================================================
+     MOBILE WORKSPACE & TOUCH CONTROLS FOR CALIBRATOR UTILITY TOOL
+     ========================================================================== */
+  .calibrator-mode #page-field-calibration .field-calibration-container {
+    padding: 6px 8px 0 !important;
+  }
+  .calibrator-mode .fcal-transport-row-top {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  .calibrator-mode .fcal-transport-connect {
+    width: 100% !important;
+    margin-left: 0 !important;
+    justify-content: center !important;
+  }
+  .calibrator-mode .fcal-transport-pane {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+  .calibrator-mode .fcal-transport-pane .fcal-tg {
+    width: 100% !important;
+  }
+  .calibrator-mode .fcal-transport-pane .fcal-tg select,
+  .calibrator-mode .fcal-transport-pane .fcal-tg input {
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+  .calibrator-mode .fcal-fw-open {
+    width: 100% !important;
+    margin-left: 0 !important;
+    justify-content: center !important;
+  }
+  .calibrator-mode .fcal-view-tabs {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 4px !important;
+  }
+  .calibrator-mode .fcal-view-tab {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
   }
 
 }

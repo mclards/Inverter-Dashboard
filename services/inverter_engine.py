@@ -256,7 +256,7 @@ RECOMMENDED_POLL_INTERVAL = 1.0
 
 # ── Tunable constants — overridden at runtime from DB 'inverterPollConfig' ──
 READ_SPACING    = 0.005  # seconds between input / holding reads
-RECONNECT_DELAY = 0.5    # seconds to wait after reconnect before retry read
+RECONNECT_DELAY = 0.05   # seconds to wait after reconnect before retry read (reduced from 0.5s to prevent thread stalls)
 _modbus_timeout = 1.0    # Modbus TCP read timeout (passed to create_client)
 
 # -------------------------------------------------
@@ -300,8 +300,8 @@ _last_unit_fail  = {}  # ip -> timestamp of last failed unit-detect
 # siblings keep their fast cadence. Recovery is detected on the next re-probe
 # (well within the dashboard's 20 s offline threshold). Fail-open: set
 # DISABLE_UNIT_DEAD_BACKOFF=1 to restore the legacy every-cycle probe.
-UNIT_DEAD_FAIL_THRESHOLD = 3       # consecutive misses before a unit is throttled
-UNIT_DEAD_REPROBE_S      = 15.0    # throttled units are re-probed at most this often
+UNIT_DEAD_FAIL_THRESHOLD = 2       # consecutive misses before a unit is throttled (was 3)
+UNIT_DEAD_REPROBE_S      = 30.0    # throttled units are re-probed at most this often (was 15.0)
 DISABLE_UNIT_DEAD_BACKOFF = os.environ.get(
     "DISABLE_UNIT_DEAD_BACKOFF", ""
 ).strip() in ("1", "true", "yes")
@@ -425,7 +425,7 @@ auto_reset_cfg = {
 # so Node does not briefly see the inverter as OFF and skip a persistence cycle.
 _last_known_on_off = {}   # key: f"{ip}_{unit}" -> int (0 or 1)
 
-executor = ThreadPoolExecutor(max_workers=16)
+executor = ThreadPoolExecutor(max_workers=48)
 WRITE_WAIT_TIMEOUT_MIN_SEC = 8.0
 WRITE_WAIT_TIMEOUT_MAX_SEC = 20.0
 WRITE_QUEUE_SLOT_SEC = 1.5
@@ -1166,8 +1166,8 @@ async def detect_units_async(ip):
     if _last_unit_fail.get(ip, 0) + 5 > now:
         return []
 
-    # Static override wins
-    if ip in static_units and static_units[ip]:
+    # Static override wins (honours empty list [] as intentionally disabled)
+    if ip in static_units and static_units[ip] is not None:
         return static_units[ip]
 
     client = clients.get(ip)
@@ -1754,7 +1754,10 @@ async def slow_poll_inverter(ip):
         units = await detect_units_async(ip)
 
         if not units:
-            await asyncio.sleep(1)
+            if static_units.get(ip) is not None and not static_units[ip]:
+                await asyncio.sleep(30)
+                continue
+            await asyncio.sleep(5)
             continue
 
         # ── Slow-poll cycle ──
@@ -1823,6 +1826,9 @@ async def poll_inverter(ip):
         print(f"[POLL] {ip}  units: {units}")
 
         if not units:
+            if static_units.get(ip) is not None and not static_units[ip]:
+                await asyncio.sleep(5)
+                continue
             await asyncio.sleep(1)
             continue
 
@@ -1854,7 +1860,7 @@ async def poll_inverter(ip):
                 # `detect_units_async` is also avoided so an operator config
                 # change is honored immediately even after a probe miss.
                 override = static_units.get(ip)
-                if override and list(override) != units:
+                if override is not None and list(override) != units:
                     new_units = list(override)
                     print(f"[POLL] {ip}  units changed {units} -> {new_units}")
                     # Reclaim dead-node backoff state for units that are no

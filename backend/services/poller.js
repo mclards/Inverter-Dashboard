@@ -1,4 +1,11 @@
 const fetch = require('node-fetch');
+const http = require('http');
+const pollerHttpAgent = new http.Agent({
+  keepAlive: true,
+  maxSockets: 10,
+  maxFreeSockets: 5,
+  timeout: 5000,
+});
 const {
   bulkInsertPollerBatch,
   getSetting,
@@ -1524,7 +1531,7 @@ async function poll() {
   let rows = [];
   let fetchOk = false;
   try {
-    const res = await fetch(apiUrl, { timeout: API_FETCH_TIMEOUT_MS });
+    const res = await fetch(apiUrl, { timeout: API_FETCH_TIMEOUT_MS, agent: pollerHttpAgent });
     if (!res.ok) {
       throw new Error(`Gateway poll HTTP ${res.status}`);
     }

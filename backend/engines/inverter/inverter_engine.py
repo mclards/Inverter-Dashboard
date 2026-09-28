@@ -522,7 +522,7 @@ def _sanitize_ipconfig(data):
 
         out["inverters"][key] = ip
         out["poll_interval"][key] = poll if poll >= 0.01 else float(DEFAULT_INTERVAL)
-        out["units"][key] = units if units else [1]
+        out["units"][key] = units
         out["losses"][key] = loss
 
     return out
@@ -2446,7 +2446,8 @@ async def seed_pac_from_baseline():
         inv = inverter_number_from_ip(ip)
         if inv is None:
             continue
-        units = static_units.get(ip) or [1, 2, 3, 4]
+        cfg_units = static_units.get(ip)
+        units = cfg_units if cfg_units is not None else [1, 2, 3, 4]
         for unit in units:
             try:
                 regs = await safe_read(_threaded_read_input, client, 0, 60, unit, ip)

@@ -6908,9 +6908,14 @@ function renderForecastPerfCharts(rows) {
   const pal = getChartPalette();
   const sorted = [...rows].sort((a, b) => (a.target_date > b.target_date ? 1 : -1));
   const labels = sorted.map((r) => r.target_date.slice(5)); // MM-DD
+  const todayStr = (typeof today === "function" ? today() : new Date().toISOString().slice(0, 10));
 
   // ── Compare chart ──
-  const actualVals   = sorted.map((r) => r.total_actual_kwh   != null ? +(r.total_actual_kwh   / 1000).toFixed(3) : null);
+  // Do not plot actualVals for an in-progress current day as a completed daily total
+  const actualVals   = sorted.map((r) => {
+    if (r.target_date >= todayStr) return null;
+    return r.total_actual_kwh != null ? +(r.total_actual_kwh / 1000).toFixed(3) : null;
+  });
   const forecastVals = sorted.map((r) => r.total_forecast_kwh != null ? +(r.total_forecast_kwh / 1000).toFixed(3) : null);
   const loVals       = sorted.map((r) => r.total_forecast_lo_kwh != null ? +(r.total_forecast_lo_kwh / 1000).toFixed(3) : null);
   const hiVals       = sorted.map((r) => r.total_forecast_hi_kwh != null ? +(r.total_forecast_hi_kwh / 1000).toFixed(3) : null);
@@ -6997,6 +7002,19 @@ function renderForecastPerfCharts(rows) {
     const opts = chartOpts("MWh", true);
     opts.plugins.legend.labels.usePointStyle = true;
     opts.plugins.legend.labels.pointStyle = "line";
+    opts.plugins.tooltip.callbacks = {
+      label: (ctx) => {
+        const val = ctx.raw != null ? Number(ctx.raw).toFixed(3) : "—";
+        const dsLabel = ctx.dataset?.label || "";
+        const row = sorted[ctx.dataIndex];
+        if (dsLabel === "Actual" && row) {
+          if (row.comparison_quality === "review" || row.solcast_freshness_class === "stale_usable") {
+            return `Actual (QA Reconstructed): ${val} MWh`;
+          }
+        }
+        return `${dsLabel}: ${val} MWh`;
+      },
+    };
     State.charts.fperfCompare = new Chart(compareCanvas, {
       type: "line",
       data: { labels, datasets: compareSets },
@@ -7005,7 +7023,10 @@ function renderForecastPerfCharts(rows) {
   }
 
   // ── WAPE chart ──
-  const wapeVals = sorted.map((r) => r.daily_wape_pct != null ? +Number(r.daily_wape_pct).toFixed(2) : null);
+  const wapeVals = sorted.map((r) => {
+    if (r.target_date >= todayStr) return null;
+    return r.daily_wape_pct != null ? +Number(r.daily_wape_pct).toFixed(2) : null;
+  });
   const wapeColors = sorted.map((r) => {
     const q = r.comparison_quality || "review";
     if (q === "eligible" || q === "good" || q === "excellent") return "rgba(16,200,120,.78)";
@@ -7128,10 +7149,25 @@ function renderForecastPerfTable(rows) {
       : "Unknown";
     return `<span class="fperf-badge ${cls}">${label}</span>`;
   };
+  const todayStr = (typeof today === "function" ? today() : new Date().toISOString().slice(0, 10));
   tbody.innerHTML = sorted.map((r) => {
+    const isToday = r.target_date >= todayStr;
+    const isRecon = (r.comparison_quality === "review" || r.solcast_freshness_class === "stale_usable") && r.total_actual_kwh != null;
     const fmwh = r.total_forecast_kwh != null ? (r.total_forecast_kwh / 1000).toFixed(3) : "—";
-    const amwh = r.total_actual_kwh   != null ? (r.total_actual_kwh   / 1000).toFixed(3) : "—";
-    const wape = r.daily_wape_pct     != null ? Number(r.daily_wape_pct).toFixed(2) + "%" : "—";
+    let amwh = "—";
+    if (r.total_actual_kwh != null) {
+      const baseVal = (r.total_actual_kwh / 1000).toFixed(3);
+      if (isToday) {
+        amwh = `${baseVal} <span style="font-size:10px;color:var(--text3)">(in progress)</span>`;
+      } else if (isRecon) {
+        amwh = `<span title="Outage/gap-reconstructed actual for QA">${baseVal}*</span>`;
+      } else {
+        amwh = baseVal;
+      }
+    }
+    const wape = isToday
+      ? `<span style="color:var(--text3);font-style:italic">in progress</span>`
+      : (r.daily_wape_pct != null ? Number(r.daily_wape_pct).toFixed(2) + "%" : "—");
     const prov = escapeHtml(String(r.provider_used || "—").trim());
     const variant = escapeHtml(String(r.forecast_variant || "").trim());
     const fresh = escapeHtml(String(r.solcast_freshness_class || "—").trim());
@@ -22290,8 +22326,8 @@ function ensureAnalyticsCards() {
         <div class="analytics-side-label">Solcast vs ML DA (Var.)</div>
         <div class="analytics-side-value is-nan" id="anaSideSolcastMlVariance">NaN</div>
       </div>
-      <div class="analytics-side-item" title="Actual substation energy (metered if uploaded, else loss-adjusted inverter estimate) minus ML day-ahead total. Percentage is relative to ML DA.">
-        <div class="analytics-side-label">Actual vs ML DA (Var.)</div>
+      <div class="analytics-side-item" title="Estimated energy delivered to substation (after transmission losses) minus ML day-ahead total. Subtitle shows raw inverter variance. Percentage is relative to ML DA.">
+        <div class="analytics-side-label">Subs. vs ML DA (Var.)</div>
         <div class="analytics-side-value is-nan" id="anaSideVariance">NaN</div>
       </div>
       <div class="analytics-side-item" title="Actual substation energy (metered if uploaded, else loss-adjusted estimate) minus Solcast day-ahead P50 total. Percentage is relative to ML DA (stable baseline).">
@@ -23125,7 +23161,7 @@ function renderAnalyticsSummary(
     el.classList.remove("is-nan");
   };
   const VARIANCE_GOOD_PCT = 20; // |%| <= 20 → green (WESM FAS MAPE compliance); > 20 → red
-  const _setVarianceTile = (el, mwh, baseMwh) => {
+  const _setVarianceTile = (el, mwh, baseMwh, optSub) => {
     if (!el) return;
     if (!Number.isFinite(mwh) || !Number.isFinite(baseMwh) || baseMwh <= 0) {
       _setNanTile(el);
@@ -23133,9 +23169,13 @@ function renderAnalyticsSummary(
     }
     const pct = (mwh / baseMwh) * 100;
     const sign = mwh >= 0 ? "+" : "";
+    let subHtml = "";
+    if (optSub) {
+      subHtml = `<div class="analytics-side-sub-label" style="margin-top:2px;font-size:11px;color:var(--text3)">${optSub}</div>`;
+    }
     el.innerHTML =
       `<span class="var-pct">${sign}${pct.toFixed(4)}%</span>` +
-      `<span class="var-mwh">${sign}${mwh.toFixed(4)} MWh</span>`;
+      `<span class="var-mwh">${sign}${mwh.toFixed(4)} MWh</span>` + subHtml;
     el.classList.remove("is-nan");
     const good = Math.abs(pct) <= VARIANCE_GOOD_PCT;
     el.classList.toggle("pos", good);
@@ -23170,7 +23210,10 @@ function renderAnalyticsSummary(
     if (dayAheadTotalMwh > 0) _setValueTile(sideDayAhead, `${dayAheadTotalMwh.toFixed(4)} MWh`);
     else _setNanTile(sideDayAhead);
   }
-  _setVarianceTile(sideVariance, Number.isFinite(varianceMwh) ? varianceMwh : NaN, dayAheadTotalMwh);
+  const invDiffMwh = (totalMwh > 0 && dayAheadTotalMwh > 0) ? Number((totalMwh - dayAheadTotalMwh).toFixed(4)) : NaN;
+  const invPct = Number.isFinite(invDiffMwh) ? (invDiffMwh / dayAheadTotalMwh) * 100 : NaN;
+  const invSubText = Number.isFinite(invDiffMwh) ? `Inv: ${invDiffMwh >= 0 ? "+" : ""}${invDiffMwh.toFixed(3)} MWh (${invPct >= 0 ? "+" : ""}${invPct.toFixed(2)}%)` : "";
+  _setVarianceTile(sideVariance, Number.isFinite(varianceMwh) ? varianceMwh : NaN, dayAheadTotalMwh, invSubText);
   if (sidePeak) {
     if (peakIntervalMwh > 0) _setValueTile(sidePeak, `${peakIntervalMwh.toFixed(4)} MWh @ ${peakAt}`);
     else _setNanTile(sidePeak);

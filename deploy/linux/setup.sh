@@ -67,6 +67,15 @@ git config --system core.fileMode false 2>/dev/null || true
 [ ! -f /etc/gitconfig ] || chmod 644 /etc/gitconfig 2>/dev/null || true
 ok "Operating-system prerequisites are ready."
 
+log "Configuring system timezone and clock synchronization for plant operations..."
+if command -v timedatectl >/dev/null 2>&1; then
+    timedatectl set-timezone Asia/Manila 2>/dev/null || true
+    timedatectl set-ntp true 2>/dev/null || true
+elif [ -e /usr/share/zoneinfo/Asia/Manila ]; then
+    ln -sf /usr/share/zoneinfo/Asia/Manila /etc/localtime
+fi
+ok "System timezone is aligned to Asia/Manila."
+
 /usr/bin/bash "${REPO_ROOT}/deploy/linux/scripts/tailscale-setup.sh"
 ok "Persistent Tailscale remote access is ready."
 
@@ -173,10 +182,14 @@ elif grep -Fqx 'INVERTER_DATA_DIR=/var/lib/inverter-dashboard' "${ENV_FILE}" \
         || echo 'INVERTER_STORAGE_DIR=/var/lib/inverter-dashboard' >> "${ENV_FILE}"
     grep -q '^ADSI_LOGIN_CREDENTIAL_PATH=' "${ENV_FILE}" \
         || echo 'ADSI_LOGIN_CREDENTIAL_PATH=/var/lib/inverter-dashboard/auth/credentials.json' >> "${ENV_FILE}"
+    grep -q '^TZ=' "${ENV_FILE}" \
+        || echo 'TZ=Asia/Manila' >> "${ENV_FILE}"
     chown root:"${APP_GROUP}" "${ENV_FILE}"
     chmod 640 "${ENV_FILE}"
     warn "Migrated the legacy Linux data-root environment; backup: ${ENV_FILE}.pre-db-layout"
 else
+    grep -q '^TZ=' "${ENV_FILE}" \
+        || echo 'TZ=Asia/Manila' >> "${ENV_FILE}"
     ok "Existing operator-supplied environment file preserved."
 fi
 set -a

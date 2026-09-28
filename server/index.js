@@ -1,4 +1,7 @@
 "use strict";
+if (process.platform !== "win32") {
+  process.env.TZ = process.env.TZ || "Asia/Manila";
+}
 const express = require("express");
 const expressWs = require("express-ws");
 const path = require("path");
@@ -24009,6 +24012,7 @@ app.get("/api/forecast/qa-history", (req, res) => {
     // not yet in the QA table. Previously this fallback only ran when the QA table was
     // completely empty, so a single QA row suppressed all historical preview data.
     const coveredDates = new Set(rows.map((r) => r.target_date));
+    const todayDate = localDateStr(Date.now());
     const fallbackRows = db
       .prepare(
         `SELECT fra.target_date,
@@ -24021,9 +24025,9 @@ app.get("/api/forecast/qa-history", (req, res) => {
                 NULL                                  AS total_forecast_lo_kwh,
                 NULL                                  AS total_forecast_hi_kwh,
                 dr.actual_kwh                         AS total_actual_kwh,
-                CASE WHEN dr.actual_kwh > 0 AND fra.final_forecast_total_kwh IS NOT NULL
+                CASE WHEN fra.target_date < ? AND dr.actual_kwh > 0 AND fra.final_forecast_total_kwh IS NOT NULL
                      THEN ABS(fra.final_forecast_total_kwh - dr.actual_kwh) END AS total_abs_error_kwh,
-                CASE WHEN dr.actual_kwh > 0 AND fra.final_forecast_total_kwh IS NOT NULL
+                CASE WHEN fra.target_date < ? AND dr.actual_kwh > 0 AND fra.final_forecast_total_kwh IS NOT NULL
                      THEN ROUND(ABS(fra.final_forecast_total_kwh - dr.actual_kwh) / dr.actual_kwh * 100, 2) END AS daily_wape_pct,
                 NULL AS daily_mape_pct,
                 NULL AS usable_slot_count,
@@ -24044,7 +24048,7 @@ app.get("/api/forecast/qa-history", (req, res) => {
          WHERE fra.target_date >= ?
          ORDER BY fra.target_date DESC`,
       )
-      .all(cutoff);
+      .all(todayDate, todayDate, cutoff);
     const gapRows = fallbackRows.filter((r) => !coveredDates.has(r.target_date));
     if (gapRows.length > 0) {
       rows = [...rows, ...gapRows];

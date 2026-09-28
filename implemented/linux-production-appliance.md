@@ -101,3 +101,23 @@ be re-verified after the corrected commit is installed on the appliance.
   - Remote Desktop Clients: Authenticate via `x-inverter-remote-token: adsilinux` (or bearer token). Verified live traffic: `laptop-inverterengr` (`100.111.111.111`) streaming WebSocket telemetry and camera feeds from `100.123.123.123:3500`.
   - Remote Web Browsers: Connect to `http://100.123.123.123:3500/` or `http://192.168.4.193:3500/` and authenticate via `/login.html` with operator credentials (`admin` / `1234`) or developer credentials (`devClard` / rotating `devMM`). Verified session cookies and HTTP 200 responses.
 
+## 2026-09-29 Plant timezone alignment and solar energy accumulation recovery
+
+- **Field Symptom**:
+  - Daily cumulative energy (MWh / kWh) reported by the Linux appliance was lower than the legacy dashboard and accumulated late in the afternoon.
+- **Root Cause**:
+  - Linux server hosts default to UTC (offset +00:00), while the solar plant operates in `Asia/Manila` (UTC+8, offset +480 minutes).
+  - In `server/poller.js`, `isSolarWindowAt(ts)` previously evaluated `d.getHours()` between 5 and 18 based on host local time. On a UTC server, 05:00–18:00 UTC corresponds to 13:00–02:00 Manila time.
+  - Between 05:00 and 13:00 Manila time (accounting for morning peak solar generation and ~60–70% of daily yield), UTC hours were 21:00–04:59. Consequently, `isSolarWindowAt(ts)` evaluated to `false`, causing `update5minBucket()` to skip persisting 5-minute energy slots for the entire morning.
+  - Daily rollover (`dayKey()`) and inverter baseline resets occurred at 00:00 UTC = 08:00 AM Manila time, wiping early morning baseline counters midway through generation.
+  - `server/dailyAggregator.js` slot math was shifted by 96 slots (8 hours).
+  - Python telemetry engines compared inverter RTC timestamps against UTC server date (`time.strftime("%Y-%m-%d")`), triggering false RTC mismatch warnings between midnight and 08:00 Manila time.
+- **Architectural Resolution**:
+  - **Deterministic Manila Solar Math**: Introduced `_manilaDate(ts)` and adjusted slot calculations in `server/poller.js` and `server/dailyAggregator.js`. When the host runtime is not already at UTC+8 (`getTimezoneOffset() !== -480`), timestamps are deterministically shifted by $+8\text{h}$ and read via UTC methods, guaranteeing accurate 05:00–18:00 Manila solar gating and midnight rollover on any OS or host timezone.
+  - **Engine and Service Timezone Guard**: Injected `TZ=Asia/Manila` into `server/index.js` (for non-Windows) and called `time.tzset()` in `services/inverter_engine.py`, `backend/engines/inverter/inverter_engine.py`, and `InverterCoreService.py`.
+  - **Linux Appliance Provisioning**: Updated `deploy/linux/setup.sh` to configure `timedatectl set-timezone Asia/Manila`, enable NTP synchronization, and ensure `TZ=Asia/Manila` is present in `/etc/default/inverter-dashboard`.
+- **Verification**:
+  - Validated syntax and compilation across Node (`node --check server/poller.js server/dailyAggregator.js server/index.js`) and Python (`python -m py_compile services/inverter_engine.py backend/engines/inverter/inverter_engine.py backend/engines/inverter/InverterCoreService.py`).
+  - Validated Linux deployment invariants (LF endings, no BOM) via `node server/tests/linuxDeploymentContract.test.js`.
+  - Ran full test suite via `node scripts/smoke-all.js --skip-python --no-rebuild`: all 119/119 Node tests passed cleanly.
+

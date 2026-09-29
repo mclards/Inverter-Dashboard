@@ -210,3 +210,11 @@ Each inverter row provides comprehensive electrical and operational telemetry wi
 - Synchronized with plant header filter chips (`All 27`, `Gen`, `On`, `Off`, `Alm`): inverters matching the filter remain visible while non-matching rows are cleanly hidden. Empty station groups hide automatically when all child inverters are filtered out.
 - Low-latency batch updates: updates are bound directly to pre-rendered DOM elements without DOM thrashing or layout re-computation.
 
+### 9.5 Ultra-Compact Single-Screen Viewport Density
+To ensure all 27 central inverters and all 13 Inverter Station groupings fit seamlessly onto a single display viewport without vertical scrolling:
+- Tightened inverter row heights to $17\text{px}$ (`padding: 1px 6px; font-size: 0.64rem; line-height: 1.12;`).
+- Streamlined station group banners to $16\text{px}$ (`height: 16px; padding: 0 8px; font-size: 0.61rem;`).
+- Compacted thead sticky headers to $19\text{px}$ (`padding: 2px 6px; font-size: 0.57rem;`).
+- Reduced vertical margins and container padding (`padding: 2px 10px 4px 10px;`).
+- Added `@media (max-height: 820px)` micro-scaling query so smaller laptop screens (e.g. 1366x768) also display the complete fleet without vertical scrollbars.
+

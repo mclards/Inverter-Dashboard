@@ -218,3 +218,8 @@ To ensure all 27 central inverters and all 13 Inverter Station groupings fit sea
 - Reduced vertical margins and container padding (`padding: 2px 10px 4px 10px;`).
 - Added `@media (max-height: 820px)` micro-scaling query so smaller laptop screens (e.g. 1366x768) also display the complete fleet without vertical scrollbars.
 
+### 9.6 Strict View Isolation (Zero Overlap Guarantee)
+- Enforced strict CSS isolation between `.scada-view` (`display: none !important;`) and `.scada-view.active` (`display: flex !important;`).
+- Removed unconditional `display: flex;` from `#view-matrix` so inactive views never bleed through or render as transparent overlays over View 1 (SLD Mimic Diagram).
+- Applied explicit opaque canvas backgrounds (`background: var(--bg);`) to each view surface.
+

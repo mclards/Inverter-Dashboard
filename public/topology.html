@@ -431,12 +431,13 @@
       .scada-view {
         position: absolute;
         inset: 0;
-        display: none;
+        display: none !important;
         flex-direction: column;
         overflow: hidden;
+        background: var(--bg);
       }
       .scada-view.active {
-        display: flex;
+        display: flex !important;
       }
 
       /* ══════════════════════════════════════════════
@@ -722,9 +723,7 @@
       #view-matrix {
         padding: 0;
         overflow: hidden;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
+        background: var(--bg);
       }
 
       .scada-table-wrap {

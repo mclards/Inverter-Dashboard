@@ -569,37 +569,37 @@
         stroke: #cbd5e1;
       }
 
-      /* Online & Generating (Crisp high-contrast, zero blur halo) */
+      /* Online & Generating (Rich Industrial Multi-Color SCADA Palette) */
       .inv.generating .inv-shape {
-        fill: #062e22 !important;
-        stroke: #10b981 !important;
+        fill: #081726 !important;
+        stroke: #0284c7 !important;
         stroke-width: 1.6 !important;
         filter: none !important;
       }
       /* Online & Standby (0 kW) */
       .inv.standby .inv-shape {
         fill: #092138 !important;
-        stroke: #0284c7 !important;
+        stroke: #1e40af !important;
         stroke-width: 1.5 !important;
         filter: none !important;
       }
       /* Offline */
       .inv.offline .inv-shape {
-        fill: #260909 !important;
+        fill: #220808 !important;
         stroke: #ef4444 !important;
         stroke-width: 1.5 !important;
         filter: none !important;
       }
       /* Alarm */
       .inv.alarm .inv-shape {
-        fill: #2b1804 !important;
+        fill: #261404 !important;
         stroke: #f59e0b !important;
         stroke-width: 1.6 !important;
         filter: none !important;
       }
 
       .inv-title {
-        fill: #e2e8f0;
+        fill: #cbd5e1;
         font-family: var(--font-mono);
         font-size: 10px;
         font-weight: 800;
@@ -607,13 +607,13 @@
         pointer-events: none;
       }
       html.light .inv-title { fill: #0f172a; }
-      .inv.generating .inv-title { fill: #f0fdf4; }
-      .inv.standby .inv-title { fill: #f0f9ff; }
-      .inv.offline .inv-title { fill: #fef2f2; }
-      .inv.alarm .inv-title { fill: #fffbeb; }
+      .inv.generating .inv-title { fill: #f8fafc; font-weight: 800; }
+      .inv.standby .inv-title { fill: #93c5fd; }
+      .inv.offline .inv-title { fill: #fca5a5; }
+      .inv.alarm .inv-title { fill: #fef08a; }
 
       .inv-kw {
-        fill: #94a3b8;
+        fill: #64748b;
         font-family: var(--font-mono);
         font-size: 11px;
         font-weight: 800;
@@ -621,13 +621,13 @@
         transition: fill 0.2s;
       }
       .inv.generating .inv-kw {
-        fill: #34d399;
+        fill: #facc15; /* Solar Electric Gold / Amber for generation kW — breaks monochrome green */
         font-weight: 800;
         filter: none !important;
       }
       .inv.standby .inv-kw { fill: #38bdf8; }
-      .inv.offline .inv-kw { fill: #fca5a5; }
-      .inv.alarm .inv-kw { fill: #fcd34d; }
+      .inv.offline .inv-kw { fill: #f87171; }
+      .inv.alarm .inv-kw { fill: #fbbf24; }
 
       .inv-pbar-bg {
         fill: rgba(255, 255, 255, 0.08);
@@ -636,14 +636,15 @@
         fill: rgba(0, 0, 0, 0.08);
       }
       .inv-pbar {
-        fill: #34d399;
+        fill: #06b6d4; /* Vibrant Cyan power bar for crisp distinction */
         transition: width 0.3s ease, fill 0.3s ease;
       }
+      .inv.alarm .inv-pbar { fill: #f59e0b; }
 
-      /* ── SVG Combiner Block Styles (Authentic Industrial Panels) ── */
+      /* ── SVG Combiner Block Styles (Authentic 11kV RMU Switchgear Panels - High-Voltage Blue) ── */
       .block rect {
-        fill: #0a1424;
-        stroke: #1e3450;
+        fill: #081426;
+        stroke: #1e3a60;
         stroke-width: 1.2;
         rx: 4;
         transition: fill 0.25s ease, stroke 0.25s ease;
@@ -664,35 +665,43 @@
         fill: #475569;
       }
       .block.block-ok rect {
-        stroke: #10b981;
-        fill: rgba(16, 185, 129, 0.1);
+        stroke: #0284c7; /* High-voltage technical blue/cyan for operating RMU switchgear */
+        fill: rgba(2, 132, 199, 0.12);
       }
       .block.block-ok text {
-        fill: #34d399;
+        fill: #93c5fd; /* Ice blue lettering — crisp contrast, zero flat green wash */
       }
       .block.block-warn rect {
         stroke: #f59e0b;
-        fill: rgba(245, 158, 11, 0.1);
+        fill: rgba(245, 158, 11, 0.12);
       }
       .block.block-warn text {
         fill: #fbbf24;
       }
       .block.block-down rect {
         stroke: #ef4444;
-        fill: rgba(239, 68, 68, 0.1);
+        fill: rgba(239, 68, 68, 0.12);
       }
       .block.block-down text {
         fill: #f87171;
       }
 
-      /* SVG Links (Crisp High-Voltage Busbars) */
+      /* SVG Links: Distinct Voltage Level Color Coding */
       .link path {
         stroke: #1e3050 !important;
         stroke-width: 2.2;
         transition: stroke 0.3s;
       }
+      /* 11 kV Medium-Voltage Internal Collector Bus (Electric Cyan Pulse) */
       .link.active path {
-        stroke: #10b981 !important;
+        stroke: #06b6d4 !important;
+        stroke-dasharray: 6 4;
+        animation: link-power-flow 1.2s linear infinite;
+        filter: none !important;
+      }
+      /* 69 kV High-Voltage Transmission Intertie (High-Voltage Gold Export Pulse) */
+      #link-substation-grid.active path {
+        stroke: #f59e0b !important;
         stroke-dasharray: 6 4;
         animation: link-power-flow 1.2s linear infinite;
         filter: none !important;
@@ -723,29 +732,66 @@
 
       .matrix-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
         gap: 14px;
+        padding-bottom: 24px;
+      }
+
+      .matrix-station-group {
+        background: linear-gradient(145deg, rgba(11, 22, 42, 0.8), rgba(7, 14, 28, 0.9));
+        border: 1px solid var(--panel-border);
+        border-radius: var(--radius);
+        padding: 10px 12px 12px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+        transition: border-color 0.25s ease, box-shadow 0.25s ease;
+      }
+      .matrix-station-group:hover {
+        border-color: rgba(56, 189, 248, 0.4);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+      }
+      html.light .matrix-station-group {
+        background: #ffffff;
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
       }
 
       .matrix-block-header {
-        grid-column: 1 / -1;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 6px 12px;
-        background: linear-gradient(90deg, rgba(15, 32, 61, 0.7), transparent);
-        border-left: 3px solid var(--blue);
+        padding: 6px 10px;
+        background: linear-gradient(90deg, rgba(15, 32, 61, 0.85), rgba(8, 17, 32, 0.45));
+        border-left: 3px solid #38bdf8;
         border-radius: 4px;
         font-family: var(--font-mono);
-        font-size: 0.74rem;
+        font-size: 0.72rem;
         font-weight: 700;
         color: #93c5fd;
-        margin-top: 6px;
+      }
+      html.light .matrix-block-header {
+        background: #f1f5f9;
+        color: #1e3a8a;
       }
       .matrix-block-hdr-power {
-        font-size: 0.72rem;
-        color: var(--green-bright);
+        font-size: 0.74rem;
+        color: #facc15; /* Solar Gold LED for station power */
+        font-weight: 800;
       }
+
+      .station-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 10px;
+      }
+
+      /* Electrical Metrics Channel Color Coding */
+      .cmetric-val.vdc-val { color: #f59e0b !important; } /* Solar DC Voltage (Amber) */
+      .cmetric-val.idc-val { color: #38bdf8 !important; } /* Solar DC Current (Cyan) */
+      .cmetric-val.vac-val { color: #a78bfa !important; } /* 3-Phase AC Voltage (Purple) */
+      .cmetric-val.temp-val { color: #fb923c !important; } /* Heatsink Temp (Warm Coral) */
 
       /* Card */
       .inv-scada-card {
@@ -1221,7 +1267,7 @@
         </div>
 
         <div id="sld-canvas-stage">
-          <svg
+                    <svg
             id="main-svg"
             viewBox="0 0 1360 680"
             preserveAspectRatio="xMidYMid meet"
@@ -1244,6 +1290,13 @@
             <text x="32" y="32" fill="#475569" font-family="var(--font-mono)" font-size="9" font-weight="700" letter-spacing="0.08em">DWG: SWD-DGO-28.59 MWp-PH-E-DWG-101/102 &bull; DIGOS SOLAR PV PLANT</text>
             <text x="1328" y="32" text-anchor="end" fill="#475569" font-family="var(--font-mono)" font-size="9" font-weight="700" letter-spacing="0.08em">AS-BUILT &bull; 28.59 MWp DC / 24.75 MW AC &bull; 27 x INGECON SUN PMax (11 kV)</text>
 
+            <!-- 69 kV Grid Interconnect Transmission Bus (Sending End Export) -->
+            <g id="grid-intertie">
+              <line x1="560" y1="22" x2="800" y2="22" stroke="#38bdf8" stroke-width="2.5" />
+              <circle cx="680" cy="22" r="3.5" fill="#38bdf8" />
+              <text x="680" y="16" text-anchor="middle" fill="#38bdf8" font-family="var(--font-mono)" font-size="8.5" font-weight="800" letter-spacing="0.06em">NGCP 69 kV TRANSMISSION GRID (SENDING END EXPORT)</text>
+            </g>
+
             <!-- Main Central Substation / SCADA Gateway (As-Built 69kV/11kV Dual Trafo Unit) -->
             <g id="substation-station">
               <rect x="510" y="55" width="340" height="78" rx="8" fill="#091322" stroke="#2563eb" stroke-width="1.6" />
@@ -1265,50 +1318,58 @@
               <text x="830" y="106" text-anchor="end" fill="#94a3b8" font-family="var(--font-mono)" font-size="8.5" font-weight="600">11 kV BUS (1600A, 18kA)</text>
               <rect x="510" y="80" width="8" height="8" rx="1" fill="#38bdf8" />
               <rect x="842" y="80" width="8" height="8" rx="1" fill="#38bdf8" />
+              <circle cx="680" cy="55" r="3.5" fill="#38bdf8" />
             </g>
 
-            <!-- Links (Connection Bus - All 14 Orthogonal Engineering Traces) -->
-            <g id="link-block5-server" class="link">
-              <path d="M 510 84 L 260 84" fill="none" stroke-width="2.5" />
+            <!-- Links: ALL 15 Traces Oriented in SENDING-END Flow Direction (Inverters -> Substation -> Grid) -->
+            <!-- 1. Grid Export Link (Substation -> 69kV Grid) -->
+            <g id="link-substation-grid" class="link active">
+              <path d="M 680 55 L 680 22" fill="none" stroke-width="2.5" />
             </g>
-            <g id="link-block7-server" class="link">
-              <path d="M 850 84 L 1100 84" fill="none" stroke-width="2.5" />
-            </g>
-            <g id="link-block4-block5" class="link">
-              <path d="M 160 145 L 160 195" fill="none" stroke-width="2.5" />
-            </g>
-            <g id="link-block3-block4" class="link">
-              <path d="M 160 265 L 160 315" fill="none" stroke-width="2.5" />
+            <!-- 2. West Collector Feeder (IS-01 -> IS-02 -> IS-03 -> IS-04 -> IS-05 -> Substation) -->
+            <g id="link-block1-block2" class="link">
+              <path d="M 160 555 L 160 505" fill="none" stroke-width="2.5" />
             </g>
             <g id="link-block2-block3" class="link">
-              <path d="M 160 385 L 160 435" fill="none" stroke-width="2.5" />
+              <path d="M 160 435 L 160 385" fill="none" stroke-width="2.5" />
             </g>
-            <g id="link-block1-block2" class="link">
-              <path d="M 160 505 L 160 555" fill="none" stroke-width="2.5" />
+            <g id="link-block3-block4" class="link">
+              <path d="M 160 315 L 160 265" fill="none" stroke-width="2.5" />
             </g>
+            <g id="link-block4-block5" class="link">
+              <path d="M 160 195 L 160 145" fill="none" stroke-width="2.5" />
+            </g>
+            <g id="link-block5-server" class="link">
+              <path d="M 260 84 L 510 84" fill="none" stroke-width="2.5" />
+            </g>
+            <!-- 3. Inner West Branch & Cross-Tie (IS-06 -> IS-02 / IS-09 -> IS-11) -->
             <g id="link-block2-block6" class="link">
-              <path d="M 260 481 L 350 481" fill="none" stroke-width="2.5" />
+              <path d="M 350 481 L 260 481" fill="none" stroke-width="2.5" />
             </g>
             <g id="link-block6-block9" class="link">
-              <path d="M 450 385 L 450 435" fill="none" stroke-width="2.5" />
+              <path d="M 450 435 L 450 385" fill="none" stroke-width="2.5" />
             </g>
             <g id="link-block9-block11" class="link">
               <path d="M 550 361 L 780 361" fill="none" stroke-width="2.5" />
             </g>
-            <g id="link-block7-block8" class="link">
-              <path d="M 1200 145 L 1200 195" fill="none" stroke-width="2.5" />
-            </g>
-            <g id="link-block8-block10" class="link">
-              <path d="M 1200 265 L 1200 315" fill="none" stroke-width="2.5" />
-            </g>
-            <g id="link-block10-block11" class="link">
-              <path d="M 1040 361 L 1100 361" fill="none" stroke-width="2.5" />
+            <!-- 4. East Collector Feeder (IS-13 -> IS-12 -> IS-11 / IS-10 -> IS-08 -> IS-07 -> Substation) -->
+            <g id="link-block12-block13" class="link">
+              <path d="M 1100 481 L 1030 481" fill="none" stroke-width="2.5" />
             </g>
             <g id="link-block11-block12" class="link">
-              <path d="M 910 385 L 910 435" fill="none" stroke-width="2.5" />
+              <path d="M 910 435 L 910 385" fill="none" stroke-width="2.5" />
             </g>
-            <g id="link-block12-block13" class="link">
-              <path d="M 1040 481 L 1100 481" fill="none" stroke-width="2.5" />
+            <g id="link-block10-block11" class="link">
+              <path d="M 1100 361 L 1040 361" fill="none" stroke-width="2.5" />
+            </g>
+            <g id="link-block8-block10" class="link">
+              <path d="M 1200 315 L 1200 265" fill="none" stroke-width="2.5" />
+            </g>
+            <g id="link-block7-block8" class="link">
+              <path d="M 1200 195 L 1200 145" fill="none" stroke-width="2.5" />
+            </g>
+            <g id="link-block7-server" class="link">
+              <path d="M 1100 84 L 850 84" fill="none" stroke-width="2.5" />
             </g>
 
             <!-- Bus Solder / Junction Nodes -->
@@ -1320,7 +1381,7 @@
             <circle cx="780" cy="361" r="3.5" fill="#38bdf8" />
             <circle cx="1040" cy="361" r="3.5" fill="#38bdf8" />
             <circle cx="1100" cy="361" r="3.5" fill="#38bdf8" />
-            <circle cx="1040" cy="481" r="3.5" fill="#38bdf8" />
+            <circle cx="1030" cy="481" r="3.5" fill="#38bdf8" />
             <circle cx="1100" cy="481" r="3.5" fill="#38bdf8" />
 
             <!-- 13 Inverter Station (IS) Combiner Panels with 11kV RMU Ratings -->
@@ -1526,18 +1587,18 @@
               <text class="inv-kw" id="inv-kw-12" x="503" y="489" text-anchor="middle">0.0 kW</text>
             </g>
             <g id="inv-24" class="inv" data-id="24">
-              <rect class="inv-shape" x="780" y="457" width="94" height="48" rx="5" />
-              <rect class="inv-pbar-bg" x="786" y="497" width="82" height="3" rx="1.5" />
-              <rect class="inv-pbar" id="inv-pbar-24" data-max-w="82" x="786" y="497" width="0" height="3" rx="1.5" />
-              <text class="inv-title" x="827" y="472" text-anchor="middle">INV 24</text>
-              <text class="inv-kw" id="inv-kw-24" x="827" y="489" text-anchor="middle">0.0 kW</text>
+              <rect class="inv-shape" x="790" y="457" width="110" height="48" rx="5" />
+              <rect class="inv-pbar-bg" x="796" y="497" width="98" height="3" rx="1.5" />
+              <rect class="inv-pbar" id="inv-pbar-24" data-max-w="98" x="796" y="497" width="0" height="3" rx="1.5" />
+              <text class="inv-title" x="845" y="472" text-anchor="middle">INV 24</text>
+              <text class="inv-kw" id="inv-kw-24" x="845" y="489" text-anchor="middle">0.0 kW</text>
             </g>
             <g id="inv-25" class="inv" data-id="25">
-              <rect class="inv-shape" x="886" y="457" width="94" height="48" rx="5" />
-              <rect class="inv-pbar-bg" x="892" y="497" width="82" height="3" rx="1.5" />
-              <rect class="inv-pbar" id="inv-pbar-25" data-max-w="82" x="892" y="497" width="0" height="3" rx="1.5" />
-              <text class="inv-title" x="933" y="472" text-anchor="middle">INV 25</text>
-              <text class="inv-kw" id="inv-kw-25" x="933" y="489" text-anchor="middle">0.0 kW</text>
+              <rect class="inv-shape" x="920" y="457" width="110" height="48" rx="5" />
+              <rect class="inv-pbar-bg" x="926" y="497" width="98" height="3" rx="1.5" />
+              <rect class="inv-pbar" id="inv-pbar-25" data-max-w="98" x="926" y="497" width="0" height="3" rx="1.5" />
+              <text class="inv-title" x="975" y="472" text-anchor="middle">INV 25</text>
+              <text class="inv-kw" id="inv-kw-25" x="975" y="489" text-anchor="middle">0.0 kW</text>
             </g>
             <g id="inv-26" class="inv" data-id="26">
               <rect class="inv-shape" x="1100" y="457" width="94" height="48" rx="5" />
@@ -1568,24 +1629,37 @@
               <text class="inv-kw" id="inv-kw-2" x="213" y="609" text-anchor="middle">0.0 kW</text>
             </g>
 
-            <!-- Bottom Plant Telemetry HUD & As-Built Technical Metadata -->
+            <!-- Bottom Plant Telemetry HUD & As-Built Technical Metadata (Polished Non-Overlapping 3-Column Layout) -->
             <g id="scada-cad-hud">
-              <rect x="350" y="555" width="690" height="70" rx="6" fill="#060c18" stroke="#1e2e47" stroke-width="1.2" />
-              <circle cx="358" cy="563" r="2" fill="#475569" />
-              <circle cx="1032" cy="563" r="2" fill="#475569" />
-              <circle cx="358" cy="617" r="2" fill="#475569" />
-              <circle cx="1032" cy="617" r="2" fill="#475569" />
-              <text x="368" y="573" fill="#38bdf8" font-family="var(--font-mono)" font-size="9" font-weight="700">DIGOS SOLAR PV PLANT SPECIFICATION (AS-BUILT)</text>
-              <text x="368" y="589" fill="#94a3b8" font-family="var(--font-mono)" font-size="8.5">CAPACITY: 28.59 MWp DC / 24.75 MW AC &bull; 92,232 MOD (310Wp) &bull; 4,392 STR</text>
-              <text x="368" y="604" fill="#64748b" font-family="var(--font-mono)" font-size="8">GRID: 69 kV TRANSMISSION INTERTIE &bull; 2x 12.5/15 MVA 69/11kV Dyn11 TRAFO</text>
-              <line x1="680" y1="563" x2="680" y2="617" stroke="#1e2e47" stroke-width="1" />
-              <text x="695" y="573" fill="#e2e8f0" font-family="var(--font-mono)" font-size="8.5" font-weight="700">11 kV MV DISTRIBUTION</text>
-              <text x="695" y="589" fill="#34d399" font-family="var(--font-mono)" font-size="8">FEEDER 1: IS 01-06 (12 MW) &bull; FEEDER 2: IS 07-13 (15 MW)</text>
-              <text x="695" y="604" fill="#38bdf8" font-family="var(--font-mono)" font-size="8">13x 11kV RMU PANELS &bull; 13x 2MVA/1MVA Dy11y11 360V/11kV</text>
-              <line x1="885" y1="563" x2="885" y2="617" stroke="#1e2e47" stroke-width="1" />
-              <text x="898" y="573" fill="#e2e8f0" font-family="var(--font-mono)" font-size="8.5" font-weight="700">SCADA PROTOCOL</text>
-              <text x="898" y="589" fill="#94a3b8" font-family="var(--font-mono)" font-size="8">PORT 502 &bull; 27x PMax (108N)</text>
-              <text x="898" y="604" fill="#34d399" font-family="var(--font-mono)" font-size="8">50ms-200ms LIVE TELEMETRY</text>
+              <rect x="290" y="555" width="780" height="74" rx="6" fill="#060c18" stroke="#1e2e47" stroke-width="1.2" />
+              <circle cx="298" cy="563" r="2" fill="#475569" />
+              <circle cx="1062" cy="563" r="2" fill="#475569" />
+              <circle cx="298" cy="621" r="2" fill="#475569" />
+              <circle cx="1062" cy="621" r="2" fill="#475569" />
+              
+              <!-- Column 1: Plant Specifications -->
+              <text x="306" y="571" fill="#38bdf8" font-family="var(--font-mono)" font-size="8.5" font-weight="700">DIGOS SOLAR PV PLANT (AS-BUILT)</text>
+              <text x="306" y="586" fill="#94a3b8" font-family="var(--font-mono)" font-size="7.8">CAPACITY : 28.59 MWp DC / 24.75 MW AC</text>
+              <text x="306" y="599" fill="#64748b" font-family="var(--font-mono)" font-size="7.8">ARRAYS   : 92,232 MOD (310Wp) &bull; 4,392 STR</text>
+              <text x="306" y="612" fill="#34d399" font-family="var(--font-mono)" font-size="7.8">INTERTIE : 69 kV NGCP (SENDING END EXPORT)</text>
+              
+              <!-- Divider 1 -->
+              <line x1="620" y1="563" x2="620" y2="621" stroke="#1e2e47" stroke-width="1" />
+              
+              <!-- Column 2: 11 kV Collector & Transformers -->
+              <text x="632" y="571" fill="#e2e8f0" font-family="var(--font-mono)" font-size="8.5" font-weight="700">11 kV MV DISTRIBUTION &amp; RMU</text>
+              <text x="632" y="586" fill="#34d399" font-family="var(--font-mono)" font-size="7.8">FEEDER 1 : IS 01-06 (12 MW &bull; BUS SECTION A)</text>
+              <text x="632" y="599" fill="#38bdf8" font-family="var(--font-mono)" font-size="7.8">FEEDER 2 : IS 07-13 (15 MW &bull; BUS SECTION B)</text>
+              <text x="632" y="612" fill="#94a3b8" font-family="var(--font-mono)" font-size="7.8">STEP-UP  : 13x Dy11y11 &bull; 2x 15MVA Dyn11</text>
+              
+              <!-- Divider 2 -->
+              <line x1="910" y1="563" x2="910" y2="621" stroke="#1e2e47" stroke-width="1" />
+              
+              <!-- Column 3: SCADA Engine -->
+              <text x="922" y="571" fill="#e2e8f0" font-family="var(--font-mono)" font-size="8.5" font-weight="700">SCADA PROTOCOL</text>
+              <text x="922" y="586" fill="#94a3b8" font-family="var(--font-mono)" font-size="7.8">PORT 502 &bull; MODBUS/TCP</text>
+              <text x="922" y="599" fill="#94a3b8" font-family="var(--font-mono)" font-size="7.8">27x PMax (108 NODES)</text>
+              <text x="922" y="612" fill="#34d399" font-family="var(--font-mono)" font-size="7.8">50ms-200ms LIVE TELEM</text>
             </g>
           </svg>
         </div>
@@ -1982,6 +2056,22 @@
             card.style.display = match ? "flex" : "none";
           }
         }
+
+        // Toggle Station Group visibility when filtered
+        Object.entries(BLOCK_MAP).forEach(([blockNum, invIds]) => {
+          const group = document.getElementById(`matrix-station-group-${blockNum}`);
+          if (group) {
+            const hasVisible = invIds.some((id) => {
+              const invStatus = plantState.inverterStatus[id] || "offline";
+              if (filter === "generating") return invStatus === "generating";
+              if (filter === "online") return invStatus === "generating" || invStatus === "standby";
+              if (filter === "offline") return invStatus === "offline";
+              if (filter === "alarm") return invStatus === "alarm";
+              return true;
+            });
+            group.style.display = hasVisible ? "flex" : "none";
+          }
+        });
       }
 
       // ══════════════════════════════════════════════
@@ -1992,16 +2082,26 @@
         container.innerHTML = "";
 
         Object.entries(BLOCK_MAP).forEach(([blockNum, invIds]) => {
-          // Block Header
-          const bHdr = document.createElement("div");
-          bHdr.className = "matrix-block-header";
           const isPad = String(blockNum).padStart(2, "0");
           const cap = blockNum == 11 ? "3.0 MVA" : "2.0 MVA";
+
+          // Station Group Panel
+          const group = document.createElement("div");
+          group.className = "matrix-station-group";
+          group.id = `matrix-station-group-${blockNum}`;
+
+          // Station Panel Header
+          const bHdr = document.createElement("div");
+          bHdr.className = "matrix-block-header";
           bHdr.innerHTML = `
             <span><span class="mdi mdi-solar-panel-large"></span> INVERTER STATION ${isPad} (11 kV RMU-${isPad} &bull; ${cap})</span>
             <span class="matrix-block-hdr-power" id="blk-hdr-power-${blockNum}">0.0 kW</span>
           `;
-          container.appendChild(bHdr);
+          group.appendChild(bHdr);
+
+          // Station Inverter Cards Grid
+          const cardsWrap = document.createElement("div");
+          cardsWrap.className = "station-cards-grid";
 
           invIds.forEach((id) => {
             const card = document.createElement("div");
@@ -2032,15 +2132,18 @@
                 <div class="unit-slot" id="m-u-${id}-4"><span class="unit-name">N4</span><span class="unit-val">--</span></div>
               </div>
               <div class="card-metrics-row">
-                <div class="cmetric"><span class="cmetric-lbl">Vdc</span><span class="cmetric-val" id="m-vdc-${id}">-- V</span></div>
-                <div class="cmetric"><span class="cmetric-lbl">Idc</span><span class="cmetric-val" id="m-idc-${id}">-- A</span></div>
-                <div class="cmetric"><span class="cmetric-lbl">Vac</span><span class="cmetric-val" id="m-vac-${id}">-- V</span></div>
-                <div class="cmetric"><span class="cmetric-lbl">Ths</span><span class="cmetric-val" id="m-temp-${id}">-- °C</span></div>
+                <div class="cmetric"><span class="cmetric-lbl">Vdc</span><span class="cmetric-val vdc-val" id="m-vdc-${id}">-- V</span></div>
+                <div class="cmetric"><span class="cmetric-lbl">Idc</span><span class="cmetric-val idc-val" id="m-idc-${id}">-- A</span></div>
+                <div class="cmetric"><span class="cmetric-lbl">Vac</span><span class="cmetric-val vac-val" id="m-vac-${id}">-- V</span></div>
+                <div class="cmetric"><span class="cmetric-lbl">Ths</span><span class="cmetric-val temp-val" id="m-temp-${id}">-- °C</span></div>
               </div>
             `;
             card.addEventListener("click", () => openInverterDiagnostics(id));
-            container.appendChild(card);
+            cardsWrap.appendChild(card);
           });
+
+          group.appendChild(cardsWrap);
+          container.appendChild(group);
         });
       }
 
@@ -2288,7 +2391,10 @@
           return BLOCK_MAP[b]?.some((id) => plantState.inverterStatus[id] === "generating");
         };
 
+        const isAnyGenerating = Object.values(plantState.inverterStatus).some((s) => s === "generating");
+
         const linkPairs = [
+          ["link-substation-grid", isAnyGenerating],
           ["link-block5-server", isBlockActive(5)],
           ["link-block4-block5", isBlockActive(4) || isBlockActive(5)],
           ["link-block3-block4", isBlockActive(3) || isBlockActive(4)],

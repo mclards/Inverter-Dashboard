@@ -152,3 +152,31 @@ All schematic parameters, voltage levels, breaker ratings, transformer vector gr
 - **SCADA CAD HUD:** Embedded comprehensive as-built parameters, feeder section groupings, transformer vector groups, and acquisition rates.
 - **Diagnostics Drawer & Matrix View:** Synchronized block headers and drawer subheadings to reflect `INVERTER STATION XX (11 kV RMU-XX • 2.0/3.0 MVA)` across all operational views.
 
+---
+
+## 8. Sending-End Power Flow, Multi-Color SCADA Palette & Responsive Matrix
+
+### 8.1 Sending-End Power Flow Direction (Generation -> Grid)
+- Re-oriented all 14 collector link trajectories and animations from the downstream inverters UPWARD along the collector spine, INWARD into the 11 kV Substation switchgear, and UPWARD through `link-substation-grid` into the NGCP 69 kV Grid Intertie.
+- Added a dedicated 69 kV overhead transmission bus bar (`x=560..800`, `y=22`) and export link (`link-substation-grid`) that activates whenever plant generation is online.
+- With decreasing `stroke-dashoffset` animation (`from 20 to 0`), active power pulses visually stream from the PV array arrays into the substation and export outward to the grid, establishing physical sending-end authenticity.
+
+### 8.2 Rich Multi-Color SCADA Palette (Breaking Monochrome Green)
+- **11 kV RMU Combiner Headers:** Styled as authentic high-voltage switchgear enclosures (`stroke: #0284c7; fill: rgba(2, 132, 199, 0.12)`) with crisp ice-blue lettering (`#93c5fd`), eliminating the solid green flood.
+- **Inverter Cards:** Differentiated with a deep slate/cyan enclosure (`#081726` / `#0284c7`), titanium-white title (`#f8fafc`), high-contrast solar electric gold active power numbers (`#facc15`), and vibrant cyan progress meters (`#06b6d4`).
+- **Voltage-Coded Transmission Links:** 11 kV internal collector links pulse in electric cyan (`#06b6d4`), while the 69 kV transmission intertie pulses in high-voltage amber/gold (`#f59e0b`).
+- **Color-Coded Electrical Channels in Matrix:**
+  - $V_{dc}$ (Solar DC Voltage): Solar Amber (`#f59e0b`)
+  - $I_{dc}$ (Solar DC Current): Electric Sky Blue (`#38bdf8`)
+  - $V_{ac}$ (3-Phase AC Voltage): Electric Purple (`#a78bfa`)
+  - $T_{hs}$ (Heatsink Temperature): Warm Coral (`#fb923c`)
+
+### 8.3 Screen-Filling Responsive Plant Matrix Panels
+- Resolved the 70% black empty space on widescreen monitors by grouping inverters into 13 `.matrix-station-group` panels.
+- Configured `.matrix-grid` as `repeat(auto-fill, minmax(440px, 1fr))`, arranging the stations across 3 to 4 balanced columns per row on 1080p and 1440p displays.
+- Each station group cleanly presents its RMU rating, station active power in gold LED readout (`#facc15`), and paired inverter cards side-by-side with zero horizontal wastage.
+
+### 8.4 CAD HUD Overlap & Station 12 Symmetry Fixes
+- Widened the bottom CAD HUD to 780px (`x=290..1070`) and redistributed information into 3 structured columns with generous margin thresholds (> 80px), eliminating all text collisions and divider overlaps.
+- Centered the two inverters in Station 12 symmetrically (110px width each, `x=790` and `x=920`) so the vertical feeder link from Station 11 lands cleanly at `x=910` between the inverters with zero overhang.
+

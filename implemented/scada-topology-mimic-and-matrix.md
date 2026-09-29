@@ -117,5 +117,38 @@ The master SCADA header bar features high-contrast digital LED readouts continuo
 - Expanded inverter card dimensions to $94\text{px} \times 48\text{px}$ (and $80\text{px} \times 48\text{px}$ for 3-node Block 11) with responsive capacity gauges (`data-max-w="82"` / `"68"`).
 
 ### 6.5 Plant Telemetry HUD
-- Utilized the lower-center canvas space (`x=350..1040`, `y=555..625`) to house an authentic SCADA Telemetry & Collector HUD displaying overall plant capacity ($27.00\text{ MWp}$, $108$ IGBT nodes), feeder distribution breakdown, and Modbus/TCP protocol telemetry specifications.
+- Utilized the lower-center canvas space (`x=350..1040`, `y=555..625`) to house an authentic SCADA Telemetry & Collector HUD displaying overall plant capacity, feeder distribution breakdown, and Modbus/TCP protocol telemetry specifications.
+
+---
+
+## 7. As-Built Digos Solar PV Plant Engineering Specifications & RMU Integration
+
+### 7.1 Authoritative Drawing Ingestion
+All schematic parameters, voltage levels, breaker ratings, transformer vector groups, and feeder allocations were extracted directly from the official plant blueprints in `docs/For Learning`:
+1. **`SWD-DGO-28.59 MWp-PH-E-DWG-102` (69 kV Substation Single Line Diagram):**
+   - Interconnection: 69 kV, 3-Phase, 60 Hz to NGCP transmission intertie.
+   - High-Voltage Circuit Breakers: 69 kV, 1250 A, 31.5 kA SF6 CBs (`103-52`, `101-52`, `102-52`) with motorized isolators (`103-89`, `101-89`, `102-89`).
+   - Main Power Transformers: Dual 12.5 / 15 MVA (ONAN/ONAF) 69 kV / 11 kV, Vector Group **Dyn11**, $Z = 12.5\%$, OLTC $\pm 10\%$ @ $1.25\%$ steps (`P-TRAFO #1` and `P-TRAFO #2`).
+2. **`SWD-DGO-28.59 MWp-PH-E-DWG-101` (MV 11 kV Single Line Diagram):**
+   - Collector Voltage: **11 kV, 18 kA, 60 Hz** internal medium-voltage distribution (replaces older 34.5 kV draft assumptions).
+   - Main 11 kV Switchgear: 1600 A, 11 kV, 18 kA Cu busbar with 1600 A Bus Coupler VCB between Bus Section A and Bus Section B.
+   - Incomer VCBs: Two 1250 A, 11 kV, 18 kA VCBs fed by $3\text{Rx}3\text{Cx}400\text{ mm}^2\ 11\text{ kV Al Ar XLPE}$ cables.
+   - 13 Inverter Stations (IS-01 to IS-13), each equipped with an **11 kV 4-Way RMU Panel**:
+     - IS-01 to IS-10, IS-12, IS-13: 2000 kW (2 x Ingecon Sun PMax) + 2.0 MVA Step-Up Transformer ($360\text{V} / 360\text{V} / 11\text{ kV}$, **Dy11y11**).
+     - IS-11: 3000 kW (3 x inverters: INV 21, 22, 23) + one 2.0 MVA and one 1.0 MVA step-up transformer.
+     - Feeder 1 (Bus Section A): Inverter Stations IS-01 through IS-06 (12 MW nominal peak).
+     - Feeder 2 (Bus Section B): Inverter Stations IS-07 through IS-13 (15 MW nominal peak / 14.75 MW continuous AC).
+3. **`SWD-DGO-28.59 MWp-PH-E-DWG-105` (General Development Plan):**
+   - Site: Digos Solar PV Power Plant, Digos City, Davao del Sur, Philippines.
+   - DC Nameplate Capacity: **28.59 MWp** ($28,591,920\text{ Wp}$, $92,232 \times 310\text{ Wp}$ modules across $4,392$ strings).
+   - AC Continuous Capacity: **24.75 MW** ($27 \times 917\text{ kW}$ continuous rated output; $27.00\text{ MW}$ peak).
+4. **`SWD-DGO-28.59 MWp-PH-E-DWG-109` (Inverter Station Equipment Arrangement):**
+   - Physical layout: 2 Inverters, central CCTV monitoring pole, step-up transformer, 4-Way RMU panel, and Aux + PLC/SCADA panel.
+
+### 7.2 SLD & UI Mimic Updates
+- **CAD Drawing Frame:** Embedded official drawing IDs (`DWG: SWD-DGO-28.59 MWp-PH-E-DWG-101/102 • DIGOS SOLAR PV PLANT`) and nameplate ratings (`28.59 MWp DC / 24.75 MW AC • 27 x INGECON SUN PMax (11 kV)`).
+- **Substation Unit:** Updated to reflect the 69 kV / 11 kV dual-transformer unit (`2x 12.5/15 MVA Dyn11`, SF6 CB 31.5 kA, 11 kV Bus 1600 A, 18 kA).
+- **Combiner Panels:** Relabeled to exact RMU panels (`IS-01 • RMU-01 (2.0 MVA)` through `IS-13 • RMU-13 (2.0 MVA)` with `IS-11 • RMU-11 (3.0 MVA)`).
+- **SCADA CAD HUD:** Embedded comprehensive as-built parameters, feeder section groupings, transformer vector groups, and acquisition rates.
+- **Diagnostics Drawer & Matrix View:** Synchronized block headers and drawer subheadings to reflect `INVERTER STATION XX (11 kV RMU-XX • 2.0/3.0 MVA)` across all operational views.
 

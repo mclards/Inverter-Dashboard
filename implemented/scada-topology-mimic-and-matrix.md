@@ -214,7 +214,7 @@ Each inverter row provides comprehensive electrical and operational telemetry wi
 To ensure all 27 central inverters and all 13 Inverter Station groupings fit seamlessly onto a single display viewport without vertical scrolling:
 - Tightened inverter row heights to $20\text{px}$ (`padding: 2px 8px; font-size: 0.67rem; line-height: 1.15;`).
 - Streamlined station group banners to $18\text{px}$ (`height: 18px; padding: 1px 10px; font-size: 0.64rem;`).
-- Compacted thead sticky headers to $22\text{px}$ (`padding: 3px 8px; font-size: 0.60rem;`).
+- Compacted thead sticky headers to $22\text{px}$ (`padding: 4px 8px; font-size: 0.58rem;`).
 - Reduced vertical margins and container padding (`padding: 4px 14px 8px 14px;`).
 - Added `@media (max-height: 820px)` micro-scaling query so smaller laptop screens (e.g. 1366x768) also display the complete fleet without vertical scrollbars.
 
@@ -243,4 +243,11 @@ To eliminate operator visual strain caused by neon rainbow text:
 - **Architectural Station Banners:** Calmed station banners from high-saturation blue gradients to a matte slate-blue enclosure (`rgba(18, 28, 45, 0.75)`) with an understated `#0284c7` accent line.
 - **Graceful Offline Dimming:** Automatically dims offline inverter rows (`opacity: 0.65;`), ensuring unpolled or tripped units stand out intuitively without harsh visual glare.
 - **Exception-Based Temperature Thresholds:** Power module heatsink temperatures remain in calm slate (`#cbd5e1`) under normal thermal conditions, highlighting in warm amber only when exceeding $60^\circ\text{C}$ and red when exceeding $75^\circ\text{C}$.
+
+### 9.9 Elimination of Stark White Text Glare
+Per operator review (`media_1790648021096.png`), pure high-luminance white text (`#f8fafc` / `#f1f5f9` / `#ffffff`) on dark backgrounds caused astigmatism glare and visual blooming:
+- Transitioned `INV 01`..`INV 27` identifier titles from harsh `#f1f5f9` (96% luminance) to soft, ergonomic light slate (`#94a3b8`, weight 600), with a gentle hover illumination (`#cbd5e1`).
+- Transitioned `INVERTER STATION XX` headings from stark white to calm muted slate (`#94a3b8`, weight 600).
+- Subdued secondary IP text and units to low-distraction dark slate (`#475569`).
+- Replaced bright cyan icons with calm industrial steel-blue (`#0284c7`), delivering a cohesive, glare-free monitoring surface.
 

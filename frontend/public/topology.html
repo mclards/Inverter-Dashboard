@@ -718,7 +718,7 @@
       }
 
       /* ══════════════════════════════════════════════
-         VIEW 2: SCADA PLANT FLEET TABLE (Master Table - Ergonomic Eye-Friendly)
+         VIEW 2: SCADA PLANT FLEET TABLE (Master Table - Softened Palette)
          ══════════════════════════════════════════════ */
       #view-matrix {
         padding: 0;
@@ -757,7 +757,7 @@
         background: #081120;
         color: #64748b;
         font-size: 0.58rem;
-        font-weight: 700;
+        font-weight: 600;
         letter-spacing: 0.08em;
         text-transform: uppercase;
         padding: 4px 8px;
@@ -785,7 +785,7 @@
         padding: 1px 10px;
         height: 18px;
         min-height: 18px;
-        background: rgba(18, 28, 45, 0.75);
+        background: rgba(18, 28, 45, 0.65);
         border-left: 3px solid #0284c7;
         border-radius: 3px;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
@@ -800,12 +800,12 @@
         gap: 6px;
       }
       .station-icon {
-        color: #38bdf8;
+        color: #0284c7;
         font-size: 0.76rem;
       }
       .station-title {
-        font-weight: 700;
-        color: #e2e8f0;
+        font-weight: 600;
+        color: #94a3b8; /* Soft slate - no harsh white glare */
         font-size: 0.63rem;
         letter-spacing: 0.04em;
       }
@@ -823,14 +823,14 @@
       }
       .station-pwr-label {
         font-size: 0.55rem;
-        color: #64748b;
-        font-weight: 600;
+        color: #475569;
+        font-weight: 500;
         letter-spacing: 0.03em;
       }
       .station-pwr-val {
         font-size: 0.72rem;
-        font-weight: 700;
-        color: #fbbf24; /* Soft warm gold */
+        font-weight: 600;
+        color: #f59e0b; /* Soft warm amber */
         letter-spacing: 0.02em;
       }
 
@@ -848,10 +848,10 @@
       }
       .inv-row.selected {
         background: rgba(37, 99, 235, 0.2) !important;
-        border-left: 2.5px solid #38bdf8;
+        border-left: 2.5px solid #0284c7;
       }
       .inv-row.offline {
-        opacity: 0.65;
+        opacity: 0.60;
       }
       html.light .inv-row {
         background: #ffffff;
@@ -877,33 +877,37 @@
         border-bottom-color: #e2e8f0;
       }
 
-      /* Inverter Name & IP */
+      /* Inverter Name & IP (Soft, Calm Tones) */
       .inv-name-cell {
         display: flex;
         align-items: center;
         gap: 6px;
       }
       .inv-icon {
-        color: #38bdf8;
+        color: #0284c7;
         font-size: 0.72rem;
       }
       .inv-name-text {
-        font-weight: 700;
-        color: #f1f5f9;
+        font-weight: 600;
+        color: #94a3b8; /* Softened from harsh white #f1f5f9 to calm slate */
         font-size: 0.68rem;
         letter-spacing: 0.03em;
+        transition: color 0.12s ease;
+      }
+      .inv-row:hover .inv-name-text {
+        color: #cbd5e1;
       }
       html.light .inv-name-text { color: #0f172a; }
       .inv-ip-text {
-        color: #64748b;
+        color: #475569;
         font-size: 0.56rem;
       }
 
-      /* Eye-Friendly Status Pills (Matte, No Blinding Glare) */
+      /* Eye-Friendly Status Pills (Matte, Low Glare) */
       .table-status-pill {
         display: inline-block;
         font-size: 0.50rem;
-        font-weight: 700;
+        font-weight: 600;
         padding: 1px 5px;
         border-radius: 2px;
         text-transform: uppercase;
@@ -931,18 +935,21 @@
         color: #fbbf24;
       }
 
-      /* Calm, Cohesive Active Power Value */
+      /* Calm Active Power Value */
       .table-pac-val {
         font-size: 0.75rem;
-        font-weight: 700;
-        color: #f8fafc; /* Crisp off-white */
+        font-weight: 600;
+        color: #94a3b8;
       }
-      .inv-row.generating .table-pac-val { color: #fbbf24; } /* Warm soft amber when generating */
-      .inv-row.standby .table-pac-val { color: #94a3b8; }
-      .inv-row.offline .table-pac-val { color: #64748b; }
+      .inv-row.generating .table-pac-val {
+        color: #f59e0b; /* Soft warm amber */
+        font-weight: 700;
+      }
+      .inv-row.standby .table-pac-val { color: #64748b; }
+      .inv-row.offline .table-pac-val { color: #475569; }
       .table-unit {
         font-size: 0.54rem;
-        color: #64748b;
+        color: #475569;
         margin-left: 2px;
       }
 
@@ -956,7 +963,7 @@
       .table-load-bar-track {
         flex: 1;
         height: 4.5px;
-        background: rgba(255, 255, 255, 0.06);
+        background: rgba(255, 255, 255, 0.05);
         border-radius: 2px;
         overflow: hidden;
       }
@@ -970,27 +977,27 @@
       }
       .table-load-pct {
         font-size: 0.58rem;
-        font-weight: 600;
-        color: #94a3b8;
+        font-weight: 500;
+        color: #64748b;
         min-width: 32px;
         text-align: right;
       }
       html.light .table-load-pct { color: #475569; }
 
-      /* Calm, Eye-Friendly Process Metrics (Clean Slate/White Palette — No Rainbow!) */
+      /* Calm, Eye-Friendly Process Metrics (Soft Slate Typography) */
       .table-metric-val {
-        font-weight: 600;
+        font-weight: 500;
         font-size: 0.67rem;
-        color: #cbd5e1; /* Calm readable light slate */
+        color: #94a3b8; /* Soft light slate - perfectly readable, zero harsh glare */
       }
-      .table-metric-val.temp-warm { color: #fbbf24; } /* Amber only when hot (>60C) */
+      .table-metric-val.temp-warm { color: #f59e0b; } /* Soft amber only when hot (>60C) */
       .table-metric-val.temp-hot { color: #f87171; } /* Red only when critical (>75C) */
 
       /* Action Diagnostic Button */
       .btn-table-diag {
         background: rgba(30, 41, 59, 0.4);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: #94a3b8;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: #64748b;
         border-radius: 3px;
         width: 22px;
         height: 17px;
@@ -1003,9 +1010,9 @@
         padding: 0;
       }
       .btn-table-diag:hover {
-        border-color: #38bdf8;
+        border-color: #0284c7;
         color: #38bdf8;
-        background: rgba(56, 189, 248, 0.15);
+        background: rgba(2, 132, 199, 0.15);
       }
 
       /* Compact Scaling for Low-Height Screens (<= 820px) */

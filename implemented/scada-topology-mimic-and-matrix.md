@@ -180,3 +180,33 @@ All schematic parameters, voltage levels, breaker ratings, transformer vector gr
 - Widened the bottom CAD HUD to 780px (`x=290..1070`) and redistributed information into 3 structured columns with generous margin thresholds (> 80px), eliminating all text collisions and divider overlaps.
 - Centered the two inverters in Station 12 symmetrically (110px width each, `x=790` and `x=920`) so the vertical feeder link from Station 11 lands cleanly at `x=910` between the inverters with zero overhang.
 
+---
+
+## 9. Single Master SCADA Plant Fleet Table Grouped by Station Numbering
+
+### 9.1 Overview & Architecture
+Per operator instruction, View 2 was streamlined from multi-card grid layouts into a single, high-density **Master SCADA Plant Fleet Table** (`.scada-fleet-table`), featuring 1 row per inverter (27 rows total) grouped sequentially by physical Inverter Station (IS-01 through IS-13).
+
+The node-level mini-slots were removed from the fleet table view to maximize scan efficiency, leaving clean per-inverter aggregates on the primary table surface while preserving full per-node ($N_1..N_4$) granular telemetry in the slide-over Diagnostics Drawer.
+
+### 9.2 Realtime Columns & Industrial SCADA Color Palette
+Each inverter row provides comprehensive electrical and operational telemetry with sticky headers:
+1. **INVERTER:** Inverter identity badge (`INV 01`..`INV 27`), LAN icon, and configured IP address (`192.168.1.101`..`127`).
+2. **STATUS:** Industrial operational pill (`GENERATING`, `STANDBY`, `OFFLINE`, `ALARM`).
+3. **ACTIVE POWER ($P_{ac}$):** Total real-time generation in kW in Solar Gold (`#facc15`).
+4. **LOAD FACTOR:** Percentage of nominal $1000\text{ kW}$ rating with a dynamic gradient bar indicator ($0–100\%$).
+5. **DC VOLT ($V_{dc}$):** Average DC input voltage in V in Solar Amber (`#f59e0b`).
+6. **DC CURR ($I_{dc}$):** Total DC current in A in Electric Sky Blue (`#38bdf8`).
+7. **DC POWER ($P_{dc}$):** Total DC input power in kW in Emerald (`#34d399`).
+8. **AC VOLT ($V_{ac}$):** 3-Phase line-to-line AC voltage in V in Electric Purple (`#a78bfa`).
+9. **TEMP ($T_{hs}$):** Maximum power module heatsink temperature in °C in Warm Coral (`#fb923c`).
+10. **ACTION:** Dedicated diagnostics launch button (`mdi-tune-vertical`) triggering the per-node ($N_1..N_4$) deep-dive drawer.
+
+### 9.3 Inverter Station Group Banners
+- Between inverter groupings, an aesthetic full-width banner (`.station-group-row`) designates the physical Inverter Station (IS-01 through IS-13), 11 kV RMU switchgear tag, and transformer capacity (`2.0 MVA` / `3.0 MVA`).
+- Each station banner dynamically computes and displays the real-time aggregate active power output for that station (`#facc15` LED text).
+
+### 9.4 Filtering & Realtime Telemetry Binding
+- Synchronized with plant header filter chips (`All 27`, `Gen`, `On`, `Off`, `Alm`): inverters matching the filter remain visible while non-matching rows are cleanly hidden. Empty station groups hide automatically when all child inverters are filtered out.
+- Low-latency batch updates: updates are bound directly to pre-rendered DOM elements without DOM thrashing or layout re-computation.
+

@@ -91,3 +91,31 @@ The master SCADA header bar features high-contrast digital LED readouts continuo
   - **Drag vs. Click Disambiguation:** Tracks pointer travel distance (`panMoved`); dragging the canvas no longer accidentally triggers the Inverter Diagnostics Drawer.
   - **Fit to Screen:** Reset button, keyboard shortcut `0`, and canvas double-click immediately re-center and fit the plant diagram at 100% resolution.
   - **Status Legend:** Floating bottom-right indicator clearly denoting Generating, Standby, Offline, and Alarm states.
+
+---
+
+## 6. Widescreen 16:9 Landscape Mimic Polish & Hardware-Grade CAD Styling
+
+### 6.1 Design Motivation & Simulator Parity
+- Modeled after the dark industrial CAD styling of the ESP32 hardware simulator (`D:\PROJECTS_IO\Plastic-Bottle-Vending-Machine`): deep `#070d18` canvas with subtle 32px technical grid, dark slate panels (`#081120`), 1px high-contrast status borders, corner mounting rivets (`#334155`), and crisp monospace readouts with zero blurry neon bloom halos.
+
+### 6.2 Widescreen Aspect Ratio & Screen Maximization
+- Replaced the portrait/square `581 x 628` viewBox with a native widescreen landscape `1360 x 680` viewBox (~2:1 aspect ratio).
+- Eliminated giant horizontal empty voids on modern 16:9/16:10 displays while preventing vertical clipping of bottom inverters (`INV 01`, `INV 02`).
+- Updated `BASE_VB` in the pan/zoom engine to `{ x: 0, y: 0, w: 1360, h: 680 }`.
+
+### 6.3 Lowered Substation / SCADA Gateway Unit
+- Moved `SUBSTATION / SCADA` down from the ceiling (`cy=20`) to a balanced upper-center focal point (`x=520..840`, `y=55..133`).
+- Redesigned as a high-voltage substation switchgear unit featuring:
+  - Dual interlocking IEEE step-up transformer graphic (`30 MVA XFMR`).
+  - Terminal ports for `FEEDER 1 (WEST)` and `FEEDER 2 (EAST)`.
+  - Grid intertie status ratings (`69 kV / 34.5 kV STEP-UP`, `PCC BUS: 115 kV`, `60.00 Hz INTERTIE`).
+
+### 6.4 100% Orthogonal Feeder Routing & Combiner Switchgear Boxes
+- Routed all 14 electrical feeder links (`link-block5-server`, `link-block7-server`, `link-block4-block5`, etc.) strictly along horizontal and vertical trajectories with 90° junctions and junction solder dots (`#38bdf8`), completely eliminating steep diagonal link artifacts.
+- Fixed the missing CSS styling on `.block` elements (which had previously caused them to render as solid pitch-black rectangles) with crisp combiner box borders (`#1e3450`), readable headers (`BLOCK 01` to `BLOCK 13`), and dynamic status cues (`.block-ok`, `.block-warn`, `.block-down`).
+- Expanded inverter card dimensions to $94\text{px} \times 48\text{px}$ (and $80\text{px} \times 48\text{px}$ for 3-node Block 11) with responsive capacity gauges (`data-max-w="82"` / `"68"`).
+
+### 6.5 Plant Telemetry HUD
+- Utilized the lower-center canvas space (`x=350..1040`, `y=555..625`) to house an authentic SCADA Telemetry & Collector HUD displaying overall plant capacity ($27.00\text{ MWp}$, $108$ IGBT nodes), feeder distribution breakdown, and Modbus/TCP protocol telemetry specifications.
+

@@ -247,7 +247,12 @@ To eliminate operator visual strain caused by neon rainbow text:
 ### 9.9 Elimination of Stark White Text Glare
 Per operator review (`media_1790648021096.png`), pure high-luminance white text (`#f8fafc` / `#f1f5f9` / `#ffffff`) on dark backgrounds caused astigmatism glare and visual blooming:
 - Transitioned `INV 01`..`INV 27` identifier titles from harsh `#f1f5f9` (96% luminance) to soft, ergonomic light slate (`#94a3b8`, weight 600), with a gentle hover illumination (`#cbd5e1`).
-- Transitioned `INVERTER STATION XX` headings from stark white to calm muted slate (`#94a3b8`, weight 600).
 - Subdued secondary IP text and units to low-distraction dark slate (`#475569`).
-- Replaced bright cyan icons with calm industrial steel-blue (`#0284c7`), delivering a cohesive, glare-free monitoring surface.
+- Replaced bright cyan icons on inverter rows with calm industrial steel-blue (`#0284c7`), delivering a cohesive, glare-free monitoring surface.
+
+### 9.10 Station Header Differentiation & Relocated Aggregate Power
+Per operator feedback (`media_1790648394868.png` and `media_1790648419903.png`):
+- **Distinct Visual Hierarchy for Station Groups:** Rather than sharing the muted slate (`#94a3b8`) of individual inverters, station headers are styled with an Electric Sky Blue identity (`#38bdf8`, weight 700) with a 3px cyan indicator line, soft ice-blue RMU ratings (`#93c5fd`), and subtle directional background shading (`linear-gradient(90deg, rgba(2, 132, 199, 0.22) 0%, rgba(15, 23, 42, 0.75) 50%, rgba(11, 20, 36, 0.45) 100%)`). This creates an instant distinction between 11 kV Inverter Stations and individual member inverters (`INV 01`..`INV 27`).
+- **Relocated Station Total Active Power:** Moved `STATION TOTAL: XX kW` from the far-right margin (where it previously hung disconnected under `TEMP` and `ACTION`) directly into the left-side Station Group Header alongside the station title and RMU tag. Encapsulated within a dedicated high-voltage badge (`.station-total-pill`) featuring crisp amber labelling (`#f59e0b`) and high-visibility LED readout (`#fbbf24`), grouping all station identity and aggregate production context into one natural focal point.
+
 

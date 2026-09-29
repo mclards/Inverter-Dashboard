@@ -781,58 +781,76 @@
       .station-group-hdr-content {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        padding: 1px 10px;
+        justify-content: flex-start;
+        padding: 1px 8px;
         height: 18px;
         min-height: 18px;
-        background: rgba(18, 28, 45, 0.65);
-        border-left: 3px solid #0284c7;
+        background: linear-gradient(90deg, rgba(2, 132, 199, 0.22) 0%, rgba(15, 23, 42, 0.75) 50%, rgba(11, 20, 36, 0.45) 100%);
+        border-left: 3px solid #38bdf8;
         border-radius: 3px;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
       }
       html.light .station-group-hdr-content {
-        background: #e2e8f0;
-        border-left-color: #2563eb;
+        background: linear-gradient(90deg, #e0f2fe 0%, #f1f5f9 100%);
+        border-left-color: #0284c7;
       }
       .station-hdr-left {
         display: flex;
         align-items: center;
         gap: 6px;
+        flex-wrap: nowrap;
       }
       .station-icon {
-        color: #0284c7;
+        color: #38bdf8;
         font-size: 0.76rem;
       }
+      html.light .station-icon { color: #0284c7; }
       .station-title {
-        font-weight: 600;
-        color: #94a3b8; /* Soft slate - no harsh white glare */
-        font-size: 0.63rem;
-        letter-spacing: 0.04em;
+        font-weight: 700;
+        color: #38bdf8; /* Distinct electric sky blue - clearly differentiates from member inverters */
+        font-size: 0.65rem;
+        letter-spacing: 0.05em;
       }
-      html.light .station-title { color: #0f172a; }
+      html.light .station-title { color: #0284c7; }
       .station-rmu {
-        color: #64748b;
+        color: #93c5fd;
         font-size: 0.58rem;
         font-weight: 500;
+        opacity: 0.85;
       }
-      html.light .station-rmu { color: #475569; }
-      .station-hdr-right {
-        display: flex;
+      html.light .station-rmu { color: #475569; opacity: 1; }
+      .station-total-pill {
+        display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: 4px;
+        background: rgba(245, 158, 11, 0.12);
+        border: 1px solid rgba(245, 158, 11, 0.32);
+        border-radius: 3px;
+        padding: 0 6px;
+        margin-left: 8px;
+        height: 15px;
+        line-height: 1;
       }
-      .station-pwr-label {
-        font-size: 0.55rem;
-        color: #475569;
-        font-weight: 500;
-        letter-spacing: 0.03em;
+      html.light .station-total-pill {
+        background: rgba(217, 119, 6, 0.1);
+        border-color: rgba(217, 119, 6, 0.3);
       }
+      .station-total-lbl {
+        font-family: var(--font-mono, monospace);
+        font-size: 0.54rem;
+        font-weight: 700;
+        color: #f59e0b;
+        letter-spacing: 0.04em;
+      }
+      html.light .station-total-lbl { color: #b45309; }
       .station-pwr-val {
-        font-size: 0.72rem;
-        font-weight: 600;
-        color: #f59e0b; /* Soft warm amber */
+        font-family: var(--font-mono, monospace);
+        font-size: 0.68rem;
+        font-weight: 700;
+        color: #fbbf24; /* Warm luminous amber */
         letter-spacing: 0.02em;
       }
+      html.light .station-pwr-val { color: #d97706; }
 
       /* Inverter Rows with Subtle Zebra Contrast */
       .inv-row {
@@ -1023,6 +1041,8 @@
         .station-group-hdr-content { height: 14px; min-height: 14px; padding: 0 5px; font-size: 0.54rem; }
         .station-title { font-size: 0.56rem; }
         .station-rmu { font-size: 0.50rem; }
+        .station-total-pill { height: 12px; padding: 0 4px; margin-left: 5px; gap: 3px; }
+        .station-total-lbl { font-size: 0.48rem; }
         .station-pwr-val { font-size: 0.60rem; }
         .inv-row td { padding: 0.5px 4px; height: 15px; font-size: 0.58rem; }
         .inv-name-text { font-size: 0.60rem; }
@@ -2172,10 +2192,10 @@
                   <span class="mdi mdi-solar-panel-large station-icon"></span>
                   <span class="station-title">INVERTER STATION ${isPad}</span>
                   <span class="station-rmu">(11 kV RMU-${isPad} &bull; ${cap})</span>
-                </div>
-                <div class="station-hdr-right">
-                  <span class="station-pwr-label">STATION TOTAL:</span>
-                  <span class="station-pwr-val" id="blk-hdr-power-${blockNum}">0.0 kW</span>
+                  <span class="station-total-pill">
+                    <span class="station-total-lbl">STATION TOTAL:</span>
+                    <span class="station-pwr-val" id="blk-hdr-power-${blockNum}">0.0 kW</span>
+                  </span>
                 </div>
               </div>
             </td>

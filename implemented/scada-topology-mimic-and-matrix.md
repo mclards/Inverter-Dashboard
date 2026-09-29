@@ -223,3 +223,15 @@ To ensure all 27 central inverters and all 13 Inverter Station groupings fit sea
 - Removed unconditional `display: flex;` from `#view-matrix` so inactive views never bleed through or render as transparent overlays over View 1 (SLD Mimic Diagram).
 - Applied explicit opaque canvas backgrounds (`background: var(--bg);`) to each view surface.
 
+### 9.7 Proportional Column Distribution & Viewport Fill Optimization
+- **Fixed Table Layout (`table-layout: fixed`):** Eliminated arbitrary column expansion gaps by setting exact proportional column allocations summing to 100%:
+  - `INVERTER`: 14% (ID badge, LAN icon, IP address)
+  - `STATUS`: 8% (Centered industrial status pill)
+  - `ACTIVE POWER`: 11% (Right-aligned Solar Gold LED readout)
+  - `LOAD FACTOR`: 18% (Full-width dynamic gradient meter bar and % readout)
+  - `DC VOLT`, `DC CURR`, `AC VOLT`, `TEMP`: 8.5% each (Right-aligned telemetry metrics)
+  - `DC POWER`: 10% (Right-aligned total DC input power)
+  - `ACTION`: 5% (Centered diagnostic drawer trigger button)
+- **Full-Width Meter Bar:** Removed artificial `max-width` capping on `.table-load-wrap`, allowing the load factor meter bar to span smoothly across its column without leaving gaping black voids.
+- **Natural Vertical Viewport Fill:** Balanced row padding ($2\text{px}\times 8\text{px}$) and banner height ($18\text{px}$) so all 27 inverters and 13 stations fill the 1080p viewport comfortably from top to bottom with zero leftover voids.
+

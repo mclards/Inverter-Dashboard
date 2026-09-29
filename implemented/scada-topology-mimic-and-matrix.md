@@ -212,10 +212,10 @@ Each inverter row provides comprehensive electrical and operational telemetry wi
 
 ### 9.5 Ultra-Compact Single-Screen Viewport Density
 To ensure all 27 central inverters and all 13 Inverter Station groupings fit seamlessly onto a single display viewport without vertical scrolling:
-- Tightened inverter row heights to $17\text{px}$ (`padding: 1px 6px; font-size: 0.64rem; line-height: 1.12;`).
-- Streamlined station group banners to $16\text{px}$ (`height: 16px; padding: 0 8px; font-size: 0.61rem;`).
-- Compacted thead sticky headers to $19\text{px}$ (`padding: 2px 6px; font-size: 0.57rem;`).
-- Reduced vertical margins and container padding (`padding: 2px 10px 4px 10px;`).
+- Tightened inverter row heights to $20\text{px}$ (`padding: 2px 8px; font-size: 0.67rem; line-height: 1.15;`).
+- Streamlined station group banners to $18\text{px}$ (`height: 18px; padding: 1px 10px; font-size: 0.64rem;`).
+- Compacted thead sticky headers to $22\text{px}$ (`padding: 3px 8px; font-size: 0.60rem;`).
+- Reduced vertical margins and container padding (`padding: 4px 14px 8px 14px;`).
 - Added `@media (max-height: 820px)` micro-scaling query so smaller laptop screens (e.g. 1366x768) also display the complete fleet without vertical scrollbars.
 
 ### 9.6 Strict View Isolation (Zero Overlap Guarantee)
@@ -234,4 +234,13 @@ To ensure all 27 central inverters and all 13 Inverter Station groupings fit sea
   - `ACTION`: 5% (Centered diagnostic drawer trigger button)
 - **Full-Width Meter Bar:** Removed artificial `max-width` capping on `.table-load-wrap`, allowing the load factor meter bar to span smoothly across its column without leaving gaping black voids.
 - **Natural Vertical Viewport Fill:** Balanced row padding ($2\text{px}\times 8\text{px}$) and banner height ($18\text{px}$) so all 27 inverters and 13 stations fill the 1080p viewport comfortably from top to bottom with zero leftover voids.
+
+### 9.8 Ergonomic & Eye-Friendly Industrial SCADA Color Palette
+To eliminate operator visual strain caused by neon rainbow text:
+- **Calm, High-Contrast Typography:** Standardized all telemetry metrics ($V_{dc}$, $I_{dc}$, $P_{dc}$, $V_{ac}$, $T_{hs}$) to a cohesive, calm light slate (`#cbd5e1`), replacing the competing yellow, orange, cyan, green, and purple neon colors. Units are rendered in soft muted gray (`#64748b`).
+- **Cohesive Active Power Highlighting:** Active power ($P_{ac}$) is rendered in a warm, soft golden amber (`#fbbf24`) when generating, muted slate (`#94a3b8`) when in standby, and dim dark gray (`#64748b`) when offline.
+- **Subtle Zebra Striping:** Added gentle alternating background contrast (`rgba(11, 20, 36, 0.35)` / `rgba(15, 26, 46, 0.20)`) to guide the operator's eye across wide columns without horizontal fatigue.
+- **Architectural Station Banners:** Calmed station banners from high-saturation blue gradients to a matte slate-blue enclosure (`rgba(18, 28, 45, 0.75)`) with an understated `#0284c7` accent line.
+- **Graceful Offline Dimming:** Automatically dims offline inverter rows (`opacity: 0.65;`), ensuring unpolled or tripped units stand out intuitively without harsh visual glare.
+- **Exception-Based Temperature Thresholds:** Power module heatsink temperatures remain in calm slate (`#cbd5e1`) under normal thermal conditions, highlighting in warm amber only when exceeding $60^\circ\text{C}$ and red when exceeding $75^\circ\text{C}$.
 

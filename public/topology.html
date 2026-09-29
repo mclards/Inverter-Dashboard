@@ -718,12 +718,12 @@
       }
 
       /* ══════════════════════════════════════════════
-         VIEW 2: SCADA PLANT FLEET TABLE (Master Table - Full Viewport Fit)
+         VIEW 2: SCADA PLANT FLEET TABLE (Master Table - Ergonomic Eye-Friendly)
          ══════════════════════════════════════════════ */
       #view-matrix {
         padding: 0;
         overflow: hidden;
-        background: var(--bg);
+        background: #060c18;
       }
 
       .scada-table-wrap {
@@ -736,7 +736,7 @@
       }
       .scada-table-wrap::-webkit-scrollbar { width: 6px; }
       .scada-table-wrap::-webkit-scrollbar-thumb {
-        background: rgba(59, 130, 246, 0.3);
+        background: rgba(71, 85, 105, 0.4);
         border-radius: 3px;
       }
 
@@ -750,17 +750,18 @@
         line-height: 1.15;
       }
 
+      /* Clean, Calm Sticky Table Headers */
       .scada-fleet-table thead th {
         position: sticky;
         top: 0;
-        background: #081220;
-        color: #94a3b8;
-        font-size: 0.60rem;
-        font-weight: 800;
-        letter-spacing: 0.06em;
+        background: #081120;
+        color: #64748b;
+        font-size: 0.58rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
-        padding: 3px 8px;
-        border-bottom: 1.5px solid var(--panel-border);
+        padding: 4px 8px;
+        border-bottom: 1.5px solid rgba(255, 255, 255, 0.08);
         z-index: 10;
         white-space: nowrap;
         height: 22px;
@@ -771,7 +772,7 @@
         border-bottom-color: #cbd5e1;
       }
 
-      /* Station Group Header Row */
+      /* Eye-Friendly Architectural Station Banners */
       .station-group-row td {
         padding: 3px 2px 1px 2px;
         border: none;
@@ -784,13 +785,13 @@
         padding: 1px 10px;
         height: 18px;
         min-height: 18px;
-        background: linear-gradient(90deg, rgba(23, 49, 90, 0.75), rgba(12, 22, 40, 0.85));
-        border-left: 3px solid #38bdf8;
+        background: rgba(18, 28, 45, 0.75);
+        border-left: 3px solid #0284c7;
         border-radius: 3px;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
       }
       html.light .station-group-hdr-content {
-        background: linear-gradient(90deg, #e2e8f0, #f8fafc);
+        background: #e2e8f0;
         border-left-color: #2563eb;
       }
       .station-hdr-left {
@@ -803,18 +804,18 @@
         font-size: 0.76rem;
       }
       .station-title {
-        font-weight: 800;
-        color: #f8fafc;
-        font-size: 0.64rem;
-        letter-spacing: 0.05em;
+        font-weight: 700;
+        color: #e2e8f0;
+        font-size: 0.63rem;
+        letter-spacing: 0.04em;
       }
       html.light .station-title { color: #0f172a; }
       .station-rmu {
-        color: #93c5fd;
+        color: #64748b;
         font-size: 0.58rem;
-        font-weight: 600;
+        font-weight: 500;
       }
-      html.light .station-rmu { color: #1e40af; }
+      html.light .station-rmu { color: #475569; }
       .station-hdr-right {
         display: flex;
         align-items: center;
@@ -822,32 +823,41 @@
       }
       .station-pwr-label {
         font-size: 0.55rem;
-        color: #94a3b8;
-        font-weight: 700;
-        letter-spacing: 0.04em;
+        color: #64748b;
+        font-weight: 600;
+        letter-spacing: 0.03em;
       }
       .station-pwr-val {
         font-size: 0.72rem;
-        font-weight: 800;
-        color: #facc15; /* Solar gold LED */
-        letter-spacing: 0.03em;
+        font-weight: 700;
+        color: #fbbf24; /* Soft warm gold */
+        letter-spacing: 0.02em;
       }
 
-      /* Inverter Row */
+      /* Inverter Rows with Subtle Zebra Contrast */
       .inv-row {
         cursor: pointer;
         transition: background-color 0.12s ease;
-        background: rgba(10, 20, 36, 0.45);
+        background: rgba(11, 20, 36, 0.35);
+      }
+      .inv-row:nth-child(even) {
+        background: rgba(15, 26, 46, 0.2);
       }
       .inv-row:hover {
-        background: rgba(30, 58, 110, 0.35) !important;
+        background: rgba(30, 58, 105, 0.35) !important;
       }
       .inv-row.selected {
         background: rgba(37, 99, 235, 0.2) !important;
-        border-left: 2.5px solid #60a5fa;
+        border-left: 2.5px solid #38bdf8;
+      }
+      .inv-row.offline {
+        opacity: 0.65;
       }
       html.light .inv-row {
         background: #ffffff;
+      }
+      html.light .inv-row:nth-child(even) {
+        background: #f8fafc;
       }
       html.light .inv-row:hover {
         background: #f1f5f9 !important;
@@ -859,7 +869,7 @@
       .inv-row td {
         padding: 2px 8px;
         height: 20px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
         vertical-align: middle;
         white-space: nowrap;
       }
@@ -867,7 +877,7 @@
         border-bottom-color: #e2e8f0;
       }
 
-      /* Inverter Name Cell */
+      /* Inverter Name & IP */
       .inv-name-cell {
         display: flex;
         align-items: center;
@@ -875,13 +885,13 @@
       }
       .inv-icon {
         color: #38bdf8;
-        font-size: 0.74rem;
+        font-size: 0.72rem;
       }
       .inv-name-text {
-        font-weight: 800;
-        color: #f8fafc;
+        font-weight: 700;
+        color: #f1f5f9;
         font-size: 0.68rem;
-        letter-spacing: 0.04em;
+        letter-spacing: 0.03em;
       }
       html.light .inv-name-text { color: #0f172a; }
       .inv-ip-text {
@@ -889,53 +899,54 @@
         font-size: 0.56rem;
       }
 
-      /* Table Status Pill */
+      /* Eye-Friendly Status Pills (Matte, No Blinding Glare) */
       .table-status-pill {
         display: inline-block;
-        font-size: 0.52rem;
-        font-weight: 800;
+        font-size: 0.50rem;
+        font-weight: 700;
         padding: 1px 5px;
         border-radius: 2px;
         text-transform: uppercase;
-        letter-spacing: 0.06em;
+        letter-spacing: 0.05em;
         line-height: 1.1;
       }
       .table-status-pill.generating {
-        background: rgba(16, 185, 129, 0.15);
-        border: 1px solid rgba(16, 185, 129, 0.4);
+        background: rgba(16, 185, 129, 0.12);
+        border: 1px solid rgba(16, 185, 129, 0.35);
         color: #34d399;
       }
       .table-status-pill.standby {
-        background: rgba(2, 132, 199, 0.15);
-        border: 1px solid rgba(2, 132, 199, 0.4);
+        background: rgba(2, 132, 199, 0.12);
+        border: 1px solid rgba(2, 132, 199, 0.35);
         color: #38bdf8;
       }
       .table-status-pill.offline {
-        background: rgba(239, 68, 68, 0.15);
-        border: 1px solid rgba(239, 68, 68, 0.4);
+        background: rgba(239, 68, 68, 0.12);
+        border: 1px solid rgba(239, 68, 68, 0.35);
         color: #f87171;
       }
       .table-status-pill.alarm {
-        background: rgba(245, 158, 11, 0.15);
-        border: 1px solid rgba(245, 158, 11, 0.4);
+        background: rgba(245, 158, 11, 0.12);
+        border: 1px solid rgba(245, 158, 11, 0.35);
         color: #fbbf24;
       }
 
-      /* Active Power & Values */
+      /* Calm, Cohesive Active Power Value */
       .table-pac-val {
-        font-size: 0.76rem;
-        font-weight: 800;
-        color: #facc15; /* Solar gold LED */
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #f8fafc; /* Crisp off-white */
       }
-      .inv-row.standby .table-pac-val { color: #38bdf8; }
+      .inv-row.generating .table-pac-val { color: #fbbf24; } /* Warm soft amber when generating */
+      .inv-row.standby .table-pac-val { color: #94a3b8; }
       .inv-row.offline .table-pac-val { color: #64748b; }
       .table-unit {
         font-size: 0.54rem;
-        color: var(--text-dim);
+        color: #64748b;
         margin-left: 2px;
       }
 
-      /* Load Bar (Expands smoothly across column without artificial cutoffs) */
+      /* Ergonomic Industrial Load Bar */
       .table-load-wrap {
         display: flex;
         align-items: center;
@@ -945,7 +956,7 @@
       .table-load-bar-track {
         flex: 1;
         height: 4.5px;
-        background: rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.06);
         border-radius: 2px;
         overflow: hidden;
       }
@@ -953,35 +964,33 @@
       .table-load-bar-fill {
         height: 100%;
         width: 0%;
-        background: linear-gradient(90deg, #10b981, #06b6d4);
+        background: linear-gradient(90deg, #059669, #0d9488);
         border-radius: 2px;
         transition: width 0.3s ease;
       }
       .table-load-pct {
         font-size: 0.58rem;
-        font-weight: 700;
-        color: #cbd5e1;
+        font-weight: 600;
+        color: #94a3b8;
         min-width: 32px;
         text-align: right;
       }
-      html.light .table-load-pct { color: #334155; }
+      html.light .table-load-pct { color: #475569; }
 
-      /* Color-coded Metrics */
+      /* Calm, Eye-Friendly Process Metrics (Clean Slate/White Palette — No Rainbow!) */
       .table-metric-val {
-        font-weight: 700;
+        font-weight: 600;
         font-size: 0.67rem;
+        color: #cbd5e1; /* Calm readable light slate */
       }
-      .table-metric-val.vdc-val { color: #f59e0b; }
-      .table-metric-val.idc-val { color: #38bdf8; }
-      .table-metric-val.pdc-val { color: #34d399; }
-      .table-metric-val.vac-val { color: #a78bfa; }
-      .table-metric-val.temp-val { color: #fb923c; }
+      .table-metric-val.temp-warm { color: #fbbf24; } /* Amber only when hot (>60C) */
+      .table-metric-val.temp-hot { color: #f87171; } /* Red only when critical (>75C) */
 
       /* Action Diagnostic Button */
       .btn-table-diag {
-        background: rgba(30, 58, 110, 0.3);
-        border: 1px solid var(--panel-border);
-        color: #93c5fd;
+        background: rgba(30, 41, 59, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #94a3b8;
         border-radius: 3px;
         width: 22px;
         height: 17px;
@@ -2392,7 +2401,11 @@
             if (vacEl) vacEl.textContent = avgVac;
 
             const tempEl = document.getElementById(`m-temp-${inv}`);
-            if (tempEl) tempEl.textContent = maxTemp;
+            if (tempEl) {
+              tempEl.textContent = maxTemp;
+              tempEl.classList.toggle("temp-warm", Number(maxTemp) >= 60 && Number(maxTemp) < 75);
+              tempEl.classList.toggle("temp-hot", Number(maxTemp) >= 75);
+            }
           }
         }
 

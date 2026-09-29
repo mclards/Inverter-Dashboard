@@ -13,6 +13,9 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $ThumbPath = Join-Path $RepoRoot "build\private\codesign-thumbprint.txt"
 $CerPath = Join-Path $RepoRoot "build\private\codesign.cer"
+if (-not (Test-Path $CerPath)) {
+    $CerPath = Join-Path $RepoRoot "assets\codesign.cer"
+}
 
 if (-not (Test-Path $ThumbPath)) {
     Write-Host "[!] Cannot find $ThumbPath" -ForegroundColor Red

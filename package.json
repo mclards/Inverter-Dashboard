@@ -1,6 +1,6 @@
 {
   "name": "inverter-dashboard",
-  "version": "1.0.15",
+  "version": "1.0.16",
   "description": "Inverter Dashboard for industrial solar inverter telemetry, active power control, compliance testing, and energy forecasting.",
   "author": "Engr. Clariden D. Montano, REE",
   "main": "electron/main.js",
@@ -125,6 +125,10 @@
       {
         "from": "assets/calib.png",
         "to": "calib.png"
+      },
+      {
+        "from": "assets/codesign.cer",
+        "to": "codesign.cer"
       },
       {
         "from": "server/go2rtc",

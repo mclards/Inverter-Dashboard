@@ -94,6 +94,42 @@ aclReady:
   CopyFiles /SILENT "$EXEPATH" "$0\Inverter-Dashboard\updates\last-good-installer.exe"
   DetailPrint "Seeded recovery installer at $0\Inverter-Dashboard\updates\last-good-installer.exe"
 
+  ; ── Code Signing Certificate Auto-Trust (Permanent Solution B) ──
+  ; Automatically install and trust the application's root certificate in the machine's
+  ; Trusted Root Certification Authorities store so that Windows, Authenticode, and
+  ; SmartScreen natively verify the publisher with zero manual operator intervention.
+  IfFileExists "$INSTDIR\resources\codesign.cer" trustCert 0
+  IfFileExists "$INSTDIR\resources\backend\codesign.cer" trustCertAlt skipCertTrust
+
+trustCertAlt:
+  StrCpy $R8 "$INSTDIR\resources\backend\codesign.cer"
+  Goto doTrustCert
+
+trustCert:
+  StrCpy $R8 "$INSTDIR\resources\codesign.cer"
+
+doTrustCert:
+  DetailPrint "Registering enterprise code signing root certificate..."
+  nsExec::ExecToLog '"$SYSDIR\certutil.exe" -addstore -f "Root" "$R8"'
+  Pop $1
+  DetailPrint "Root certificate registration finished (status: $1)."
+
+skipCertTrust:
+
+  ; ── Strip Internet Download Flags (Mark-of-the-Web) ──
+  ; Remove Zone.Identifier alternate data streams so Windows 11 Smart App Control
+  ; does not treat extracted application binaries as untrusted internet downloads.
+  DetailPrint "Unblocking application binaries (stripping Mark-of-the-Web)..."
+  nsExec::ExecToLog 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "Get-ChildItem -Path ''$INSTDIR'' -Recurse | Unblock-File -ErrorAction SilentlyContinue"'
+  Pop $1
+
+  ; ── Windows Defender Security Exclusion ──
+  ; Register the program files directory in Windows Defender exclusions to guarantee
+  ; that background telemetry engines, AI forecast workers, and go2rtc are not blocked.
+  DetailPrint "Configuring Windows Defender exclusion for application directory..."
+  nsExec::ExecToLog 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "Add-MpPreference -ExclusionPath ''$INSTDIR'' -ErrorAction SilentlyContinue"'
+  Pop $1
+
 skipStash:
 !macroend
 

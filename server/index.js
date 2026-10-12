@@ -239,6 +239,7 @@ const CloudBackupService = require("./cloudBackup");
 const {
   MAX_SHADOW_AGE_MS: CORE_MAX_SHADOW_AGE_MS,
   localDateStr: localDateStrCore,
+  localDayStartTs: localDayStartTsCore,
   normalizeTodayEnergyRows: normalizeTodayEnergyRowsCore,
   mergeTodayEnergyRowsMax: mergeTodayEnergyRowsMaxCore,
   todayEnergyRowsEqual: todayEnergyRowsEqualCore,
@@ -7777,6 +7778,10 @@ function localDateStr(ts = Date.now()) {
   return localDateStrCore(ts);
 }
 
+function localDayStartTs(dayText) {
+  return localDayStartTsCore(dayText);
+}
+
 function normalizeTodayEnergyRows(rowsRaw) {
   return normalizeTodayEnergyRowsCore(rowsRaw);
 }
@@ -8447,7 +8452,7 @@ function getIntradayAdjustedRowsForDate(day) {
 function normalizeDayAheadSeries(day, series) {
   if (!Array.isArray(series)) return [];
   const out = [];
-  const dayStart = new Date(`${day}T00:00:00.000`).getTime();
+  const dayStart = localDayStartTs(day);
   for (const rec of series || []) {
     const ts = parseHmsOnDay(day, rec?.time);
     if (!ts) continue;
@@ -11849,7 +11854,7 @@ function buildTodayPacTotalsFromDb() {
   // Use energy_5min (completed 5-min buckets) as primary source, supplemented by
   // the poller's live PAC accumulator for the current partial bucket.
   // This is reliable, fast, and resets automatically at midnight via timestamp boundary.
-  const startTs = new Date(`${day}T00:00:00.000`).getTime();
+  const startTs = localDayStartTs(day);
   const endTs = Date.now();
 
   const resultMap = sumEnergy5minByInverterRange(startTs, endTs);
@@ -11994,8 +11999,8 @@ function buildForecastActualSupplementRowsForRange(
   const s = Number(startTs || 0) || Date.now() - 86400000;
   const e = Number(endTs || 0) || Date.now();
   const day = String(snapshot.day || localDateStr());
-  const dayStartTs = new Date(`${day}T00:00:00.000`).getTime();
-  const dayEndTs = new Date(`${day}T23:59:59.999`).getTime();
+  const dayStartTs = localDayStartTs(day);
+  const dayEndTs = dayStartTs + 86400000 - 1;
   const overlapStartTs = Math.max(s, dayStartTs);
   const overlapEndTs = Math.min(e, dayEndTs, Number(snapshot.asOfTs || Date.now()));
   if (!(overlapEndTs >= overlapStartTs)) return [];
@@ -12415,8 +12420,8 @@ function buildDailyReportRowsForDate(dateText, options = {}) {
     "date",
   );
 
-  const startTs = new Date(`${day}T00:00:00.000`).getTime();
-  const dayEndTs = new Date(`${day}T23:59:59.999`).getTime();
+  const startTs = localDayStartTs(day);
+  const dayEndTs = startTs + 86400000 - 1;
   const endTs =
     includeTodayPartial && day === localDateStr()
       ? Math.min(dayEndTs, Date.now())
@@ -14210,7 +14215,7 @@ function requireTopologyAuth(req, res, next) {
 function computeSolarWindowGapRatio(dateKey, nowMs = Date.now()) {
   const key = String(dateKey || "").trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return null;
-  const dayStart = new Date(`${key}T00:00:00.000`).getTime();
+  const dayStart = localDayStartTs(key);
   if (!Number.isFinite(dayStart)) return null;
 
   const SLOT_MS = 5 * 60 * 1000;
@@ -22809,7 +22814,7 @@ app.get("/api/analytics/dayahead-chart", (req, res) => {
         }
         // Convert ts → slot (0..287). slot = ((ts - dayStartTs) / 300000) where
         // dayStartTs is midnight local for `date`.
-        const midnightTs = new Date(`${date}T00:00:00`).getTime();
+        const midnightTs = localDayStartTs(date);
         plantActualRows = Array.from(bySlotTs.entries())
           .map(([ts, kwh]) => {
             const slot = Math.round((ts - midnightTs) / (5 * 60 * 1000));
@@ -22858,7 +22863,7 @@ app.get("/api/analytics/dayahead-chart", (req, res) => {
           .filter((value) => Number.isFinite(value) && value > 0);
         intradayBatchUpdatedTs = updatedValues.length ? Math.max(...updatedValues) : null;
       }
-      const midnightTs = new Date(`${date}T00:00:00`).getTime();
+      const midnightTs = localDayStartTs(date);
       mlFinalRows = (srcRows || []).map((r) => {
         const ts = Number(r.ts || 0);
         const slot = Math.round((ts - midnightTs) / (5 * 60 * 1000));
@@ -24309,7 +24314,7 @@ app.get("/api/energy/daily", (req, res) => {
     for (const row of rows) {
       const inv = Number(row.inverter || 0);
       if (!inv) continue;
-      const dt = new Date(Number(row.ts || 0)).toISOString().slice(0, 10);
+      const dt = localDateStr(Number(row.ts || 0));
       const key = `${inv}|${dt}`;
       byInvDate[key] = (byInvDate[key] || 0) + Number(row.kwh_inc || 0);
     }
@@ -24419,7 +24424,7 @@ app.get("/api/report/daily", (req, res) => {
     // merge with persisted past rows. The raw DB range query returns stale
     // persisted availability_pct for today and must not be used for it.
     if (e >= today && s <= today) {
-      const dayBeforeToday = localDateStr(new Date(`${today}T00:00:00.000`).getTime() - 1);
+      const dayBeforeToday = localDateStr(localDayStartTs(today) - 1);
       const pastRows = normalizePersistedDailyReportRows(
         s < today ? stmts.getDailyReportRange.all(s, dayBeforeToday) : [],
       );
@@ -24782,8 +24787,8 @@ function getEnergySummarySupplementRowsForRange(
   const e = Number(endTs || 0);
   if (!(e >= s)) return [];
   const today = localDateStr();
-  const todayStart = new Date(`${today}T00:00:00.000`).getTime();
-  const todayEnd = new Date(`${today}T23:59:59.999`).getTime();
+  const todayStart = localDayStartTs(today);
+  const todayEnd = todayStart + 86400000 - 1;
   if (e < todayStart || s > todayEnd) return [];
   if (currentDaySnapshot && currentDaySnapshot.day === today) {
     return normalizeTodayEnergyRows(currentDaySnapshot.rows);
@@ -24812,8 +24817,8 @@ function exportTouchesCurrentDay(payload = {}) {
   const s = Number(payload?.startTs || 0);
   const e = Number(payload?.endTs || 0);
   if (Number.isFinite(s) && s > 0 && Number.isFinite(e) && e >= s) {
-    const todayStart = new Date(`${today}T00:00:00.000`).getTime();
-    const todayEnd = new Date(`${today}T23:59:59.999`).getTime();
+    const todayStart = localDayStartTs(today);
+    const todayEnd = todayStart + 86400000 - 1;
     return e >= todayStart && s <= todayEnd;
   }
 

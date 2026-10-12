@@ -2974,9 +2974,7 @@ def _update_metrics_from_frame(frame: dict):
     if (
         vdc      <= NOISE_VDC or
         idc      <= NOISE_IDC or
-        iac1_raw <= NOISE_IAC or
-        iac2_raw <= NOISE_IAC or
-        iac3_raw <= NOISE_IAC
+        (iac1_raw <= NOISE_IAC and iac2_raw <= NOISE_IAC and iac3_raw <= NOISE_IAC)
     ):
         pac_raw = 0.0
     else:

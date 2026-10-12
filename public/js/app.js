@@ -22326,12 +22326,12 @@ function ensureAnalyticsCards() {
         <div class="analytics-side-label">Solcast vs ML DA (Var.)</div>
         <div class="analytics-side-value is-nan" id="anaSideSolcastMlVariance">NaN</div>
       </div>
-      <div class="analytics-side-item" title="Estimated energy delivered to substation (after transmission losses) minus ML day-ahead total. Subtitle shows raw inverter variance. Percentage is relative to ML DA.">
-        <div class="analytics-side-label">Subs. vs ML DA (Var.)</div>
+      <div class="analytics-side-item" title="Inverter actual energy generated minus ML day-ahead total. Subtitle shows estimated substation delivery after transmission losses. Percentage is relative to ML DA.">
+        <div class="analytics-side-label" id="anaSideVarianceLabel">Actual vs ML DA (Var.)</div>
         <div class="analytics-side-value is-nan" id="anaSideVariance">NaN</div>
       </div>
-      <div class="analytics-side-item" title="Actual substation energy (metered if uploaded, else loss-adjusted estimate) minus Solcast day-ahead P50 total. Percentage is relative to ML DA (stable baseline).">
-        <div class="analytics-side-label">Actual vs Solcast (Var.)</div>
+      <div class="analytics-side-item" title="Inverter actual energy generated minus Solcast day-ahead P50 total. Subtitle shows estimated substation delivery. Percentage is relative to Solcast DA.">
+        <div class="analytics-side-label" id="anaSideSolcastActualVarianceLabel">Actual vs Solcast (Var.)</div>
         <div class="analytics-side-value is-nan" id="anaSideSolcastActualVariance">NaN</div>
       </div>
     </div>
@@ -23113,11 +23113,12 @@ function renderAnalyticsSummary(
       .reduce((s, v) => s + Number(v || 0), 0)
       .toFixed(6),
   );
+  // Genuine raw inverter variance vs ML Day-Ahead
+  const rawVarianceMwh = Number((totalMwh - dayAheadTotalMwh).toFixed(6));
   // C1: Substation-estimated MWh (loss-adjusted)
   const plantAvgLossPct = Number(State.plantAvgLossPct || 3.0);
   const substationTotalMwh = Number((totalMwh * (1.0 - plantAvgLossPct / 100.0)).toFixed(6));
-  // C1b: Variance rebased to substation vs forecast
-  const varianceMwh = Number((substationTotalMwh - dayAheadTotalMwh).toFixed(6));
+  const subsVarianceMwh = Number((substationTotalMwh - dayAheadTotalMwh).toFixed(6));
   const activeInverters = new Set(
     (rows || [])
       .filter((r) => Number(r?.kwh_inc || 0) > 0)
@@ -23143,7 +23144,7 @@ function renderAnalyticsSummary(
     <span class="toolbar-info">Interval: <b>${intervalMin}m</b></span>
     <span class="toolbar-info">Total: <b>${totalMwh.toFixed(3)} MWh</b></span>
     <span class="toolbar-info">Day-ahead: <b>${dayAheadTotalMwh.toFixed(3)} MWh</b></span>
-    <span class="toolbar-info" id="anaToolbarVarianceWrap" title="Substation (est.) vs Day-ahead. Overridden by metered substation when available.">Variance: <b id="anaToolbarVariance">${varianceMwh >= 0 ? "+" : ""}${varianceMwh.toFixed(3)} MWh</b> <span class="toolbar-info-sub" id="anaToolbarVarianceBasis">est</span></span>
+    <span class="toolbar-info" id="anaToolbarVarianceWrap" title="Inverter Actual vs Day-ahead ML forecast.">Variance: <b id="anaToolbarVariance">${rawVarianceMwh >= 0 ? "+" : ""}${rawVarianceMwh.toFixed(3)} MWh</b></span>
     <span class="toolbar-info">Plant Peak (${intervalMin}m): <b>${peakIntervalMwh.toFixed(3)} MWh</b> @ <b>${peakAt}</b></span>
     <span class="toolbar-info">Active Inv: <b>${activeInverters}</b></span>
     <span class="toolbar-info">Last: <b>${lastLabel}</b></span>
@@ -23204,16 +23205,15 @@ function renderAnalyticsSummary(
   // Check for metered substation data — populates Subs. Metered card
   const anaDateStr = String($("anaDate")?.value || "").trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(anaDateStr)) {
-    _checkMeteredSubstation(anaDateStr, sideVariance, dayAheadTotalMwh, varianceMwh);
+    _checkMeteredSubstation(anaDateStr, sideVariance, dayAheadTotalMwh, rawVarianceMwh);
   }
   if (sideDayAhead) {
     if (dayAheadTotalMwh > 0) _setValueTile(sideDayAhead, `${dayAheadTotalMwh.toFixed(4)} MWh`);
     else _setNanTile(sideDayAhead);
   }
-  const invDiffMwh = (totalMwh > 0 && dayAheadTotalMwh > 0) ? Number((totalMwh - dayAheadTotalMwh).toFixed(4)) : NaN;
-  const invPct = Number.isFinite(invDiffMwh) ? (invDiffMwh / dayAheadTotalMwh) * 100 : NaN;
-  const invSubText = Number.isFinite(invDiffMwh) ? `Inv: ${invDiffMwh >= 0 ? "+" : ""}${invDiffMwh.toFixed(3)} MWh (${invPct >= 0 ? "+" : ""}${invPct.toFixed(2)}%)` : "";
-  _setVarianceTile(sideVariance, Number.isFinite(varianceMwh) ? varianceMwh : NaN, dayAheadTotalMwh, invSubText);
+  const invDiffMwh = (totalMwh > 0 && dayAheadTotalMwh > 0) ? rawVarianceMwh : NaN;
+  const subsSubText = Number.isFinite(subsVarianceMwh) ? `Subs. Est: ${subsVarianceMwh >= 0 ? "+" : ""}${subsVarianceMwh.toFixed(3)} MWh` : "";
+  _setVarianceTile(sideVariance, Number.isFinite(invDiffMwh) ? invDiffMwh : NaN, dayAheadTotalMwh, subsSubText);
   if (sidePeak) {
     if (peakIntervalMwh > 0) _setValueTile(sidePeak, `${peakIntervalMwh.toFixed(4)} MWh @ ${peakAt}`);
     else _setNanTile(sidePeak);
@@ -23251,14 +23251,18 @@ function renderAnalyticsSummary(
     : NaN;
   _setVarianceTile(sideSolcastMlVar, solcastMlDiff, dayAheadTotalMwh);
 
-  // Actual vs Solcast DA variance — default uses loss-adjusted substation
-  // estimate; _checkMeteredSubstation overrides with metered when upload exists.
+  // Actual vs Solcast DA variance — uses raw measured inverter total;
+  // Subtitle displays loss-adjusted substation estimate.
   // Normalize by Solcast DA (matches "vs Solcast" label; stable full-day forecast).
   const sideSolcastActualVar = $("anaSideSolcastActualVariance");
-  const solcastActualDiff = (Number.isFinite(solcastDaMwh) && solcastDaMwh > 0 && substationTotalMwh > 0)
+  const solcastActualDiff = (Number.isFinite(solcastDaMwh) && solcastDaMwh > 0 && totalMwh > 0)
+    ? Number((totalMwh - solcastDaMwh).toFixed(4))
+    : NaN;
+  const solcastSubsDiff = (Number.isFinite(solcastDaMwh) && solcastDaMwh > 0 && substationTotalMwh > 0)
     ? Number((substationTotalMwh - solcastDaMwh).toFixed(4))
     : NaN;
-  _setVarianceTile(sideSolcastActualVar, solcastActualDiff, solcastDaMwh);
+  const solcastSubsSubText = Number.isFinite(solcastSubsDiff) ? `Subs. Est: ${solcastSubsDiff >= 0 ? "+" : ""}${solcastSubsDiff.toFixed(3)} MWh` : "";
+  _setVarianceTile(sideSolcastActualVar, solcastActualDiff, solcastDaMwh, solcastSubsSubText);
 
   // Show substation meter button (auth gated via modal)
   const meterWrap = $("anaSubstationMeterWrap");
@@ -24356,25 +24360,27 @@ async function _checkMeteredSubstation(dateStr, varEl, dayAheadMwh, estimatedVar
     if (!res.ok) return;
     const data = await res.json();
     if (!data.ok || !Array.isArray(data.readings) || data.readings.length === 0) {
-      // No metered data — clear the card and keep estimated variance in toolbar
+      // No metered data — clear the card (shows NaN as revenue meter file is not uploaded)
       State.substationMeteredReadings = null;
       const scadaEl = $("anaSideScadaActual");
       if (scadaEl) {
         scadaEl.textContent = "NaN";
         scadaEl.classList.add("is-nan");
       }
+      const scadaSrcEl = $("anaSideScadaSource");
+      if (scadaSrcEl) scadaSrcEl.textContent = "";
       const st = $("anaSubstationStatus");
       if (st) { st.textContent = ""; st.className = "analytics-dls-status"; }
-      _setToolbarVarianceBasis("est");
-      if (Number.isFinite(estimatedVarianceMwh)) _setToolbarVariance(estimatedVarianceMwh);
       return;
     }
-    // Metered data exists — store for chart overlay + show in Subs. Metered card
+    // Metered data exists — store for chart overlay + show in Metered MWHT card
     State.substationMeteredReadings = data.readings;
     renderAnalyticsFromState(); // re-render chart with metered line
     const meteredMwh = data.readings.reduce((s, r) => s + Number(r.mwh || 0), 0);
     const scadaEl = $("anaSideScadaActual");
     const scadaSrcEl = $("anaSideScadaSource");
+    const meteredVariance = Number((meteredMwh - dayAheadMwh).toFixed(4));
+    const meteredSign = meteredVariance >= 0 ? "+" : "";
     if (scadaEl) {
       if (meteredMwh > 0) {
         scadaEl.textContent = `${meteredMwh.toFixed(4)} MWh`;
@@ -24384,50 +24390,10 @@ async function _checkMeteredSubstation(dateStr, varEl, dayAheadMwh, estimatedVar
         scadaEl.classList.add("is-nan");
       }
     }
-    if (scadaSrcEl) scadaSrcEl.textContent = `${data.readings.length} readings`;
-    // Recompute variance: metered vs day-ahead (side card + toolbar stay in sync)
-    const meteredVariance = Number((meteredMwh - dayAheadMwh).toFixed(4));
-    if (varEl) {
-      if (Number.isFinite(meteredVariance) && Number.isFinite(dayAheadMwh) && dayAheadMwh > 0) {
-        const pct = (meteredVariance / dayAheadMwh) * 100;
-        const sign = meteredVariance >= 0 ? "+" : "";
-        varEl.innerHTML =
-          `<span class="var-pct">${sign}${pct.toFixed(4)}%</span>` +
-          `<span class="var-mwh">${sign}${meteredVariance.toFixed(4)} MWh</span>`;
-        varEl.classList.remove("is-nan");
-        const good = Math.abs(pct) <= 20;
-        varEl.classList.toggle("pos", good);
-        varEl.classList.toggle("neg", !good);
-      } else {
-        varEl.textContent = "NaN";
-        varEl.classList.add("is-nan");
-        varEl.classList.remove("pos", "neg");
-      }
-    }
-    _setToolbarVariance(meteredVariance);
-    _setToolbarVarianceBasis("metered");
-    // Rebase Actual-vs-Solcast variance tile to metered (if a Solcast DA lock exists)
-    // Normalize by Solcast DA (matches "vs Solcast" label; stable full-day forecast).
-    const sideSolcastActualVar = $("anaSideSolcastActualVariance");
-    if (sideSolcastActualVar) {
-      const lockedP50Kwh = Number(State.dayAheadLockedPayload?.locked?.total_p50_kwh);
-      const solcastDaMwh = Number.isFinite(lockedP50Kwh) ? lockedP50Kwh / 1000 : NaN;
-      if (Number.isFinite(solcastDaMwh) && solcastDaMwh > 0 && meteredMwh > 0) {
-        const diff = Number((meteredMwh - solcastDaMwh).toFixed(4));
-        const pct = (diff / solcastDaMwh) * 100;
-        const sign = diff >= 0 ? "+" : "";
-        sideSolcastActualVar.innerHTML =
-          `<span class="var-pct">${sign}${pct.toFixed(4)}%</span>` +
-          `<span class="var-mwh">${sign}${diff.toFixed(4)} MWh</span>`;
-        sideSolcastActualVar.classList.remove("is-nan");
-        const good = Math.abs(pct) <= 20;
-        sideSolcastActualVar.classList.toggle("pos", good);
-        sideSolcastActualVar.classList.toggle("neg", !good);
-      } else {
-        sideSolcastActualVar.textContent = "NaN";
-        sideSolcastActualVar.classList.add("is-nan");
-        sideSolcastActualVar.classList.remove("pos", "neg");
-      }
+    if (scadaSrcEl) {
+      scadaSrcEl.textContent = Number.isFinite(dayAheadMwh) && dayAheadMwh > 0
+        ? `${data.readings.length} readings (${meteredSign}${meteredVariance.toFixed(3)} MWh vs DA)`
+        : `${data.readings.length} readings`;
     }
     // Update status badge
     const st = $("anaSubstationStatus");

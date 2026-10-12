@@ -138,15 +138,17 @@ function init({ db, getSetting, markDailyUnitsFinal }) {
 
 // ─── Slot math (Asia/Manila wall clock) ────────────────────────────────────
 
+const MANILA_TZ_OFFSET_MS = 8 * 60 * 60 * 1000;
+
 function _localParts(tsMs) {
-  const d = new Date(Number(tsMs) || Date.now());
+  const d = new Date(Number(tsMs || Date.now()) + MANILA_TZ_OFFSET_MS);
   return {
-    year: d.getFullYear(),
-    month: d.getMonth() + 1,    // 1..12
-    day: d.getDate(),           // 1..31
-    hour: d.getHours(),         // 0..23
-    minute: d.getMinutes(),     // 0..59
-    second: d.getSeconds(),
+    year: d.getUTCFullYear(),
+    month: d.getUTCMonth() + 1,    // 1..12
+    day: d.getUTCDate(),           // 1..31
+    hour: d.getUTCHours(),         // 0..23
+    minute: d.getUTCMinutes(),     // 0..59
+    second: d.getUTCSeconds(),
   };
 }
 function _formatDateLocal(parts) {
@@ -161,7 +163,7 @@ function _slotEndMs(dateLocal, slotIndex) {
   const startMin = slotIndex * SLOT_MIN;
   const startH = Math.floor(startMin / 60);
   const startMm = startMin % 60;
-  return new Date(y, m - 1, d, startH, startMm, 0, 0).getTime() + SLOT_MIN * 60_000;
+  return Date.UTC(y, m - 1, d, startH, startMm, 0, 0) - MANILA_TZ_OFFSET_MS + SLOT_MIN * 60_000;
 }
 function _hourOfSlot(slotIndex) {
   return Math.floor(slotIndex / (60 / SLOT_MIN));   // 60/5 = 12 slots per hour

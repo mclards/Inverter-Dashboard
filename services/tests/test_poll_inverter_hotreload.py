@@ -166,7 +166,7 @@ class PollInverterHotReloadTests(unittest.IsolatedAsyncioTestCase):
                 pass
 
     async def test_empty_static_units_keeps_last_good_list(self):
-        """If `static_units[ip]` is cleared to None/[] (auto-detect path), the
+        """If `static_units[ip]` is cleared to None (auto-detect path), the
         inner loop must NOT blank the live unit list — keep polling the last
         known-good list rather than going dark."""
         task = asyncio.create_task(engine.poll_inverter(self.ip))
@@ -174,14 +174,38 @@ class PollInverterHotReloadTests(unittest.IsolatedAsyncioTestCase):
             await self._drain_for(0.15)
             self.assertTrue(self.read_log, "polling should have started")
 
-            engine.static_units[self.ip] = []  # operator cleared override
+            engine.static_units[self.ip] = None  # operator cleared override to auto-detect
             self.read_log.clear()
             await self._drain_for(0.10)
 
             seen = {u for (ip, u) in self.read_log if ip == self.ip}
             self.assertEqual(
                 seen, {1, 2},
-                f"empty override must not blank the unit list; saw {seen}",
+                f"cleared override must not blank the unit list; saw {seen}",
+            )
+        finally:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+    async def test_disabled_static_units_stops_polling(self):
+        """If `static_units[ip]` is set to [] (explicitly disabled per AGENTS.md),
+        polling must honor the disabled state and stop querying nodes."""
+        task = asyncio.create_task(engine.poll_inverter(self.ip))
+        try:
+            await self._drain_for(0.15)
+            self.assertTrue(self.read_log, "polling should have started")
+
+            engine.static_units[self.ip] = []  # operator explicitly disabled units
+            self.read_log.clear()
+            await self._drain_for(0.10)
+
+            seen = {u for (ip, u) in self.read_log if ip == self.ip}
+            self.assertEqual(
+                seen, set(),
+                f"explicitly empty units override must disable polling; saw {seen}",
             )
         finally:
             task.cancel()

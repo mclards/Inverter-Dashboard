@@ -222,22 +222,27 @@ function updateLiveSnapshotCache() {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+const MANILA_TZ_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+function _manilaDate(ts = Date.now()) {
+  return new Date(Number(ts || Date.now()) + MANILA_TZ_OFFSET_MS);
+}
+
 function isSolarWindow() {
-  const h = new Date().getHours();
+  const h = _manilaDate().getUTCHours();
   return h >= SOLAR_HOUR_START && h < SOLAR_HOUR_END;
 }
 
 function isSolarWindowAt(ts = Date.now()) {
-  const d = new Date(ts);
-  const h = d.getHours();
+  const h = _manilaDate(ts).getUTCHours();
   return h >= SOLAR_HOUR_START && h < SOLAR_HOUR_END;
 }
 
 function dayKey(ts = Date.now()) {
-  const d = new Date(ts);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
+  const d = _manilaDate(ts);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
 
@@ -386,7 +391,10 @@ function resolveFrameDay(row, ts = Date.now()) {
 }
 
 function localDayStartTs(dayText) {
-  return new Date(`${String(dayText || dayKey()).trim()}T00:00:00.000`).getTime();
+  const dayStr = String(dayText || dayKey()).trim();
+  const [y, m, d] = dayStr.split("-").map(Number);
+  if (!y || !m || !d) return Date.now();
+  return Date.UTC(y, m - 1, d, 0, 0, 0, 0) - MANILA_TZ_OFFSET_MS;
 }
 
 function buildPacTodayByInverterMap() {
@@ -756,9 +764,7 @@ function parseRow(row, identity = null) {
     safePac > 0 &&
     (vdc  <= NOISE_VDC ||
      idc  <= NOISE_IDC ||
-     iac1 <= NOISE_IAC ||
-     iac2 <= NOISE_IAC ||
-     iac3 <= NOISE_IAC)
+     (iac1 <= NOISE_IAC && iac2 <= NOISE_IAC && iac3 <= NOISE_IAC))
   ) {
     safePac = 0;
   }

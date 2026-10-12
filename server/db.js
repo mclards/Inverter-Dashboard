@@ -51,14 +51,23 @@ function pad2(n) {
   return String(Math.trunc(Number(n) || 0)).padStart(2, "0");
 }
 
+const MANILA_TZ_OFFSET_MS = 8 * 60 * 60 * 1000;
+
 function localDateStr(ts = Date.now()) {
-  const d = new Date(Number(ts || Date.now()));
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  const d = new Date(Number(ts || Date.now()) + MANILA_TZ_OFFSET_MS);
+  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+}
+
+function localDayStartTs(dayText) {
+  const dayStr = String(dayText || localDateStr()).trim();
+  const [y, m, d] = dayStr.split("-").map(Number);
+  if (!y || !m || !d) return Date.now();
+  return Date.UTC(y, m - 1, d, 0, 0, 0, 0) - MANILA_TZ_OFFSET_MS;
 }
 
 function monthKeyFromTs(ts) {
-  const d = new Date(Number(ts || 0));
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+  const d = new Date(Number(ts || 0) + MANILA_TZ_OFFSET_MS);
+  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}`;
 }
 
 function iterateMonthKeys(startTs, endTs) {
@@ -3817,7 +3826,7 @@ function getYesterdaySnapshotForDate(todayDateKey) {
   try {
     const key = String(todayDateKey || "").trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return [];
-    const todayStartMs = new Date(`${key}T00:00:00.000`).getTime();
+    const todayStartMs = localDayStartTs(key);
     if (!Number.isFinite(todayStartMs)) return [];
     const yesterdayKey = localDateStr(todayStartMs - 86400000);
     const rows = stmts.selectBaselineEodClean.all(yesterdayKey);
@@ -5649,8 +5658,8 @@ function recoverTodayEnergyFromReadings(nowTs = Date.now()) {
 function rebuildDailyReadingsSummaryForDate(dayInput) {
   const day = String(dayInput || "").trim();
   if (!day) return [];
-  const startTs = new Date(`${day}T00:00:00.000`).getTime();
-  const endTs = new Date(`${day}T23:59:59.999`).getTime();
+  const startTs = localDayStartTs(day);
+  const endTs = startTs + 86400000 - 1;
   const rows = annotateRowsWithComputedKwh(queryReadingsRangeAll(startTs, endTs));
   const states = new Map();
   for (const row of rows) {
@@ -6778,7 +6787,7 @@ function dayHadAgingStopEvent(inverter_ip, slave, date_local) {
   // Local-day window expressed in ms via UTC midnight. The 5-min table stores
   // date_local as YYYY-MM-DD; the stop_reasons table only has read_at_ms.
   // We bound by [day 00:00, day+1 00:00) in local time.
-  const ts = Date.parse(String(date_local) + "T00:00:00");
+  const ts = localDayStartTs(date_local);
   if (!Number.isFinite(ts)) return false;
   const start = ts;
   const end = ts + 86400_000 - 1;
@@ -7512,6 +7521,7 @@ module.exports = {
   SUMMARY_SOLAR_END_H,
   SUMMARY_MAX_GAP_S,
   localDateStr,
+  localDayStartTs,
   getTelemetryHotCutoffTs,
   queryReadingsRangeAll,
   queryReadingsRange,

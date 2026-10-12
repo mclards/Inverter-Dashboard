@@ -1,13 +1,21 @@
 "use strict";
 
 const MAX_SHADOW_AGE_MS = 4 * 60 * 60 * 1000;
+const MANILA_TZ_OFFSET_MS = 8 * 60 * 60 * 1000;
 
 function localDateStr(ts = Date.now()) {
-  const d = new Date(ts);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
+  const d = new Date(Number(ts || Date.now()) + MANILA_TZ_OFFSET_MS);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+function localDayStartTs(dayText) {
+  const dayStr = String(dayText || localDateStr()).trim();
+  const [y, m, d] = dayStr.split("-").map(Number);
+  if (!y || !m || !d) return Date.now();
+  return Date.UTC(y, m - 1, d, 0, 0, 0, 0) - MANILA_TZ_OFFSET_MS;
 }
 
 function normalizeTodayEnergyRows(rowsRaw) {
@@ -173,7 +181,9 @@ function evaluateHandoffProgress({
 
 module.exports = {
   MAX_SHADOW_AGE_MS,
+  MANILA_TZ_OFFSET_MS,
   localDateStr,
+  localDayStartTs,
   normalizeTodayEnergyRows,
   mergeTodayEnergyRowsMax,
   todayEnergyRowsEqual,

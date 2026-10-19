@@ -478,6 +478,13 @@ function ensureTodayEnergyBaseline(ts = Date.now()) {
   return todayEnergyBaselineByInv;
 }
 
+function invalidateTodayEnergyBaseline() {
+  todayEnergyBaselineDay = "";
+  todayEnergyBaselineByInv = new Map();
+  todayEnergyBaselineLiveByInv = new Map();
+  todayEnergyBaselineSeededAt = 0;
+}
+
 function integratePacToday(parsed) {
   const now = parsed.ts || Date.now();
   resetPacTodayIfNeeded(now);
@@ -2079,6 +2086,7 @@ module.exports = {
   getTodayPacKwh,
   getTodayPacRawKwh,
   getTodayEnergyHealth,
+  invalidateTodayEnergyBaseline,
   setIpConfigSnapshot,
   getPerfStats,
   getPollCadenceSummary,

@@ -26756,6 +26756,9 @@ function _repairBackupStalledEnergyHistoryOnce() {
 
     setSetting(REPAIR_SETTING_KEY, "1");
     if (totalRepairedDays > 0) {
+      try {
+        poller.invalidateTodayEnergyBaseline?.();
+      } catch (_) {}
       console.log(
         `[DB:repair] Completed backup-stall energy_5min reconciliation across ${totalRepairedDays} day(s) (+${totalAddedMwh.toFixed(4)} MWh total).`,
       );

@@ -1780,12 +1780,17 @@ async def slow_poll_inverter(ip):
                 if not slow_data:
                     continue
 
-                # Merge into shared[ip]: find the most recent frame matching this unit
+                # Merge into shared[ip]: find the most recent frame matching this unit.
+                # Never overwrite fast-poll 'ts' or 'kwh_today' with slow-poll metadata,
+                # otherwise a slow-poll merge makes a cached fast-poll PAC reading look
+                # like a fresh fast-poll frame to the PAC integrator.
                 if ip in shared:
                     for frame in reversed(shared[ip]):
                         if frame.get("unit") == u:
-                            # Attach all slow fields to this frame
-                            frame.update(slow_data)
+                            for sk, sv in slow_data.items():
+                                if sk not in ("ts", "kwh_today"):
+                                    frame[sk] = sv
+                            frame["slow_ts"] = slow_data.get("ts")
                             break
 
             await asyncio.sleep(slow_interval)
@@ -2492,6 +2497,7 @@ async def seed_pac_from_baseline():
                 "lastPacChangeTime":  now_ms,
                 "totalWh":            recovered_kwh * 1000.0,
                 "date":               date_key,
+                "lastFrameTs":        now_ms,
             }
             metrics_state.setdefault("pacEnergyHistory", {}).setdefault(nk, {})[date_key] = round(recovered_kwh, 6)
 
@@ -2914,7 +2920,7 @@ def _update_metrics_from_frame(frame: dict):
         return
 
     nk = f"{inverter}_{module}"
-    ms["lastUpdate"][nk] = now
+    ms["lastUpdate"][nk] = max(int(ms["lastUpdate"].get(nk) or 0), now)
 
     vdc = float(frame.get("vdc") or 0)
     idc = float(_signed_int16(frame.get("idc") or 0))
@@ -2989,22 +2995,32 @@ def _update_metrics_from_frame(frame: dict):
 
     pe = ms["pacEnergy"].get(nk)
     if not pe:
+        ms["lastUpdate"][nk] = now
         ms["pacEnergy"][nk] = {
             "lastTime": now, "lastPacRaw": pac_raw,
             "lastPacChangeTime": now, "totalWh": 0.0, "date": formatted_date,
             "lastFrameTs": frame_ts,
         }
+        frame["kwh_today"] = 0.0
     else:
         new_day = pe["date"] != formatted_date
+        last_frame_ts = int(pe.get("lastFrameTs") or 0)
         if new_day:
+            ms["lastUpdate"][nk] = now
             pe.update({"date": formatted_date, "totalWh": 0.0,
                         "lastTime": now, "lastPacRaw": pac_raw,
                         "lastPacChangeTime": now, "lastFrameTs": frame_ts})
-        elif frame_ts > 0 and pe.get("lastFrameTs") == frame_ts:
-            # Frame already integrated on the poll cycle; keep state idempotent
-            # when /data or /metrics inspects the cached frame.
-            pass
+            frame["kwh_today"] = 0.0
+        elif frame_ts > 0 and frame_ts <= last_frame_ts:
+            # Frame already integrated on the poll cycle, or an older cached frame
+            # in shared[ip] was inspected by /data or /metrics while poll_inverter
+            # is mid-sweep across units. Never rewind lastTime/lastFrameTs or
+            # double-integrate.
+            if "kwh_today" not in frame:
+                frame["kwh_today"] = round(pe["totalWh"] / 1000.0, 6)
+            return
         else:
+            ms["lastUpdate"][nk] = max(int(ms["lastUpdate"].get(nk) or 0), now)
             # Fix #2: cap dt at 30s to match Node's MAX_PAC_DT_S.
             # Without this cap, /metrics energy grows unbounded during any dropout
             # and always diverges from the Node energy_5min DB totals.
@@ -3016,7 +3032,8 @@ def _update_metrics_from_frame(frame: dict):
                 pe["totalWh"] += (avg * dt_sec) / 3600.0
             pe["lastPacRaw"] = pac_raw
             pe["lastTime"]   = now
-            pe["lastFrameTs"] = frame_ts
+            pe["lastFrameTs"] = max(last_frame_ts, frame_ts)
+            frame["kwh_today"] = round(pe["totalWh"] / 1000.0, 6)
 
     alarm_val = int(frame.get("alarm") or 0)
     alarm_hex = format(alarm_val, '05X') + "H"
@@ -3157,9 +3174,11 @@ def get_data():
                     unit = frame.get("unit")
                     nk   = f"{inv}_{unit}" if inv and unit else None
                     pe   = metrics_state["pacEnergy"].get(nk) if nk else None
-                    kwh_today = round(pe["totalWh"] / 1000.0, 6) if pe else 0.0
+                    kwh_today = frame.get("kwh_today")
+                    if kwh_today is None:
+                        kwh_today = round(pe["totalWh"] / 1000.0, 6) if pe else 0.0
                     enriched = dict(frame)
-                    enriched["kwh_today"] = kwh_today
+                    enriched["kwh_today"] = round(float(kwh_today or 0.0), 6)
                     flat.append(enriched)
     return flat
 

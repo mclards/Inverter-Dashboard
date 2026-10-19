@@ -83,6 +83,27 @@ function run() {
     assert.equal(rows.length, 0);
   }
 
+  {
+    const fs = require("fs");
+    const path = require("path");
+    const repoRoot = path.resolve(__dirname, "..", "..");
+    for (const relPath of [
+      "services/inverter_engine.py",
+      "backend/engines/inverter/inverter_engine.py",
+    ]) {
+      const pySrc = fs.readFileSync(path.join(repoRoot, relPath), "utf8");
+      assert.ok(
+        pySrc.includes("elif frame_ts > 0 and frame_ts <= last_frame_ts:"),
+        `${relPath} must guard PAC integration with monotonic frame_ts <= last_frame_ts check to prevent mid-sweep shared[ip] double-integration`,
+      );
+      assert.ok(
+        pySrc.includes('if sk not in ("ts", "kwh_today"):') &&
+          pySrc.includes('frame["slow_ts"] = slow_data.get("ts")'),
+        `${relPath} slow_poll_inverter must not overwrite fast-poll ts or kwh_today`,
+      );
+    }
+  }
+
   console.log("currentDayEnergyCore.test.js: PASS");
 }
 

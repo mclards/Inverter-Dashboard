@@ -6914,7 +6914,7 @@ function renderForecastPerfCharts(rows) {
   // Do not plot actualVals for an in-progress current day as a completed daily total
   const actualVals   = sorted.map((r) => {
     if (r.target_date >= todayStr) return null;
-    return r.total_actual_kwh != null ? +(r.total_actual_kwh / 1000).toFixed(3) : null;
+    return r.total_actual_kwh != null ? +(r.total_actual_kwh / 1000).toFixed(4) : null;
   });
   const forecastVals = sorted.map((r) => r.total_forecast_kwh != null ? +(r.total_forecast_kwh / 1000).toFixed(3) : null);
   const loVals       = sorted.map((r) => r.total_forecast_lo_kwh != null ? +(r.total_forecast_lo_kwh / 1000).toFixed(3) : null);
@@ -7004,14 +7004,9 @@ function renderForecastPerfCharts(rows) {
     opts.plugins.legend.labels.pointStyle = "line";
     opts.plugins.tooltip.callbacks = {
       label: (ctx) => {
-        const val = ctx.raw != null ? Number(ctx.raw).toFixed(3) : "—";
         const dsLabel = ctx.dataset?.label || "";
-        const row = sorted[ctx.dataIndex];
-        if (dsLabel === "Actual" && row) {
-          if (row.comparison_quality === "review" || row.solcast_freshness_class === "stale_usable") {
-            return `Actual (QA Reconstructed): ${val} MWh`;
-          }
-        }
+        const decimals = dsLabel === "Actual" ? 4 : 3;
+        const val = ctx.raw != null ? Number(ctx.raw).toFixed(decimals) : "—";
         return `${dsLabel}: ${val} MWh`;
       },
     };
@@ -7152,15 +7147,12 @@ function renderForecastPerfTable(rows) {
   const todayStr = (typeof today === "function" ? today() : new Date().toISOString().slice(0, 10));
   tbody.innerHTML = sorted.map((r) => {
     const isToday = r.target_date >= todayStr;
-    const isRecon = (r.comparison_quality === "review" || r.solcast_freshness_class === "stale_usable") && r.total_actual_kwh != null;
     const fmwh = r.total_forecast_kwh != null ? (r.total_forecast_kwh / 1000).toFixed(3) : "—";
     let amwh = "—";
     if (r.total_actual_kwh != null) {
-      const baseVal = (r.total_actual_kwh / 1000).toFixed(3);
+      const baseVal = (r.total_actual_kwh / 1000).toFixed(4);
       if (isToday) {
         amwh = `${baseVal} <span style="font-size:10px;color:var(--text3)">(in progress)</span>`;
-      } else if (isRecon) {
-        amwh = `<span title="Outage/gap-reconstructed actual for QA">${baseVal}*</span>`;
       } else {
         amwh = baseVal;
       }

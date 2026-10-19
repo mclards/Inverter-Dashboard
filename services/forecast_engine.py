@@ -9888,6 +9888,20 @@ def _persist_qa_comparison(
                 except Exception as e:
                     log.debug("Could not compute daily locked aggregates for %s: %s", target_date, e)
 
+                try:
+                    dr_row = conn.execute(
+                        "SELECT SUM(kwh_total) FROM daily_report WHERE date = ?",
+                        (target_date,),
+                    ).fetchone()
+                    if dr_row and dr_row[0] is not None and float(dr_row[0]) > 0.0:
+                        total_actual_kwh = float(dr_row[0])
+                        actual_source = "inverter"
+                        if total_forecast_kwh > 0.0:
+                            total_abs_error_kwh = abs(total_forecast_kwh - total_actual_kwh)
+                            daily_total_ape_pct = (total_abs_error_kwh / total_actual_kwh) * 100.0
+                except Exception:
+                    pass
+
                 daily_row = conn.execute(
                     f"""
                     INSERT INTO forecast_error_compare_daily(

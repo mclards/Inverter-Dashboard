@@ -23971,11 +23971,20 @@ app.get("/api/forecast/qa-actual/:date", (req, res) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return res.status(400).json({ ok: false });
   try {
     const row = db.prepare(
-      `SELECT total_actual_kwh, total_forecast_kwh, total_abs_error_kwh,
-              daily_wape_pct, comparison_quality, usable_slot_count
-       FROM forecast_error_compare_daily
-       WHERE target_date = ?
-       ORDER BY computed_ts DESC LIMIT 1`
+      `SELECT COALESCE(dr.actual_kwh, e.total_actual_kwh) AS total_actual_kwh,
+              e.total_forecast_kwh,
+              CASE WHEN dr.actual_kwh > 0 AND e.total_forecast_kwh IS NOT NULL
+                   THEN ABS(e.total_forecast_kwh - dr.actual_kwh)
+                   ELSE e.total_abs_error_kwh END AS total_abs_error_kwh,
+              e.daily_wape_pct, e.comparison_quality, e.usable_slot_count
+       FROM forecast_error_compare_daily e
+       LEFT JOIN (
+         SELECT date, SUM(kwh_total) AS actual_kwh
+         FROM daily_report
+         GROUP BY date
+       ) dr ON dr.date = e.target_date
+       WHERE e.target_date = ?
+       ORDER BY e.computed_ts DESC LIMIT 1`
     ).get(dateStr);
     if (!row || row.total_actual_kwh == null) return res.json({ ok: true, found: false });
     res.json({ ok: true, found: true, ...row });
@@ -23999,7 +24008,10 @@ app.get("/api/forecast/qa-history", (req, res) => {
                 e.solcast_freshness_class, e.comparison_quality,
                 e.include_in_error_memory, e.total_forecast_kwh,
                 e.total_forecast_lo_kwh, e.total_forecast_hi_kwh,
-                e.total_actual_kwh, e.total_abs_error_kwh,
+                COALESCE(dr.actual_kwh, e.total_actual_kwh) AS total_actual_kwh,
+                CASE WHEN dr.actual_kwh > 0 AND e.total_forecast_kwh IS NOT NULL
+                     THEN ABS(e.total_forecast_kwh - dr.actual_kwh)
+                     ELSE e.total_abs_error_kwh END AS total_abs_error_kwh,
                 e.daily_wape_pct, e.daily_mape_pct,
                 e.usable_slot_count, e.masked_slot_count, e.computed_ts
          FROM forecast_error_compare_daily e
@@ -24009,6 +24021,11 @@ app.get("/api/forecast/qa-history", (req, res) => {
            WHERE target_date >= ?
            GROUP BY target_date
          ) latest ON e.target_date = latest.target_date AND e.computed_ts = latest.max_ts
+         LEFT JOIN (
+           SELECT date, SUM(kwh_total) AS actual_kwh
+           FROM daily_report
+           GROUP BY date
+         ) dr ON dr.date = e.target_date
          ORDER BY e.target_date DESC`,
       )
       .all(cutoff);
@@ -26572,6 +26589,50 @@ function _repairBackupStalledEnergyHistoryOnce() {
   if (isRemoteMode() || !db || !db.open) return;
   const REPAIR_SETTING_KEY = "energy5minBackupStallRepairV1";
   const REPAIR_V2_KEY = "energy5minBackupStallRepairV2";
+  const REPAIR_V3_KEY = "energy5minBackupStallRepairV3";
+  const syncQaActualsWithDailyReport = () => {
+    try {
+      db.prepare(
+        `UPDATE forecast_error_compare_daily
+            SET total_actual_kwh = (
+                  SELECT ROUND(SUM(dr.kwh_total), 6)
+                    FROM daily_report dr
+                   WHERE dr.date = forecast_error_compare_daily.target_date
+                ),
+                total_abs_error_kwh = CASE
+                  WHEN total_forecast_kwh IS NOT NULL THEN
+                    ROUND(ABS(total_forecast_kwh - (
+                      SELECT SUM(dr.kwh_total)
+                        FROM daily_report dr
+                       WHERE dr.date = forecast_error_compare_daily.target_date
+                    )), 6)
+                  ELSE total_abs_error_kwh
+                END,
+                daily_total_ape_pct = CASE
+                  WHEN total_forecast_kwh IS NOT NULL THEN
+                    ROUND(ABS(total_forecast_kwh - (
+                      SELECT SUM(dr.kwh_total)
+                        FROM daily_report dr
+                       WHERE dr.date = forecast_error_compare_daily.target_date
+                    )) / (
+                      SELECT SUM(dr.kwh_total)
+                        FROM daily_report dr
+                       WHERE dr.date = forecast_error_compare_daily.target_date
+                    ) * 100.0, 4)
+                  ELSE daily_total_ape_pct
+                END,
+                actual_source = 'inverter'
+          WHERE EXISTS (
+                  SELECT 1
+                    FROM daily_report dr
+                   WHERE dr.date = forecast_error_compare_daily.target_date
+                     AND dr.kwh_total > 0
+                )`,
+      ).run();
+    } catch (e) {
+      console.warn("[DB:repair] QA actuals sync warning:", e?.message || e);
+    }
+  };
   try {
     const dayRows = db
       .prepare("SELECT DISTINCT date FROM daily_report WHERE date >= '2026-10-01' ORDER BY date")
@@ -26587,42 +26648,48 @@ function _repairBackupStalledEnergyHistoryOnce() {
     );
 
     if (getSetting(REPAIR_SETTING_KEY, "") === "1") {
-      if (getSetting(REPAIR_V2_KEY, "") === "1") return;
-      const updateHwStmt = db.prepare(
-        "UPDATE daily_report SET kwh_total_etotal = ?, kwh_total_parce = ? WHERE date = ? AND inverter = ?",
-      );
-      const getDrInvsStmt = db.prepare(
-        "SELECT inverter, kwh_total FROM daily_report WHERE date = ?",
-      );
-      const updateDrKwhStmt = db.prepare(
-        "UPDATE daily_report SET kwh_total = ROUND(kwh_total + ?, 6) WHERE date = ? AND inverter = ?",
-      );
-      db.transaction(() => {
-        for (const day of daySet) {
-          if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
-          const rows = getDrInvsStmt.all(day);
-          for (const r of rows) {
-            const inv = Number(r.inverter);
-            const hw = computeInverterDailyHwTotals(inv, day);
-            updateHwStmt.run(hw.kwh_total_etotal, hw.kwh_total_parce, day, inv);
-          }
-          if (day === "2026-10-18" && rows.length > 0) {
-            const sumKwh = rows.reduce((acc, r) => acc + Number(r.kwh_total || 0), 0);
-            const targetKwh = 123524.3;
-            const diffKwh = targetKwh - sumKwh;
-            if (diffKwh > 0 && diffKwh < 1.0) {
-              const noonTs = localDayStartTs(day) + 12 * 3600 * 1000;
-              updateE5Stmt.run(diffKwh, noonTs, 1);
-              updateDrKwhStmt.run(diffKwh, day, 1);
+      if (getSetting(REPAIR_V2_KEY, "") !== "1") {
+        const updateHwStmt = db.prepare(
+          "UPDATE daily_report SET kwh_total_etotal = ?, kwh_total_parce = ? WHERE date = ? AND inverter = ?",
+        );
+        const getDrInvsStmt = db.prepare(
+          "SELECT inverter, kwh_total FROM daily_report WHERE date = ?",
+        );
+        const updateDrKwhStmt = db.prepare(
+          "UPDATE daily_report SET kwh_total = ROUND(kwh_total + ?, 6) WHERE date = ? AND inverter = ?",
+        );
+        db.transaction(() => {
+          for (const day of daySet) {
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+            const rows = getDrInvsStmt.all(day);
+            for (const r of rows) {
+              const inv = Number(r.inverter);
+              const hw = computeInverterDailyHwTotals(inv, day);
+              updateHwStmt.run(hw.kwh_total_etotal, hw.kwh_total_parce, day, inv);
+            }
+            if (day === "2026-10-18" && rows.length > 0) {
+              const sumKwh = rows.reduce((acc, r) => acc + Number(r.kwh_total || 0), 0);
+              const targetKwh = 123524.3;
+              const diffKwh = targetKwh - sumKwh;
+              if (diffKwh > 0 && diffKwh < 1.0) {
+                const noonTs = localDayStartTs(day) + 12 * 3600 * 1000;
+                updateE5Stmt.run(diffKwh, noonTs, 1);
+                updateDrKwhStmt.run(diffKwh, day, 1);
+              }
             }
           }
-        }
-      })();
-      try {
-        pastDailyReportCache.clear();
-      } catch (_) {}
-      setSetting(REPAIR_V2_KEY, "1");
-      console.log("[DB:repair] Completed V2 daily_report hardware-counter and plant-scale reconciliation.");
+        })();
+        try {
+          pastDailyReportCache.clear();
+        } catch (_) {}
+        setSetting(REPAIR_V2_KEY, "1");
+        console.log("[DB:repair] Completed V2 daily_report hardware-counter and plant-scale reconciliation.");
+      }
+      if (getSetting(REPAIR_V3_KEY, "") !== "1") {
+        syncQaActualsWithDailyReport();
+        setSetting(REPAIR_V3_KEY, "1");
+        console.log("[DB:repair] Completed V3 forecast_error_compare_daily actuals alignment with Inverter MWh_T.");
+      }
       return;
     }
 

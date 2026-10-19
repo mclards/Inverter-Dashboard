@@ -57,3 +57,24 @@ This record documents the diagnosis, root cause analysis, architecture invariant
   - `negative_dur_count`: **0**
   - `open_alarms_count`: **0** (matches all currently active healthy inverters)
 - Production appliance services: `inverter-server`, `inverter-engine`, and `inverter-forecast` active and healthy.
+
+## 4. Telemetry PAC Energy Integration & Daily Report Reconciliation (`2026-10-19`)
+
+### Root Cause Analysis
+- **Symptom:** On `2026-10-19`, the New Dashboard recorded `INVERTER MWH_T = 118.3894 MWh` (`SUBS. EST. MWH_T = 116.1164 MWh`) vs. the Legacy Dashboard's `112.1273 MWh` (`109.9745 MWh` Substation Est.) and hardware counters (`kwh_total_etotal = 112.1470 MWh`, `kwh_total_parce = 112.1470 MWh`) — an afternoon over-count of `+6.2621 MWh`.
+- **Root Cause:**
+  1. Up to `13:51:58 PST`, `energy_5min` matched true PAC integration at `1.000x` (`97.9349 MWh`).
+  2. In `services/inverter_engine.py` (and `backend/engines/inverter/inverter_engine.py`), `poll_inverter(ip)` called `_update_metrics_from_frame(data)` per unit inside `for u in units:` while `shared[ip] = list(out)` was only published after the final unit of each inverter completed its Modbus read.
+  3. During the ~1.1 s mid-sweep window while subsequent units were being read, Node polled `GET /data` every `200 ms`, which iterated over `shared[ip]` (still holding Cycle $N-1$'s frames with timestamp $t_{N-1}$) and called `_update_metrics_from_frame(frame)`.
+  4. Because `_update_metrics_from_frame` checked `elif frame_ts > 0 and pe.get("lastFrameTs") == frame_ts:` instead of `frame_ts <= last_frame_ts`, the older cached frame ($t_{N-1} < t_N$) fell into the `else:` branch and overwrote `pe["lastTime"]` and `pe["lastFrameTs"]` back to $t_{N-1}$ for every non-final unit (`units[:-1]`). When `shared[ip]` published Cycle $N$'s frames ($t_N$), `GET /data` integrated $[t_{N-1} \to t_N]$ a second time (`2.0000x` on non-final units, `1.0000x` on the final unit).
+  5. Additionally, `slow_poll_inverter` merged `slow_data` (including `"ts"`) directly onto cached fast-poll frames via `frame.update(slow_data)`.
+
+### Resolution & Verification
+1. **Strict Monotonic Frame Guard:** Updated `_update_metrics_from_frame` in `services/inverter_engine.py` and `backend/engines/inverter/inverter_engine.py` to enforce `elif frame_ts > 0 and frame_ts <= last_frame_ts: return` and stamp `frame["kwh_today"]` directly onto each integrated frame.
+2. **Slow-Poll Timestamp Isolation:** Updated `slow_poll_inverter` so merging slow-poll fields never overwrites fast-poll `"ts"` or `"kwh_today"` (storing the slow timestamp under `"slow_ts"`).
+3. **Historical Reconciliation (`V5`):** Added `reconcileOct19AfternoonDoubleInt()` in `server/index.js` and `backend/services/index.js` to re-integrate `2026-10-19` `readings.pac` after `13:51:58 PST`, replace inflated afternoon `energy_5min` buckets, invalidate the in-memory poller baseline, rebuild `daily_report`, and align `forecast_error_compare_daily`.
+4. **Verified Production Totals (`2026-10-19` on `adsi-server`):**
+   - `energy_5min`: `112,127.3 kWh` (`112.1273 MWh`)
+   - `daily_report`: `112.1273 MWh` (`INVERTER MWH_T`), `109.9745 MWh` (`SUBS. EST. MWH_T`), `112.1470 MWh` (`etotal` / `parce`)
+   - `forecast_error_compare_daily`: `total_actual_kwh = 112,127.3 kWh` (`actual_source = 'inverter'`)
+

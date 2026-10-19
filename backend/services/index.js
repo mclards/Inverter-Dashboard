@@ -25694,12 +25694,26 @@ setInterval(() => {
 // so it never blocks reads/writes and is always consistent.
 const BACKUP_DIR = path.join(DATA_DIR, "backups");
 let _backupSlot = 0;
+function _hasAnyLocalBackupSlot() {
+  return [0, 1].some((slot) => {
+    try { return fs.existsSync(path.join(BACKUP_DIR, `adsi_backup_${slot}.db`)); }
+    catch (_) { return false; }
+  });
+}
 async function runPeriodicBackup() {
+  if (!db || !db.open) return;
   // v2.8.14: skip Tier 1 in remote mode. The local DB is an in-memory shadow
   // of the gateway's data (see "Viewer model" notes in this file); copying it
   // to backups/adsi_backup_*.db would be misleading — operators might think
   // they have a recoverable snapshot when they don't.
   if (isRemoteMode()) {
+    return;
+  }
+  // Defer routine Tier-1 multi-GB disk copies during active solar hours
+  // (05:00-18:00 local) once at least one backup slot exists on disk so
+  // live telemetry polling and APC loops never contend with 6 GB WAL/fsync stalls.
+  if (isSolarWindowNow() && _hasAnyLocalBackupSlot()) {
+    console.log("[DB] Tier 1 backup deferred during active solar window (existing backup slot present).");
     return;
   }
   // v2.8.14: defensive skip when a restore or another backup is in flight.
@@ -25720,10 +25734,18 @@ async function runPeriodicBackup() {
   } catch (_) { /* progress unavailable — proceed */ }
   try { fs.mkdirSync(BACKUP_DIR, { recursive: true }); } catch (_) {}
   const dest = path.join(BACKUP_DIR, `adsi_backup_${_backupSlot}.db`);
+  const tmpDest = `${dest}.tmp`;
   _backupSlot = (_backupSlot + 1) % 2;
   const startedAt = Date.now();
   try {
-    await db.backup(dest);
+    for (const stalePath of [tmpDest, `${tmpDest}-wal`, `${tmpDest}-shm`]) {
+      try { if (fs.existsSync(stalePath)) fs.unlinkSync(stalePath); } catch (_) {}
+    }
+    await db.backup(tmpDest, { progress: () => 32 });
+    for (const sidecar of [`${dest}-wal`, `${dest}-shm`]) {
+      try { if (fs.existsSync(sidecar)) fs.unlinkSync(sidecar); } catch (_) {}
+    }
+    fs.renameSync(tmpDest, dest);
     let sizeBytes = null;
     try { sizeBytes = fs.statSync(dest).size; } catch (_) {}
     console.log("[DB] Backup written:", dest);
@@ -25733,6 +25755,9 @@ async function runPeriodicBackup() {
       durationMs: Date.now() - startedAt,
     });
   } catch (err) {
+    for (const stalePath of [tmpDest, `${tmpDest}-wal`, `${tmpDest}-shm`]) {
+      try { if (fs.existsSync(stalePath)) fs.unlinkSync(stalePath); } catch (_) {}
+    }
     console.error("[DB] Backup failed:", err.message);
     _backupHealth.recordAttempt("tier1", false, {
       destination: dest,
@@ -25744,10 +25769,7 @@ async function runPeriodicBackup() {
 setInterval(runPeriodicBackup, 2 * 60 * 60 * 1000).unref();
 // Defer first periodic backup after startup if a backup already exists,
 // preventing a heavy 2.8GB disk copy during appliance boot-up.
-const _hasStartupBackup = [0, 1].some((slot) => {
-  try { return fs.existsSync(path.join(BACKUP_DIR, `adsi_backup_${slot}.db`)); }
-  catch (_) { return false; }
-});
+const _hasStartupBackup = _hasAnyLocalBackupSlot();
 setTimeout(runPeriodicBackup, _hasStartupBackup ? 15 * 60 * 1000 : 2 * 60 * 1000).unref();
 // Tier 1 fires every 2h. Surface the next-scheduled time in the health snapshot
 // so the admin panel can show "Next at HH:mm". In remote mode runPeriodicBackup
@@ -25762,6 +25784,204 @@ function _refreshTier1NextScheduled() {
 }
 setTimeout(_refreshTier1NextScheduled, 1000).unref();
 setInterval(_refreshTier1NextScheduled, 2 * 60 * 60 * 1000).unref();
+
+function _repairBackupStalledEnergyHistoryOnce() {
+  if (isRemoteMode() || !db || !db.open) return;
+  const REPAIR_SETTING_KEY = "energy5minBackupStallRepairV1";
+  try {
+    if (getSetting(REPAIR_SETTING_KEY, "") === "1") return;
+    const dayRows = db
+      .prepare("SELECT DISTINCT date FROM daily_report WHERE date >= '2026-10-01' ORDER BY date")
+      .all();
+    const daySet = new Set(dayRows.map((r) => String(r?.date || "").trim()).filter(Boolean));
+    daySet.add(localDateStr());
+
+    const tsStmt = db.prepare("SELECT DISTINCT ts FROM readings WHERE ts BETWEEN ? AND ? ORDER BY ts");
+    const readingsStmt = db.prepare(
+      "SELECT ts, inverter, unit, pac, kwh FROM readings WHERE ts BETWEEN ? AND ? ORDER BY inverter, unit, ts",
+    );
+    const drStmt = db.prepare(
+      "SELECT inverter, kwh_total, kwh_total_etotal, kwh_total_parce FROM daily_report WHERE date = ?",
+    );
+    const e5SumStmt = db.prepare(
+      "SELECT inverter, COALESCE(SUM(kwh_inc), 0) AS total_kwh FROM energy_5min WHERE ts BETWEEN ? AND ? GROUP BY inverter",
+    );
+    const updateE5Stmt = db.prepare(
+      "UPDATE energy_5min SET kwh_inc = ROUND(kwh_inc + ?, 6) WHERE ts = ? AND inverter = ?",
+    );
+    const insertE5Stmt = db.prepare(
+      "INSERT OR IGNORE INTO energy_5min (ts, inverter, kwh_inc) VALUES (?, ?, ROUND(?, 6))",
+    );
+    const applyDayTx = db.transaction((entries) => {
+      for (const { ts, inverter, addKwh } of entries) {
+        if (!(addKwh > 0)) continue;
+        const info = updateE5Stmt.run(addKwh, ts, inverter);
+        if (!info || info.changes === 0) {
+          insertE5Stmt.run(ts, inverter, addKwh);
+        }
+      }
+    });
+
+    let totalRepairedDays = 0;
+    let totalAddedMwh = 0;
+    for (const day of daySet) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+      const startTs = localDayStartTs(day);
+      const endTs = startTs + 86400000 - 1;
+      const tsRows = tsStmt.all(startTs, endTs);
+      const stalls = [];
+      for (let i = 1; i < tsRows.length; i++) {
+        const dt = (Number(tsRows[i].ts) - Number(tsRows[i - 1].ts)) / 1000.0;
+        if (dt > 30 && dt <= 360) {
+          stalls.push({
+            beforeTs: Number(tsRows[i - 1].ts),
+            afterTs: Number(tsRows[i].ts),
+            stallSec: dt,
+          });
+        }
+      }
+      if (!stalls.length) continue;
+
+      const readings = readingsStmt.all(startTs, endTs);
+      if (!readings.length) continue;
+      const byUnit = new Map();
+      for (const r of readings) {
+        const k = `${r.inverter}_${r.unit}`;
+        let arr = byUnit.get(k);
+        if (!arr) {
+          arr = [];
+          byUnit.set(k, arr);
+        }
+        arr.push(r);
+      }
+
+      const addByInvSlot = new Map();
+      const addByInv = new Map();
+      for (const st of stalls) {
+        const B = Math.floor(st.afterTs / 300000) * 300000;
+        const secInB =
+          st.beforeTs < B ? Math.max(0, (B - st.beforeTs) / 1000.0 - 30.0) : 0;
+        const secInNext =
+          st.beforeTs < B
+            ? Math.max(0, (st.afterTs - B) / 1000.0)
+            : Math.max(0, st.stallSec - 30.0);
+        const totalLostSec = secInB + secInNext;
+        if (totalLostSec <= 0) continue;
+        const fracB = secInB / totalLostSec;
+        const fracNext = secInNext / totalLostSec;
+
+        for (const [, arr] of byUnit.entries()) {
+          let beforeR = null;
+          let afterR = null;
+          for (let i = 0; i < arr.length; i++) {
+            if (arr[i].ts <= st.beforeTs) beforeR = arr[i];
+            else if (arr[i].ts >= st.afterTs) {
+              afterR = arr[i];
+              break;
+            }
+          }
+          if (!beforeR || !afterR || Number(afterR.kwh) < Number(beforeR.kwh)) continue;
+          const preSec = Math.max(0, (st.beforeTs - Number(beforeR.ts)) / 1000.0);
+          const postSec = Math.max(0, (Number(afterR.ts) - st.afterTs) / 1000.0);
+          if (Number(beforeR.pac) <= 0 && Number(afterR.pac) <= 0) continue;
+
+          let missingKwh = 0;
+          if (preSec <= 300 && postSec <= 60) {
+            const avgPac = (Math.max(0, Number(beforeR.pac)) + Math.max(0, Number(afterR.pac))) / 2.0;
+            const expectedStallKwh = (avgPac * st.stallSec) / 3600000.0;
+            const nonStallKwh =
+              (Math.max(0, Number(beforeR.pac)) * preSec +
+                Math.max(0, Number(afterR.pac)) * postSec) /
+              3600000.0;
+            const creditedStallKwh = Math.max(
+              0,
+              Number(afterR.kwh) - Number(beforeR.kwh) - nonStallKwh,
+            );
+            missingKwh = Math.max(0, expectedStallKwh - creditedStallKwh);
+          } else {
+            const pacEnd = postSec > 10 ? Number(beforeR.pac) : Number(afterR.pac);
+            const avgPac = (Math.max(0, Number(beforeR.pac)) + Math.max(0, pacEnd)) / 2.0;
+            missingKwh = (avgPac * totalLostSec) / 3600000.0;
+          }
+          if (!(missingKwh > 0)) continue;
+          const inv = Number(beforeR.inverter);
+          addByInv.set(inv, (addByInv.get(inv) || 0) + missingKwh);
+          if (fracB > 0) {
+            const kB = `${inv}|${B}`;
+            addByInvSlot.set(kB, (addByInvSlot.get(kB) || 0) + missingKwh * fracB);
+          }
+          if (fracNext > 0) {
+            const kN = `${inv}|${B + 300000}`;
+            addByInvSlot.set(kN, (addByInvSlot.get(kN) || 0) + missingKwh * fracNext);
+          }
+        }
+      }
+
+      if (!addByInvSlot.size) continue;
+
+      const drRows = drStmt.all(day);
+      const etByInv = new Map(
+        drRows.map((r) => [
+          Number(r.inverter),
+          Number(r.kwh_total_etotal || r.kwh_total_parce || 0),
+        ]),
+      );
+      const e5Sums = e5SumStmt.all(startTs, endTs);
+      const oldByInv = new Map(
+        e5Sums.map((r) => [Number(r.inverter), Number(r.total_kwh || 0)]),
+      );
+
+      const scaleByInv = new Map();
+      for (const [inv, addKwh] of addByInv.entries()) {
+        const oldKwh = oldByInv.get(inv) || 0;
+        const etKwh = etByInv.get(inv) || 0;
+        let scale = 1.0;
+        if (addKwh > 0 && etKwh > oldKwh + addKwh) {
+          scale = Math.min(1.0195, Math.max(1.0, (etKwh - oldKwh) / addKwh));
+        }
+        scaleByInv.set(inv, scale);
+      }
+
+      const txEntries = [];
+      let dayAddedKwh = 0;
+      for (const [k, rawAdd] of addByInvSlot.entries()) {
+        const [invStr, tsStr] = k.split("|");
+        const inv = Number(invStr);
+        const ts = Number(tsStr);
+        const scale = scaleByInv.get(inv) || 1.0;
+        const addKwh = rawAdd * scale;
+        if (addKwh > 0) {
+          txEntries.push({ ts, inverter: inv, addKwh });
+          dayAddedKwh += addKwh;
+        }
+      }
+
+      if (txEntries.length > 0) {
+        applyDayTx(txEntries);
+        buildDailyReportRowsForDate(day, {
+          persist: true,
+          refresh: true,
+          includeTodayPartial: day === localDateStr(),
+        });
+        totalRepairedDays += 1;
+        totalAddedMwh += dayAddedKwh / 1000.0;
+        console.log(
+          `[DB:repair] Reconciled ${txEntries.length} backup-stalled energy_5min slot(s) for ${day} (+${(dayAddedKwh / 1000.0).toFixed(4)} MWh)`,
+        );
+      }
+    }
+
+    setSetting(REPAIR_SETTING_KEY, "1");
+    if (totalRepairedDays > 0) {
+      console.log(
+        `[DB:repair] Completed backup-stall energy_5min reconciliation across ${totalRepairedDays} day(s) (+${totalAddedMwh.toFixed(4)} MWh total).`,
+      );
+    }
+  } catch (err) {
+    console.warn("[DB:repair] Backup-stall energy reconciliation failed:", err?.message || err);
+  }
+}
+setTimeout(_repairBackupStalledEnergyHistoryOnce, 2000).unref();
 
 // v2.10.0 Slice B — periodic retention pruner for the Stop Reason tables.
 // Defaults: 365 d for inverter_stop_reasons, 90 d for inverter_stop_histogram.

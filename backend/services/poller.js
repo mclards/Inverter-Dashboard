@@ -1710,6 +1710,9 @@ async function poll() {
       prev.baseline_source    = parsed.baseline_source;
       prev.etotal_kwh         = parsed.etotal_kwh;
       prev.parce_kwh          = parsed.parce_kwh;
+      if (isSolarWindowAt(parsed.ts)) {
+        update5minBucket(parsed, energyBatch);
+      }
       noChangeThisTick += 1;
       continue;
     }

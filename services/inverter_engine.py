@@ -1945,6 +1945,7 @@ async def poll_inverter(ip):
                     data["inverter"] = inv_num if inv_num is not None else -1
                     data["unit"]     = u
                     data["node_number"] = u
+                    _update_metrics_from_frame(data)
                     out.append(data)
 
                     # Trigger auto-reset check (non-blocking)
@@ -2899,7 +2900,8 @@ def _pad2(n): return str(int(n)).zfill(2)
 def _update_metrics_from_frame(frame: dict):
     """Replicates Node-RED parser + engine: update in-memory metrics state from one raw frame."""
     ms  = metrics_state
-    now = int(time.time() * 1000)
+    frame_ts = int(frame.get("ts") or 0)
+    now = frame_ts if frame_ts > 0 else int(time.time() * 1000)
 
     inverter = int(frame.get("inverter") or 0)
     module   = int(frame.get("unit")     or 0)
@@ -2985,18 +2987,23 @@ def _update_metrics_from_frame(frame: dict):
         ms["pacEnergy"][nk] = {
             "lastTime": now, "lastPacRaw": pac_raw,
             "lastPacChangeTime": now, "totalWh": 0.0, "date": formatted_date,
+            "lastFrameTs": frame_ts,
         }
     else:
         new_day = pe["date"] != formatted_date
         if new_day:
             pe.update({"date": formatted_date, "totalWh": 0.0,
                         "lastTime": now, "lastPacRaw": pac_raw,
-                        "lastPacChangeTime": now})
+                        "lastPacChangeTime": now, "lastFrameTs": frame_ts})
+        elif frame_ts > 0 and pe.get("lastFrameTs") == frame_ts:
+            # Frame already integrated on the poll cycle; keep state idempotent
+            # when /data or /metrics inspects the cached frame.
+            pass
         else:
             # Fix #2: cap dt at 30s to match Node's MAX_PAC_DT_S.
             # Without this cap, /metrics energy grows unbounded during any dropout
             # and always diverges from the Node energy_5min DB totals.
-            dt_sec = min((now - pe["lastTime"]) / 1000.0, 30.0)
+            dt_sec = min(max(0.0, (now - pe["lastTime"]) / 1000.0), 30.0)
             if pac_raw != pe["lastPacRaw"]:
                 pe["lastPacChangeTime"] = now
             if dt_sec > 0 and pac_raw >= 0:
@@ -3004,6 +3011,7 @@ def _update_metrics_from_frame(frame: dict):
                 pe["totalWh"] += (avg * dt_sec) / 3600.0
             pe["lastPacRaw"] = pac_raw
             pe["lastTime"]   = now
+            pe["lastFrameTs"] = frame_ts
 
     alarm_val = int(frame.get("alarm") or 0)
     alarm_hex = format(alarm_val, '05X') + "H"

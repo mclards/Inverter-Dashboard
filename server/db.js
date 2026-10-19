@@ -3758,7 +3758,9 @@ function computeInverterDailyHwTotals(inverter, dateKey, ts = Date.now()) {
   try {
     const inv = Number(inverter || 0);
     if (!inv) return out;
-    const day = String(dateKey || localDateStr(ts));
+    const todayKey = localDateStr(ts);
+    const day = String(dateKey || todayKey);
+    const isPastDay = day < todayKey;
     // Pull baselines for this inverter on the requested day.
     const baselines = stmts.selectBaselinesForDate
       .all(day)
@@ -3766,14 +3768,26 @@ function computeInverterDailyHwTotals(inverter, dateKey, ts = Date.now()) {
     if (!baselines.length) return out;
     // All baselines must be eod_clean to trust the inverter's HW total.
     if (baselines.some((b) => String(b.source || "") !== "eod_clean")) return out;
-    // Pull current counter state per unit; bail on any missing.
     let etotalSum = 0;
     let parceSum = 0;
     for (const b of baselines) {
-      const cur = stmts.selectCounterStateOne.get(inv, Number(b.unit || 0));
-      if (!cur) return { kwh_total_etotal: null, kwh_total_parce: null };
-      const dE = Number(cur.etotal_kwh || 0) - Number(b.etotal_baseline || 0);
-      const dP = Number(cur.parce_kwh  || 0) - Number(b.parce_baseline  || 0);
+      const hasEodClean =
+        Number(b.etotal_eod_clean || 0) > 0 && Number(b.parce_eod_clean || 0) > 0;
+      let endEtotal = 0;
+      let endParce = 0;
+      if (hasEodClean) {
+        endEtotal = Number(b.etotal_eod_clean || 0);
+        endParce = Number(b.parce_eod_clean || 0);
+      } else if (!isPastDay) {
+        const cur = stmts.selectCounterStateOne.get(inv, Number(b.unit || 0));
+        if (!cur) return { kwh_total_etotal: null, kwh_total_parce: null };
+        endEtotal = Number(cur.etotal_kwh || 0);
+        endParce = Number(cur.parce_kwh || 0);
+      } else {
+        return { kwh_total_etotal: null, kwh_total_parce: null };
+      }
+      const dE = endEtotal - Number(b.etotal_baseline || 0);
+      const dP = endParce  - Number(b.parce_baseline  || 0);
       if (!Number.isFinite(dE) || dE < 0) return { kwh_total_etotal: null, kwh_total_parce: null };
       if (!Number.isFinite(dP) || dP < 0) return { kwh_total_etotal: null, kwh_total_parce: null };
       etotalSum += dE;

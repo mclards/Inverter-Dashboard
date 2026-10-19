@@ -26591,6 +26591,7 @@ function _repairBackupStalledEnergyHistoryOnce() {
   const REPAIR_V2_KEY = "energy5minBackupStallRepairV2";
   const REPAIR_V3_KEY = "energy5minBackupStallRepairV3";
   const REPAIR_V4_KEY = "energy5minDoubleIntRepairV4";
+  const REPAIR_V5_KEY = "energy5minDoubleIntRepairV5";
   const syncQaActualsWithDailyReport = () => {
     try {
       db.prepare(
@@ -26645,83 +26646,92 @@ function _repairBackupStalledEnergyHistoryOnce() {
         .prepare("SELECT COALESCE(SUM(kwh_inc), 0) AS total_kwh FROM energy_5min WHERE ts BETWEEN ? AND ?")
         .get(startTs, endTs);
       const curTotalKwh = Number(curTotalRow?.total_kwh || 0);
-      if (curTotalKwh <= 114000) return false;
-
-      const preRows = db
-        .prepare("SELECT inverter, COALESCE(SUM(kwh_inc), 0) AS kwh FROM energy_5min WHERE ts >= ? AND ts <= ? GROUP BY inverter")
-        .all(startTs, slot1350);
-      const preSum = preRows.reduce((acc, r) => acc + Number(r.kwh || 0), 0);
-
-      const allRd = db
-        .prepare("SELECT ts, inverter, unit, pac FROM readings WHERE ts BETWEEN ? AND ? ORDER BY inverter, unit, ts ASC")
-        .all(slot1350, endTs);
-      if (!allRd.length) return false;
-
-      const postSlotMap = new Map();
-      let postRawSum = 0;
-      let prev = null;
-      for (const r of allRd) {
-        if (
-          prev &&
-          prev.inverter === r.inverter &&
-          prev.unit === r.unit &&
-          Number(r.ts) > Number(prev.ts) &&
-          Number(r.ts) > shutdownTs
-        ) {
-          const t0 = Math.max(Number(prev.ts), shutdownTs);
-          const t1 = Number(r.ts);
-          const dtS = (t1 - t0) / 1000.0;
-          if (dtS > 0 && dtS <= 600) {
-            const avgKw = ((Math.max(0, Number(prev.pac || 0)) + Math.max(0, Number(r.pac || 0))) / 2.0) / 1000.0;
-            const dKwh = avgKw * (dtS / 3600.0);
-            if (dKwh > 0) {
-              const slotTs = Math.floor(t1 / 300000) * 300000;
-              const k = `${r.inverter}|${slotTs}`;
-              postSlotMap.set(k, (postSlotMap.get(k) || 0) + dKwh);
-              postRawSum += dKwh;
-            }
-          }
-        }
-        prev = r;
-      }
-      if (!(postRawSum > 0)) return false;
+      const curDrRow = db
+        .prepare("SELECT COALESCE(SUM(kwh_total), 0) AS total_kwh FROM daily_report WHERE date = ?")
+        .get(targetDay);
+      const curDrKwh = Number(curDrRow?.total_kwh || 0);
+      if (curTotalKwh <= 114000 && curDrKwh <= 114000) return false;
 
       const targetDayKwh = 112127.3;
-      const desiredPostKwh = Math.max(0, targetDayKwh - preSum);
-      const scalePost = Math.min(1.05, Math.max(0.95, desiredPostKwh / postRawSum));
+      if (curTotalKwh > 114000) {
+        const preRows = db
+          .prepare("SELECT inverter, COALESCE(SUM(kwh_inc), 0) AS kwh FROM energy_5min WHERE ts >= ? AND ts <= ? GROUP BY inverter")
+          .all(startTs, slot1350);
+        const preSum = preRows.reduce((acc, r) => acc + Number(r.kwh || 0), 0);
 
-      const delPostStmt = db.prepare("DELETE FROM energy_5min WHERE ts > ? AND ts <= ?");
-      const insPostStmt = db.prepare(
-        "INSERT OR REPLACE INTO energy_5min (ts, inverter, kwh_inc) VALUES (?, ?, ROUND(?, 6))",
-      );
-      const sumDayStmt = db.prepare(
-        "SELECT COALESCE(SUM(kwh_inc), 0) AS total_kwh FROM energy_5min WHERE ts BETWEEN ? AND ?",
-      );
-      const adjPostStmt = db.prepare(
-        "UPDATE energy_5min SET kwh_inc = ROUND(kwh_inc + ?, 6) WHERE ts = ? AND inverter = ?",
-      );
+        const allRd = db
+          .prepare("SELECT ts, inverter, unit, pac FROM readings WHERE ts BETWEEN ? AND ? ORDER BY inverter, unit, ts ASC")
+          .all(slot1350, endTs);
+        if (!allRd.length) return false;
 
-      db.transaction(() => {
-        delPostStmt.run(slot1350, endTs);
-        for (const [k, rawKwh] of postSlotMap.entries()) {
-          const [invStr, tsStr] = k.split("|");
-          insPostStmt.run(Number(tsStr), Number(invStr), rawKwh * scalePost);
-        }
-        const newSum = Number(sumDayStmt.get(startTs, endTs)?.total_kwh || 0);
-        const residual = targetDayKwh - newSum;
-        if (Math.abs(residual) > 0 && Math.abs(residual) < 1.0) {
-          const adjSlot = slot1350 + 300000;
-          const info = adjPostStmt.run(residual, adjSlot, 1);
-          if (!info || info.changes === 0) {
-            insPostStmt.run(adjSlot, 1, Math.max(0, residual));
+        const postSlotMap = new Map();
+        let postRawSum = 0;
+        let prev = null;
+        for (const r of allRd) {
+          if (
+            prev &&
+            prev.inverter === r.inverter &&
+            prev.unit === r.unit &&
+            Number(r.ts) > Number(prev.ts) &&
+            Number(r.ts) > shutdownTs
+          ) {
+            const t0 = Math.max(Number(prev.ts), shutdownTs);
+            const t1 = Number(r.ts);
+            const dtS = (t1 - t0) / 1000.0;
+            if (dtS > 0 && dtS <= 600) {
+              const avgKw = ((Math.max(0, Number(prev.pac || 0)) + Math.max(0, Number(r.pac || 0))) / 2.0) / 1000.0;
+              const dKwh = avgKw * (dtS / 3600.0);
+              if (dKwh > 0) {
+                const slotTs = Math.floor(t1 / 300000) * 300000;
+                const k = `${r.inverter}|${slotTs}`;
+                postSlotMap.set(k, (postSlotMap.get(k) || 0) + dKwh);
+                postRawSum += dKwh;
+              }
+            }
           }
+          prev = r;
         }
-      })();
+        if (!(postRawSum > 0)) return false;
 
+        const desiredPostKwh = Math.max(0, targetDayKwh - preSum);
+        const scalePost = Math.min(1.05, Math.max(0.95, desiredPostKwh / postRawSum));
+
+        const delPostStmt = db.prepare("DELETE FROM energy_5min WHERE ts > ? AND ts <= ?");
+        const insPostStmt = db.prepare(
+          "INSERT OR REPLACE INTO energy_5min (ts, inverter, kwh_inc) VALUES (?, ?, ROUND(?, 6))",
+        );
+        const sumDayStmt = db.prepare(
+          "SELECT COALESCE(SUM(kwh_inc), 0) AS total_kwh FROM energy_5min WHERE ts BETWEEN ? AND ?",
+        );
+        const adjPostStmt = db.prepare(
+          "UPDATE energy_5min SET kwh_inc = ROUND(kwh_inc + ?, 6) WHERE ts = ? AND inverter = ?",
+        );
+
+        db.transaction(() => {
+          delPostStmt.run(slot1350, endTs);
+          for (const [k, rawKwh] of postSlotMap.entries()) {
+            const [invStr, tsStr] = k.split("|");
+            insPostStmt.run(Number(tsStr), Number(invStr), rawKwh * scalePost);
+          }
+          const newSum = Number(sumDayStmt.get(startTs, endTs)?.total_kwh || 0);
+          const residual = targetDayKwh - newSum;
+          if (Math.abs(residual) > 0 && Math.abs(residual) < 1.0) {
+            const adjSlot = slot1350 + 300000;
+            const info = adjPostStmt.run(residual, adjSlot, 1);
+            if (!info || info.changes === 0) {
+              insPostStmt.run(adjSlot, 1, Math.max(0, residual));
+            }
+          }
+        })();
+      }
+
+      try {
+        poller.invalidateTodayEnergyBaseline?.();
+      } catch (_) {}
       buildDailyReportRowsForDate(targetDay, {
         persist: true,
-        refresh: true,
-        includeTodayPartial: true,
+        refresh: false,
+        includeTodayPartial: false,
       });
       const updateHwStmt = db.prepare(
         "UPDATE daily_report SET kwh_total_etotal = ?, kwh_total_parce = ? WHERE date = ? AND inverter = ?",
@@ -26738,15 +26748,12 @@ function _repairBackupStalledEnergyHistoryOnce() {
       try {
         pastDailyReportCache.clear();
       } catch (_) {}
-      try {
-        poller.invalidateTodayEnergyBaseline?.();
-      } catch (_) {}
       console.log(
-        `[DB:repair] Completed V4 reconciliation for ${targetDay}: ${ (curTotalKwh / 1000).toFixed(4) } MWh -> ${ (targetDayKwh / 1000).toFixed(4) } MWh.`,
+        `[DB:repair] Completed V5 reconciliation for ${targetDay}: e5=${(curTotalKwh / 1000).toFixed(4)} MWh, dr=${(curDrKwh / 1000).toFixed(4)} MWh -> ${(targetDayKwh / 1000).toFixed(4)} MWh.`,
       );
       return true;
     } catch (e) {
-      console.warn("[DB:repair] V4 reconciliation warning:", e?.message || e);
+      console.warn("[DB:repair] V5 reconciliation warning:", e?.message || e);
       return false;
     }
   };
@@ -26807,9 +26814,10 @@ function _repairBackupStalledEnergyHistoryOnce() {
         setSetting(REPAIR_V3_KEY, "1");
         console.log("[DB:repair] Completed V3 forecast_error_compare_daily actuals alignment with Inverter MWh_T.");
       }
-      if (getSetting(REPAIR_V4_KEY, "") !== "1") {
+      if (getSetting(REPAIR_V4_KEY, "") !== "1" || getSetting(REPAIR_V5_KEY, "") !== "1") {
         reconcileOct19AfternoonDoubleInt();
         setSetting(REPAIR_V4_KEY, "1");
+        setSetting(REPAIR_V5_KEY, "1");
       }
       return;
     }
@@ -26984,6 +26992,7 @@ function _repairBackupStalledEnergyHistoryOnce() {
     setSetting(REPAIR_V2_KEY, "1");
     setSetting(REPAIR_V3_KEY, "1");
     setSetting(REPAIR_V4_KEY, "1");
+    setSetting(REPAIR_V5_KEY, "1");
     if (totalRepairedDays > 0) {
       try {
         poller.invalidateTodayEnergyBaseline?.();

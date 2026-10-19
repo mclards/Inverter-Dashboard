@@ -3219,7 +3219,7 @@ function renderTablePager({
 
 const duration_min = (ts1, ts2) => {
   if (!ts1 || !ts2) return "—";
-  return Math.round((ts2 - ts1) / 60000) + "m";
+  return Math.round(Math.max(0, ts2 - ts1) / 60000) + "m";
 };
 
 function severityRank(sev) {
@@ -18657,7 +18657,8 @@ function applyAlarmTableView() {
     ? allRows.filter((r) => {
         const t1 = Number(r.occurred_ts || r.ts || 0);
         const t2 = r.cleared_ts ? Number(r.cleared_ts) : Date.now();
-        return t1 > 0 && (t2 - t1) / 1000 >= minDurSec;
+        const durSec = Number(r.duration_sec ?? Math.max(0, t2 - t1) / 1000);
+        return t1 > 0 && durSec >= minDurSec;
       })
     : allRows;
   const pageData = paginateRows(filtered, State.alarmView.page, State.alarmView.pageSize);

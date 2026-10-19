@@ -1013,6 +1013,37 @@ function getActiveAlarms() {
   );
 }
 
+function closeOrphanedUnconfiguredAlarms() {
+  try {
+    const configured = getConfiguredNodeSet();
+    const openAlarms = stmts.getActiveAlarms ? stmts.getActiveAlarms.all() : [];
+    for (const alarm of openAlarms) {
+      const key = `${Number(alarm.inverter) || 0}_${Number(alarm.unit) || 0}`;
+      if (!configured.has(key)) {
+        let closeTs = Number(alarm.ts) || Date.now();
+        try {
+          const lastReading = db.prepare(
+            "SELECT MAX(ts) AS last_ts FROM readings WHERE inverter = ? AND unit = ?"
+          ).get(alarm.inverter, alarm.unit);
+          if (lastReading && Number(lastReading.last_ts) >= closeTs) {
+            closeTs = Number(lastReading.last_ts);
+          }
+        } catch (_) {}
+        stmts.clearAlarm.run(closeTs, alarm.inverter, alarm.unit);
+        console.log(
+          `[alarms] Closed orphaned alarm id=${alarm.id} for unconfigured node ${alarm.inverter}_${alarm.unit} at ts=${closeTs}`
+        );
+      }
+    }
+  } catch (err) {
+    console.warn("[alarms] closeOrphanedUnconfiguredAlarms failed:", err?.message || err);
+  }
+}
+
+try {
+  closeOrphanedUnconfiguredAlarms();
+} catch (_) {}
+
 // v2.10.0 Slice F — pluggable auto-capture hook. Wired up by index.js at
 // startup so this module stays free of fetch/http/python dependencies.
 // Signature: ({ alarmId, inverter, unit, alarmValue, eventAtMs }) => void
@@ -1100,13 +1131,17 @@ function raiseActiveAlarm(row, cur, now, newAlarms) {
 // causing transient false-clears in the notification panel and any
 // auto-reset / critical-pattern logic that consumes getActiveAlarms.
 const _closeAndReopenAlarmTx = db.transaction((row, newCur, evTsNum) => {
-  stmts.clearAlarm.run(evTsNum, row.inverter, row.unit);
+  const existing = stmts.getActiveAlarmForUnit
+    ? stmts.getActiveAlarmForUnit.get(row.inverter, row.unit)
+    : null;
+  const safeTs = Math.max(Number(existing?.ts) || 0, Number(evTsNum) || 0);
+  stmts.clearAlarm.run(safeTs, row.inverter, row.unit);
   if (newCur === 0) return;
   // Use a sink array so raiseActiveAlarm's INSERT still runs (and the
   // stop-reason auto-capture hook fires on the new alarm id), but the
   // operator doesn't get re-toasted for an in-episode change.
   const silentSink = [];
-  raiseActiveAlarm(row, newCur, evTsNum, silentSink);
+  raiseActiveAlarm(row, newCur, safeTs, silentSink);
 });
 
 function updateActiveAlarmValue(row, cur, evTs) {
@@ -1120,9 +1155,17 @@ function checkAlarms(batch) {
   const now = Date.now();
   const configured = getConfiguredNodeSet();
 
-  // Remove in-memory alarm states for nodes no longer configured.
+  // Remove in-memory alarm states for nodes no longer configured, and close any lingering open alarms in DB.
   for (const key of Object.keys(activeAlarmState)) {
-    if (!configured.has(key)) delete activeAlarmState[key];
+    if (!configured.has(key)) {
+      const parts = key.split("_");
+      const inv = Number(parts[0]);
+      const unt = Number(parts[1]);
+      if (inv && unt) {
+        stmts.clearAlarm.run(now, inv, unt);
+      }
+      delete activeAlarmState[key];
+    }
   }
 
   for (const row of batch) {
@@ -1162,7 +1205,8 @@ function checkAlarms(batch) {
       }
       if (existing && cur === 0) {
         // We're down, the unit cleared; close the existing row.
-        stmts.clearAlarm.run(evTs, row.inverter, row.unit);
+        const safeClearTs = Math.max(Number(existing.ts) || 0, Number(evTs) || 0);
+        stmts.clearAlarm.run(safeClearTs, row.inverter, row.unit);
         activeAlarmState[key] = 0;
         continue;
       }
@@ -1177,7 +1221,11 @@ function checkAlarms(batch) {
     if (transition === "noop") continue;
 
     if (transition === "clear") {
-      stmts.clearAlarm.run(evTs, row.inverter, row.unit);
+      const existing = stmts.getActiveAlarmForUnit
+        ? stmts.getActiveAlarmForUnit.get(row.inverter, row.unit)
+        : null;
+      const safeClearTs = Math.max(Number(existing?.ts) || 0, Number(evTs) || 0);
+      stmts.clearAlarm.run(safeClearTs, row.inverter, row.unit);
       activeAlarmState[key] = 0;
       continue;
     }
@@ -1329,5 +1377,6 @@ module.exports = {
   FATAL_ALARM_VALUE,
   classifyAlarmTransition,
   setStopReasonAutoCapture,
+  closeOrphanedUnconfiguredAlarms,
 };
 

@@ -2320,6 +2320,20 @@ try {
   console.warn("[db] Alarm duplicate consolidation warning:", e.message);
 }
 
+// One-time repair for any legacy negative-duration alarms where cleared_ts < ts
+try {
+  const repairNegativeDur = db.prepare(
+    `UPDATE alarms SET cleared_ts = ts, updated_ts = ${NOW_MS_SQL} WHERE cleared_ts IS NOT NULL AND cleared_ts < ts`
+  ).run();
+  if (repairNegativeDur?.changes > 0) {
+    console.log(
+      `[db] Repaired ${repairNegativeDur.changes} legacy alarm row(s) with negative duration (clamped cleared_ts = ts)`
+    );
+  }
+} catch (e) {
+  console.warn("[db] Negative duration repair warning:", e.message);
+}
+
 db.exec(`
   CREATE TRIGGER IF NOT EXISTS trg_alarms_touch_updated_ts
   AFTER UPDATE ON alarms
@@ -2426,7 +2440,7 @@ const stmts = {
      WHERE inverter=? AND unit=? AND cleared_ts IS NULL`,
   ),
   clearAlarm: db.prepare(
-    `UPDATE alarms SET cleared_ts=? WHERE inverter=? AND unit=? AND cleared_ts IS NULL`,
+    `UPDATE alarms SET cleared_ts = MAX(ts, ?) WHERE inverter=? AND unit=? AND cleared_ts IS NULL`,
   ),
   getMaxAlarmUpdatedTs: db.prepare(
     `SELECT COALESCE(MAX(updated_ts), 0) AS updated_ts FROM alarms`,

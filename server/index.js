@@ -16248,7 +16248,7 @@ app.get("/api/contactor/node/:inverter/:slave", (req, res) => {
           ts: e.ts,
           cleared_ts: e.cleared_ts,
           alarm_value: e.alarm_value,
-          duration_ms: (e.cleared_ts && e.cleared_ts > e.ts) ? (e.cleared_ts - e.ts) : null,
+          duration_ms: (e.cleared_ts != null && e.cleared_ts >= e.ts) ? Math.max(0, e.cleared_ts - e.ts) : null,
         })),
         chatter_score:     scoreResult.breakdown.chatter_score,
         chatter_count:     sig.chatter_count,
